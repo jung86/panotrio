@@ -40,6 +40,22 @@
            font-weight:800; font-size:16px; color:#fff; background:#1971c2; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
   #toast.show { transform:translate(-50%,0); }
   #toast.bad { background:#c92a2a; }
+  .hdr-r { display:flex; align-items:center; gap:10px; }
+  .gear { font-size:22px; padding:4px 10px; line-height:1; }
+  #settings { position:fixed; inset:0; z-index:60; background:var(--bg); overflow-y:auto; transform:translateX(100%); transition:transform .25s; }
+  #settings.open { transform:translateX(0); }
+  #settings .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
+  .set-row { padding:12px 0; border-bottom:1px solid var(--line); }
+  .set-row:last-child { border-bottom:0; }
+  .set-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .set-name { font-weight:700; }
+  .set-val { font-variant-numeric:tabular-nums; color:#ffd8a8; font-weight:700; white-space:nowrap; }
+  .set-help { font-size:13px; color:var(--mute); margin-top:2px; }
+  .set-ends { display:flex; justify-content:space-between; font-size:12px; color:var(--mute); }
+  input[type=range] { width:100%; margin:10px 0 2px; accent-color:var(--acc); height:28px; }
+  .sw { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .sw input { width:46px; height:26px; accent-color:var(--acc); }
+  .off { opacity:.45; pointer-events:none; }
   .status { margin-top:12px; border-radius:10px; padding:9px; text-align:center; font-weight:700; color:#000; background:var(--grey); }
   .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .val { background:#151a21; border-radius:10px; padding:10px 12px; }
@@ -81,10 +97,67 @@
 <body>
 <div id="splash"><img src="splash.jpg" alt=""><div class="name">파노체크</div></div>
 <div id="toast"></div>
+<div id="settings"><div class="inner">
+  <header>
+    <h1>설정</h1>
+    <button id="btnClose" class="gear" aria-label="닫기">✕</button>
+  </header>
+
+  <div class="card" id="stickSet">
+    <div class="ttl">스틱 설정</div>
+    <div id="stickNote" class="set-help" style="margin-bottom:6px">스틱을 연결하면 바꿀 수 있습니다.</div>
+    <div id="stickRows">
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">화면 밝기</span><span class="set-val" id="vBr">-</span></div>
+        <input type="range" id="sBr" min="10" max="255" step="5">
+        <div class="set-ends"><span>어둡게</span><span>밝게</span></div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">진동 감도</span><span class="set-val" id="vVm">-</span></div>
+        <input type="range" id="sVm" min="0" max="10" step="1">
+        <div class="set-ends"><span>민감</span><span>둔감</span></div>
+        <div class="set-help">민감할수록 약한 진동도 모터로 봅니다. 너무 민감하면 책상 떨림에도 측정이 시작될 수 있습니다.</div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">소리 감도</span><span class="set-val" id="vMic">-</span></div>
+        <div class="seg" id="segMic"><button data-v="25">높음</button><button data-v="40">보통</button><button data-v="70">낮음</button></div>
+        <div class="set-help">소리 값(M)이 잘 안 잡히면 높음, 엉뚱한 값이 잡히면 낮음.</div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">측정 대기 시간</span><span class="set-val" id="vWt">-</span></div>
+        <input type="range" id="sWt" min="10" max="50" step="5">
+        <div class="set-ends"><span>1.0초</span><span>5.0초</span></div>
+        <div class="set-help">진동을 인식한 뒤 측정하기까지 기다리는 시간.</div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">빨간 숫자 기준</span><span class="set-val" id="vHot">-</span></div>
+        <input type="range" id="sHot" min="300" max="900" step="10">
+        <label class="sw" style="margin-top:6px"><span class="set-help" style="margin:0">빨간 숫자 효과 끄기</span><input type="checkbox" id="cHotOff"></label>
+        <div class="set-help">이 값보다 빠르면 스틱과 앱의 숫자가 빨갛게 흔들립니다.</div>
+      </div>
+      <div class="set-row">
+        <button id="btnDefaults" style="width:100%">스틱 설정 기본값으로</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ttl">앱 설정</div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span></span><input type="checkbox" id="aVib"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span></span><input type="checkbox" id="aSnd"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span></span><input type="checkbox" id="aHot"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
+  </div>
+
+  <div class="card">
+    <div class="ttl">정보</div>
+    <div class="set-help" id="infoTxt">스틱 연결 안 됨</div>
+  </div>
+</div></div>
 <main>
   <header>
     <h1>파노체크</h1>
-    <span id="conn" class="conn">연결 안 됨</span>
+    <div class="hdr-r"><span id="conn" class="conn">연결 안 됨</span><button id="btnMenu" class="gear" aria-label="설정">⚙</button></div>
   </header>
 
   <div id="connectBox" class="card">
@@ -184,8 +257,8 @@ function beep(freqs) {
 function notify(text, good) {
   const el = $('toast'); el.textContent = text; el.className = good ? 'show' : 'show bad';
   clearTimeout(toastT); toastT = setTimeout(() => { el.className = good ? '' : 'bad'; }, 2500);
-  try { navigator.vibrate && navigator.vibrate(good ? 150 : [120, 90, 120]); } catch (e) {}
-  beep(good ? [880, 1320] : [660, 440]);
+  if (appSet.vib) try { navigator.vibrate && navigator.vibrate(good ? 150 : [120, 90, 120]); } catch (e) {}
+  if (appSet.snd) beep(good ? [880, 1320] : [660, 440]);
 }
 
 // ---------------------------------------------------------------- bluetooth
@@ -216,7 +289,7 @@ async function openGatt() {
   onText(await tx.readValue());
   onStat(await st.readValue());
   try {
-    const inf = await svc.getCharacteristic(INFO);
+    const inf = await svc.getCharacteristic(INFO); infoChar = inf;
     inf.addEventListener('characteristicvaluechanged', e => onInfo(e.target.value));
     await inf.startNotifications();
     onInfo(await inf.readValue());
@@ -229,7 +302,7 @@ async function openGatt() {
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn';
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; $('btnSave').disabled = true;
+  cmdChar = null; infoChar = null; stickSet = null; $('btnSave').disabled = true; renderSettings();
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
     try { await openGatt(); return; } catch (e) {}
@@ -242,10 +315,76 @@ async function send(kind, val) {
   try { await cmdChar.writeValue(new Uint8Array([kind.charCodeAt(0), val])); } catch (e) {}
 }
 
+// ---------------------------------------------------------------- settings
+const VM_STEPS = [10, 15, 20, 30, 40, 60, 80, 120, 160, 200, 300];   // vibration threshold (mg)
+const APPSET_KEY = 'panotrio-appset';
+let appSet = { vib: true, snd: true, hot: true, wake: false };
+try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
+function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
+let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false;
+function vmIndex(mg) { let best = 0; VM_STEPS.forEach((v, i) => { if (Math.abs(v - mg) < Math.abs(VM_STEPS[best] - mg)) best = i; }); return best; }
+function vmLabel(mg) { return mg + ' mg' + (mg <= 20 ? ' (민감)' : mg >= 120 ? ' (둔감)' : mg === 40 ? ' (기본)' : ''); }
+function renderSettings() {
+  const has = !!(stickSet && cmdChar);
+  $('stickRows').classList.toggle('off', !has);
+  $('stickNote').textContent = !cmdChar ? '스틱을 연결하면 바꿀 수 있습니다.' : !stickSet ? '스틱 펌웨어를 0.9 이상으로 업데이트하면 바꿀 수 있습니다.' : '바꾸면 바로 스틱에 저장됩니다.';
+  $('stickNote').style.display = has ? 'none' : '';
+  if (stickSet && !dragging) {
+    $('sBr').value = stickSet.br; $('vBr').textContent = Math.round(stickSet.br / 255 * 100) + '%';
+    $('sVm').value = vmIndex(stickSet.vm); $('vVm').textContent = vmLabel(stickSet.vm);
+    $('sWt').value = stickSet.wt; $('vWt').textContent = (stickSet.wt / 10).toFixed(1) + '초';
+    $('cHotOff').checked = stickSet.hot === 0; $('sHot').disabled = stickSet.hot === 0;
+    if (stickSet.hot) $('sHot').value = stickSet.hot;
+    $('vHot').textContent = stickSet.hot ? stickSet.hot + ' Hz' : '꺼짐';
+    for (const b of $('segMic').children) b.classList.toggle('sel', Math.abs(+b.dataset.v - stickSet.mic) <= 7);
+    $('vMic').textContent = stickSet.mic <= 30 ? '높음' : stickSet.mic >= 60 ? '낮음' : '보통';
+  }
+  $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake;
+}
+async function sendSetting(id, val) {
+  if (!cmdChar) return;
+  try { await cmdChar.writeValue(new Uint8Array([80, id, val & 255, (val >> 8) & 255])); } catch (e) {}   // 'P'
+  setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 350);
+}
+function bindRange(id, show, send) {
+  const el = $(id);
+  el.addEventListener('input', () => { dragging = true; show(+el.value); });
+  el.addEventListener('change', () => { dragging = false; send(+el.value); });
+}
+bindRange('sBr', v => $('vBr').textContent = Math.round(v / 255 * 100) + '%', v => sendSetting(1, v));
+bindRange('sVm', i => $('vVm').textContent = vmLabel(VM_STEPS[i]), i => sendSetting(2, VM_STEPS[i]));
+bindRange('sWt', v => $('vWt').textContent = (v / 10).toFixed(1) + '초', v => sendSetting(3, v));
+bindRange('sHot', v => $('vHot').textContent = v + ' Hz', v => sendSetting(4, v));
+$('cHotOff').onchange = () => sendSetting(4, $('cHotOff').checked ? 0 : (+$('sHot').value || 550));
+$('segMic').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(5, +b.dataset.v); };
+$('btnDefaults').onclick = () => { if (confirm('스틱 설정을 기본값으로 되돌릴까요?')) sendSetting(9, 0); };
+for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
+  $(id).onchange = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
+let wakeLock = null;
+async function applyWake() {
+  try {
+    if (appSet.wake && 'wakeLock' in navigator) { if (!wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => wakeLock = null); } }
+    else if (wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') applyWake(); });
+$('btnMenu').onclick = () => { unlockAudio(); renderSettings(); $('settings').classList.add('open'); };
+$('btnClose').onclick = () => $('settings').classList.remove('open');
+applyWake();
+
 // ---------------------------------------------------------------- activation
 let devId = '';
 function onInfo(dv) {
-  const kv = {}; new TextDecoder().decode(dv).split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
+  const txt = new TextDecoder().decode(dv);
+  if (txt.indexOf('RES=') >= 0 && txt.indexOf('MIC=') < 0 && txt.indexOf('BR=') >= 0) {      // cut-off notification: read it whole
+    setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 50); return;
+  }
+  if (txt.indexOf('RES=') < 0) { setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 50); return; }
+  const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
+  stickSet = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC } : null;
+  hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
+  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
+  renderSettings();
   devId = kv.ID || '';
   $('devId').textContent = devId ? devId.slice(0, 4) + '-' + devId.slice(4) : '----.----';
   const locked = kv.ACT === '0';
@@ -297,7 +436,7 @@ function fmt(v) { return v > 0 ? v.toFixed(1) : '---.-'; }
 function render() {
   if (!cur) return;
   $('hz').textContent = fmt(cur.big);
-  $('bigCard').classList.toggle('hot', cur.big > HOT_HZ);
+  $('bigCard').classList.toggle('hot', appSet.hot && cur.big > hotHz);
   $('rpm').textContent = cur.big > 0 ? Math.round(cur.big * 60).toLocaleString() : '-----';
   $('status').textContent = statusText || ' ';
   $('status').style.background = COLORS[cur.color] || COLORS[0];
