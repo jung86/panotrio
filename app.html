@@ -65,7 +65,7 @@
 
   <div id="connectBox" class="card">
     <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
-    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>PanoTrio-xxxx</b>를 고르면 됩니다.</p>
+    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-xxxx</b>를 고르면 됩니다. (예전 펌웨어는 PanoTrio-xxxx)</p>
   </div>
 
   <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
@@ -150,7 +150,7 @@ async function connect() {
     return;
   }
   try {
-    device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SVC] }, { namePrefix: 'PanoTrio' }], optionalServices: [SVC] });
+    device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SVC] }, { namePrefix: 'PanoTrio' }, { namePrefix: '파노체크' }], optionalServices: [SVC] });
     device.addEventListener('gattserverdisconnected', onDisconnected);
     await openGatt();
   } catch (e) {
@@ -206,7 +206,7 @@ function onInfo(dv) {
   if (kv.RES === 'BAD') $('actMsg').innerHTML = '<b style="color:#ff6b6b">코드가 맞지 않습니다. 다시 확인해 주세요.</b>';
   if (kv.RES === 'OK' && !locked) $('actMsg').textContent = '';
 }
-$('btnCopyId').onclick = async () => { try { await navigator.clipboard.writeText('PanoTrio 스틱 ID: ' + $('devId').textContent); $('btnCopyId').textContent = '복사됨'; setTimeout(() => $('btnCopyId').textContent = 'ID 복사', 1200); } catch (e) {} };
+$('btnCopyId').onclick = async () => { try { await navigator.clipboard.writeText('파노체크 스틱 ID: ' + $('devId').textContent); $('btnCopyId').textContent = '복사됨'; setTimeout(() => $('btnCopyId').textContent = 'ID 복사', 1200); } catch (e) {} };
 $('btnAct').onclick = async () => {
   const code = $('actCode').value.trim();
   if (!cmdChar || !code) return;
