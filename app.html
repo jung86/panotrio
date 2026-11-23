@@ -375,13 +375,13 @@ async function openGatt() {
     await gatt(() => inf.startNotifications());
     onInfo(await gatt(() => inf.readValue()), true);
   } catch (e) {}
-  $('conn').textContent = device.name || '연결됨'; $('conn').className = 'conn on';
+  $('conn').textContent = (device.name || '연결됨') + batText(); $('conn').className = 'conn on';
   notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
 }
 async function onDisconnected() {
-  $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn';
+  $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
   cmdChar = null; infoChar = null; stickSet = null; $('btnSave').disabled = true; renderSettings(); renderHome();
   for (let i = 0; i < 5; i++) {
@@ -535,14 +535,31 @@ $('tileSettings').onclick = () => go('settings');
 $('btnHome').onclick = goHome;
 $('btnClose').onclick = goHome;
 $('btnConnect2').onclick = () => { unlockAudio(); connect(); };
+// ---------------------------------------------------------------- stick battery
+let stickBat = null, batWarned = 100;               // {pct, usb}; last warning level
+function batText() {
+  if (!stickBat || stickBat.pct < 0) return '';
+  return (stickBat.usb ? ' · ⚡' : ' · 🔋') + stickBat.pct + '%';
+}
+function onBattery(pct, usb) {
+  stickBat = { pct, usb };
+  if (usb || pct > 25) batWarned = 100;
+  else if (pct <= 10 && batWarned > 10) { batWarned = 10; notify('스틱 배터리 ' + pct + '% · 곧 꺼집니다', false); }
+  else if (pct <= 20 && batWarned > 20) { batWarned = 20; notify('스틱 배터리 ' + pct + '% 남았습니다', false); }
+  if (cmdChar) { $('conn').textContent = (device && device.name || '연결됨') + batText(); }
+  const low = stickBat && !stickBat.usb && stickBat.pct >= 0 && stickBat.pct <= 20;
+  $('conn').style.color = low ? '#ff6b6b' : '';
+  renderHome();
+}
 function renderHome() {
   const on = !!cmdChar;
-  $('homeConn').textContent = on ? (device && device.name || '스틱') + ' 연결됨' : '스틱 연결 안 됨';
+  $('homeConn').textContent = on ? (device && device.name || '스틱') + ' 연결됨' + batText() : '스틱 연결 안 됨';
   $('homeConn').className = on ? 'pill on' : 'pill';
   $('btnConnect2').style.display = on ? 'none' : '';
   $('tileHz').textContent = on && cur && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '진동·소리로 회전수';
 }
 showView();
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 applyWake();
 
 // ---------------------------------------------------------------- stick info
@@ -558,6 +575,7 @@ function onInfo(dv, whole) {
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
   devId = kv.ID || '';
+  if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
 }
 
 // ---------------------------------------------------------------- data
