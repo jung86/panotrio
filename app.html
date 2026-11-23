@@ -333,7 +333,7 @@
       <button id="btnClear">모두 지우기</button>
     </div>
     <div class="mrow"><span class="set-help" style="margin:0">모터</span><select id="motorSel"></select><button id="btnMotorEdit" style="padding:8px 12px">✎</button></div>
-    <label class="auto"><input type="checkbox" id="autoRec" checked> 결과가 나올 때마다 자동 기록 (선택한 모터로)</label>
+    <label class="auto"><input type="checkbox" id="autoRec" checked> 확실한 결과가 나올 때마다 자동 기록 (선택한 모터로)</label>
     <div class="fchips" id="fchips"></div>
     <div class="msum" id="msum"></div>
     <div id="recs" style="margin-top:2px"></div>
@@ -867,11 +867,13 @@ function onStat(dv) {
   autoRecord();
   render();
 }
+// automatic records only for certain results (not MATCH? / MIC WEAK / CLOSE)
+function isClearResult(s) { return /^(MATCH(?!\?)|MIC OK|VIB OK|VIB ONLY)/.test(s); }
 function isResult(s) { return /^(MATCH|CLOSE|MIC OK|MIC WEAK|VIB OK|VIB ONLY)/.test(s); }
 let lastAutoBig = 0;
 function autoRecord() {
   if (!cur || !$('autoRec').checked) return;
-  if (!isResult(statusText) || cur.big <= 0) { lastAutoBig = 0; return; }
+  if (!isClearResult(statusText) || cur.big <= 0) { lastAutoBig = 0; return; }
   if (lastAutoBig && Math.abs(cur.big - lastAutoBig) < 3) return;      // same result still on screen
   lastAutoBig = cur.big;
   addRecord('');
