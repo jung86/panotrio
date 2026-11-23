@@ -80,7 +80,7 @@
   .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
   .seg button { min-height:52px; line-height:1.25; }
   .seg small { font-size:12px; opacity:.75; }
-  #segDim button, #segOff button { white-space:nowrap; font-size:14px; padding:10px 2px; }
+  #segDim button, #segOff button, #segSb button { white-space:nowrap; font-size:14px; padding:10px 2px; }
   .seg button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
   .lbl { font-size:13px; color:var(--mute); margin-top:14px; }
   .ttl { font-size:13px; font-weight:700; color:var(--mute); letter-spacing:.5px; margin:0 0 8px; }
@@ -182,9 +182,14 @@
         <div class="ttl" style="margin:4px 0 0">배터리 절약</div>
       </div>
       <div class="set-row">
-        <div class="set-top"><span class="set-name">화면 자동 어둡게</span><span class="set-val" id="vDim">-</span></div>
+        <div class="set-top"><span class="set-name">대기 모드 진입 시간</span><span class="set-val" id="vDim">-</span></div>
         <div class="seg" id="segDim" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="15">15초</button><button data-v="30">30초</button><button data-v="60">1분</button><button data-v="180">3분</button></div>
-        <div class="set-help">모터가 안 돌면 이 시간 뒤 화면을 어둡게 합니다. 버튼을 누르거나 모터가 돌면 다시 밝아집니다 (이때 첫 버튼은 화면만 켭니다).</div>
+        <div class="set-help">모터가 안 돌고 조작이 없으면 이 시간 뒤 대기 모드로 들어갑니다. 버튼을 누르거나 모터가 돌면 바로 깨어납니다 (이때 첫 버튼은 화면만 켭니다).</div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">대기 모드 화면</span><span class="set-val" id="vSb">-</span></div>
+        <div class="seg" id="segSb" style="grid-template-columns:1fr 1fr"><button data-v="1">화면 끄기</button><button data-v="0">어둡게</button></div>
+        <div class="set-help">화면 끄기가 배터리를 가장 많이 아낍니다. 화면이 꺼져 있어도 스틱은 켜져 있습니다.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">자동 꺼짐</span><span class="set-val" id="vOff">-</span></div>
@@ -409,9 +414,9 @@ async function send(kind, val) {
 // to check. When the stick connects and its values differ, mySet is copied to the stick automatically.
 const VM_STEPS = [10, 15, 20, 30, 40, 60, 80, 120, 160, 200, 300];   // vibration threshold (mg)
 const APPSET_KEY = 'panotrio-appset', MYSET_KEY = 'panotrio-myset';
-const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1 };
-const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8 };
-const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '화면 자동 어둡게', off: '자동 꺼짐', ps: '대기 중 절전' };
+const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1, sb: 1 };
+const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8, sb: 10 };
+const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '대기 모드 진입 시간', off: '자동 꺼짐', ps: '대기 중 절전', sb: '대기 모드 화면' };
 let appSet = { vib: true, snd: true, hot: true, wake: false };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
@@ -450,6 +455,10 @@ function renderSettings() {
   $('vDim').textContent = !pw ? '펌웨어 업데이트 필요' : +view.dim ? (view.dim >= 60 ? view.dim / 60 + '분' : view.dim + '초') : '끔';
   $('vOff').textContent = !pw ? '펌웨어 업데이트 필요' : +view.off ? view.off + '분' : '끔';
   $('cSave').checked = !!+view.ps;
+  const sbOk = supported('sb'), sb = view.sb === undefined || view.sb === null ? 1 : +view.sb;
+  $('segSb').closest('.set-row').classList.toggle('off', !sbOk);
+  for (const b of $('segSb').children) b.classList.toggle('sel', +b.dataset.v === sb);
+  $('vSb').textContent = !sbOk ? '펌웨어 업데이트 필요' : sb ? '화면 끄기' : '어둡게';
   // save state
   const d = diffKeys();
   const st = $('saveState'), btn = $('btnStickSave');
@@ -508,6 +517,7 @@ $('segMic').onclick = e => { const b = e.target.closest('button'); if (b) edit('
 $('segDim').onclick = e => { const b = e.target.closest('button'); if (b) edit('dim', +b.dataset.v); };
 $('segOff').onclick = e => { const b = e.target.closest('button'); if (b) edit('off', +b.dataset.v); };
 $('cSave').onchange = () => edit('ps', $('cSave').checked ? 1 : 0);
+$('segSb').onclick = e => { const b = e.target.closest('button'); if (b) edit('sb', +b.dataset.v); };
 $('btnStickSave').onclick = () => saveToStick(false);
 $('btnDefaults').onclick = () => { if (confirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
 for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
@@ -553,7 +563,7 @@ function onInfo(dv, whole) {
   const txt = new TextDecoder().decode(dv);
   if (txt.indexOf('RES=') < 0 || (txt.indexOf('BR=') >= 0 && txt.indexOf('MIC=') < 0)) { refreshInfo(); return; }   // cut-off notification
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
-  const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null } : null;
+  const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null, sb: kv.SB !== undefined ? +kv.SB : null } : null;
   stickSet = parsed;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo();
