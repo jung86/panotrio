@@ -73,6 +73,15 @@
   .cmid { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
   .cbar { height:8px; background:#0f1217; border-radius:4px; margin-top:10px; overflow:hidden; }
   .cbar div { height:100%; width:0; background:var(--acc); transition:width .2s; }
+  .psuHead { display:flex; align-items:center; gap:8px; }
+  .psuHead .ttl { margin:0; flex:1; }
+  .psuRow { display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:8px; margin-top:10px; align-items:end; }
+  .psuRow label { font-size:12px; color:var(--mute); display:flex; flex-direction:column; gap:3px; }
+  .psuRow input { width:100%; font:700 18px system-ui; padding:8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  #psuOut { padding:10px 4px; font-weight:800; }
+  #psuOut.on { background:var(--green); border-color:var(--green); color:#fff; }
+  #psuDir { margin-top:10px; grid-template-columns:1fr 1fr; }
+  .seg button.sel2 { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -396,6 +405,24 @@
     <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
     <div class="rpm"><span id="rpm">-----</span> rpm</div>
     <div id="status" class="status">대기</div>
+  </div>
+
+  <div class="card" id="psuCard">
+    <div class="psuHead"><div class="ttl">⚡ 전원공급기</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
+    <div id="psuBody" style="display:none">
+      <div class="dpsLive" style="margin-top:8px">
+        <div><span id="pV">-.--</span><small>V</small></div>
+        <div><span id="pA">-.---</span><small>A</small></div>
+        <div><span id="pW">-.--</span><small>W</small></div>
+      </div>
+      <div class="psuRow">
+        <label>전압 (V)<input id="psuV" type="number" inputmode="decimal" min="0" max="12" step="0.1"></label>
+        <label>전류 제한 (A)<input id="psuA" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"></label>
+        <button id="psuOut">출력 켜기</button>
+      </div>
+      <div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div>
+      <div id="psuMsg" class="help" style="margin-top:6px;text-align:center"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -1071,7 +1098,7 @@ function onInfo(dv, whole) {
   onActivation(kv);
   checkRevoked(kv);
   stickDir = kv.DIR !== undefined ? +kv.DIR : null; stickRly = kv.RLY !== undefined ? +kv.RLY : null;
-  if ($('clean').classList.contains('open')) cleanRender();
+  if ($('clean').classList.contains('open')) cleanRender(); else psuRender();
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
 }
 
@@ -1135,7 +1162,7 @@ $('btnMotorEdit').onclick = () => {
 };
 function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
-  recs.unshift({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText });
+  recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot()));
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs();
 }
@@ -1199,7 +1226,7 @@ function renderRecs() {
     const st = (r.status || '').split('  ')[0];
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
       <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
-      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm</div></div>
+      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
       ${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('');
@@ -1219,8 +1246,9 @@ $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send
 $('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
 $('btnClear').onclick = () => { if (confirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
 $('btnCsv').onclick = () => {
-  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status']].concat(
-    recs.map(r => [new Date(r.t).toISOString(), r.motor || '', r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status]));
+  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status', 'volt', 'amp', 'direction']].concat(
+    recs.map(r => [new Date(r.t).toISOString(), r.motor || '', r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status,
+                   r.volt !== undefined ? r.volt : '', r.amp !== undefined ? r.amp : '', r.dir === undefined ? '' : r.dir ? 'reverse' : 'forward']));
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -1389,6 +1417,7 @@ function dpsRender() {
     $('dpsSub').textContent = [st.vin ? '입력 ' + st.vin.toFixed(1) + ' V' : '', st.temp ? st.temp.toFixed(0) + ' °C' : '', st.on ? (st.cc ? 'CC (전류 제한 중)' : 'CV') : '', st.prot ? '⚠ ' + st.prot : ''].filter(Boolean).join(' · ');
   } else if (!on) $('dpsSub').textContent = '';
   cleanRenderBtns();
+  if (typeof psuRender === 'function' && $('psuCard')) psuRender();
 }
 
 // ---------------------------------------------------------------- 모터클리닝: min -> max -> min ramps, forward / reverse / alternate
@@ -1491,6 +1520,7 @@ function cleanRender() {
   $('cleanStick').className = 'conn' + (on ? ' on' : '');
   $('cHz').textContent = cur && on && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '---';
   if (stickRly !== null && document.activeElement !== $('cRly')) $('cRly').value = stickRly ? '1' : '0';
+  if (typeof psuRender === 'function') psuRender();
   if (cl.run && cl.set) {
     const s = cl.set;
     const sec = Math.round(Math.max(0, (s.rep - cl.k) * s.per * 1000 - (Date.now() - cl.cycleT0)) / 1000);
@@ -1520,6 +1550,72 @@ $('btnRlyTest').onclick = async () => {
 };
 ['cMin', 'cMax', 'cAmp', 'cPer', 'cRep', 'cDir'].forEach(id => $(id).addEventListener('change', () => { if (!cl.run) { $('cMsg').textContent = ''; cleanRead(); } }));
 cleanLoad(); dpsRender(); cleanRender();
+
+// ---------------------------------------------------------------- 파노측정: power supply card (fixed voltage, current limit, direction)
+const PSU_KEY = 'panocheck-psu';
+var psuBusy = false;                                 // var: psuRender can run before this line (clean module init)
+(() => { let s = {}; try { s = JSON.parse(localStorage.getItem(PSU_KEY) || '{}'); } catch (e) {} $('psuV').value = s.v !== undefined ? s.v : 3.0; $('psuA').value = s.a !== undefined ? s.a : 1.0; })();
+function psuRead() {
+  const v = +$('psuV').value, a = +$('psuA').value;
+  if (!(v >= 0 && v <= 12)) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">전압은 0~12 V 사이로 넣어 주세요.</b>'; return null; }
+  if (!(a >= 0.05 && a <= 5)) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">전류 제한은 0.05~5 A 사이로 넣어 주세요.</b>'; return null; }
+  try { localStorage.setItem(PSU_KEY, JSON.stringify({ v, a })); } catch (e) {}
+  $('psuMsg').textContent = '';
+  return { v, a };
+}
+function psuFree() { return !!dps.link && !cl.run && !cl.busy && !psuBusy; }
+async function psuApply() {                          // new voltage / current: sent right away (also while running)
+  const s = psuRead(); if (!s || !psuFree()) return;
+  try { await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); } catch (e) { $('psuMsg').textContent = '보내지 못했습니다: ' + e.message; }
+}
+async function psuToggle() {
+  if (!psuFree()) return;
+  if (dps.st.on) { try { await dpsOutput(false); dps.st.on = false; } catch (e) {} psuRender(); return; }
+  const s = psuRead(); if (!s) return;
+  psuBusy = true; psuRender();
+  try { await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); await dpsOutput(true); dps.st.on = true; }
+  catch (e) { $('psuMsg').textContent = '켜지 못했습니다: ' + e.message; }
+  psuBusy = false; psuRender();
+}
+async function psuDir(d) {
+  if (!psuFree() || stickDir === d) return;
+  if (!relayReady()) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 필요합니다.</b>'; return; }
+  const wasOn = !!dps.st.on;
+  psuBusy = true; $('psuMsg').textContent = '방향 바꾸는 중…'; psuRender();
+  try {
+    if (wasOn) { await dpsOutput(false); await waitMotorStop(); }
+    await sendDir(d); await sleep(150);
+    if (wasOn) await dpsOutput(true);
+    $('psuMsg').textContent = '';
+  } catch (e) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">방향 전환 실패: ' + esc(e.message) + '</b>'; try { await dpsOutput(false); } catch (e2) {} }
+  psuBusy = false; psuRender();
+}
+function psuRender() {
+  const on = !!dps.link, st = dps.st || {}, n = (x, d) => (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '-.' + '-'.repeat(d);
+  $('btnPsu').textContent = on ? '끊기' : '연결';
+  $('psuBody').style.display = on ? '' : 'none';
+  $('psuLive').textContent = on && st.t ? (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ⚠ ' + st.prot : '') : (on ? '연결 중…' : 'DPS-150 · USB');
+  $('pV').textContent = n(st.v, 2); $('pA').textContent = n(st.i, 3); $('pW').textContent = n(st.p, 2);
+  const free = psuFree();
+  $('psuOut').textContent = st.on ? '출력 끄기' : '출력 켜기';
+  $('psuOut').classList.toggle('on', !!st.on);
+  $('psuOut').disabled = !free;
+  [...$('psuDir').children].forEach(b => { b.classList.toggle('sel2', stickDir !== null && +b.dataset.d === stickDir); b.disabled = !free || !relayReady(); });
+  if (cl.run || cl.busy) $('psuMsg').textContent = '모터클리닝 실행 중에는 여기서 바꿀 수 없습니다';
+}
+$('btnPsu').onclick = () => { unlockAudio(); dpsConnect(); };
+$('psuOut').onclick = psuToggle;
+$('psuV').addEventListener('change', psuApply);
+$('psuA').addEventListener('change', psuApply);
+$('psuDir').onclick = e => { const b = e.target.closest('button'); if (b) psuDir(+b.dataset.d); };
+function psuSnapshot() {                             // power-supply values that go with a record
+  const st = dps.st || {};
+  if (!dps.link || !st.t || Date.now() - st.t > 5000 || !st.on) return {};
+  const o = { volt: +(+st.v).toFixed(2), amp: +(+st.i).toFixed(3) };
+  if (stickDir !== null) o.dir = stickDir;
+  return o;
+}
+psuRender();
 </script>
 </body>
 </html>
