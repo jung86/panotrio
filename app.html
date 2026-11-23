@@ -100,6 +100,7 @@
     <div class="seg" id="segRange">
       <button data-v="0">AUTO<br><small>250–700</small></button><button data-v="1">LOW<br><small>40–260</small></button><button data-v="2">WIDE<br><small>40–700</small></button>
     </div>
+    <button id="btnReset" style="width:100%;margin-top:10px">측정 초기화 <small style="color:var(--mute)">(지난 결과 지우고 다시 대기)</small></button>
   </div>
 
   <div class="card">
@@ -299,6 +300,7 @@ $('recs').onclick = e => {
 
 // ---------------------------------------------------------------- buttons
 $('btnConnect').onclick = connect;
+$('btnReset').onclick = () => { send('X', 0); lastAutoBig = 0; hist.length = 0; drawChart(); };
 $('segMode').onclick = e => { const b = e.target.closest('button'); if (b) send('M', +b.dataset.v); };
 $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send('R', +b.dataset.v); };
 $('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
