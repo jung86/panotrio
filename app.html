@@ -271,7 +271,7 @@
   <div class="card">
     <div class="ttl">정보</div>
     <div style="display:flex;gap:8px;align-items:center;margin:4px 0 8px">
-      <span style="flex:1"><span class="set-help">스틱 ID</span><br><span id="infoId" style="font:800 26px ui-monospace,Consolas,monospace;letter-spacing:2px">---------</span></span>
+      <span style="flex:1"><span class="set-help">스틱 ID</span><br><span id="infoId" style="font:800 26px ui-monospace,Consolas,monospace;letter-spacing:2px">---- ----</span></span>
       <button id="btnInfoId">복사</button>
       <button id="btnInfoShare">📨 카톡</button>
     </div>
@@ -293,7 +293,7 @@
     <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
     <p class="help" style="margin:6px 0">① <b>활성화 요청 보내기</b>를 눌러 제작자에게 카톡으로 보내세요.<br>② 답장으로 온 <b>활성화 링크</b>를 누르면 끝입니다. (스틱은 켜 두세요)</p>
     <div style="display:flex;gap:8px;align-items:center">
-      <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">---------</span>
+      <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">---- ----</span>
       <button id="btnCopyId">ID 복사</button>
     </div>
     <button id="btnReq" class="primary" style="margin-top:10px">📨 활성화 요청 보내기</button>
@@ -732,7 +732,7 @@ function onActivation(kv) {
   const was = actState;
   actState = { id, act, res: kv.RES || '' };
   $('lockBox').style.display = act ? 'none' : '';
-  $('devId').textContent = id ? id.slice(0, 4) + '-' + id.slice(4) : '---------';
+  $('devId').textContent = id ? id.slice(0, 4) + '-' + id.slice(4) : '---- ----';
   if (act) {
     if (was && !was.act) { notify('✓ 활성화되었습니다', true); try { localStorage.removeItem(actKey(id)); } catch (e) {} $('actMsg').textContent = ''; }
     return;
@@ -889,7 +889,7 @@ function onInfo(dv, whole) {
   stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo();
-  $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---------';
+  $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
   devId = kv.ID || '';
