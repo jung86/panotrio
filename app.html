@@ -57,6 +57,22 @@
   .tile .ts { font-size:13px; color:var(--mute); min-height:18px; font-variant-numeric:tabular-nums; }
   .back { font-size:26px; padding:0 12px 2px; line-height:1.2; }
   .hdr-l { display:flex; align-items:center; gap:8px; }
+  #clean { position:fixed; inset:0; z-index:58; background:var(--bg); overflow-y:auto; display:none; }
+  #clean.open { display:block; }
+  #clean .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
+  .dpsLive { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:12px; text-align:center; }
+  .dpsLive div { background:#0f1217; border-radius:10px; padding:10px 2px; }
+  .dpsLive span { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .dpsLive small { font-size:13px; color:var(--mute); margin-left:3px; }
+  .cgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .cgrid label { font-size:13px; color:var(--mute); display:flex; flex-direction:column; gap:4px; }
+  .cgrid input, .cgrid select, #cRly { width:100%; font:700 20px system-ui; padding:9px 10px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  #cRly { font-size:16px; }
+  .cstat { display:grid; grid-template-columns:1fr 2fr; gap:10px; align-items:end; }
+  .cbig { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .cmid { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .cbar { height:8px; background:#0f1217; border-radius:4px; margin-top:10px; overflow:hidden; }
+  .cbar div { height:100%; width:0; background:var(--acc); transition:width .2s; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -154,6 +170,25 @@
       <div class="tl">설정</div>
       <div class="ts">밝기 · 감도 · 알림</div>
     </div>
+    <div class="tile" id="tileClean" role="button">
+      <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="10" y="20" width="30" height="24" rx="5" stroke="#ffffff" stroke-width="4"/>
+        <path d="M40 32h10M50 26v12" stroke="#ffffff" stroke-width="4"/>
+        <path d="M24 24 18 33h9l-5 8" stroke="#e8590c" stroke-width="4"/>
+        <path d="M8 54c6-4 10 4 16 0s10 4 16 0 10 4 16 0" stroke="#74c0fc" stroke-width="3"/>
+      </svg>
+      <div class="tl">모터클리닝</div>
+      <div class="ts">전원공급기 자동 운전</div>
+    </div>
+    <div class="tile" id="tileBreakin" role="button">
+      <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="32" cy="34" r="20" stroke="#ffffff" stroke-width="4"/>
+        <path d="M32 22v12l8 6" stroke="#e8590c" stroke-width="5"/>
+        <path d="M26 8h12" stroke="#ffffff" stroke-width="4"/>
+      </svg>
+      <div class="tl">모터길들이기</div>
+      <div class="ts">준비 중</div>
+    </div>
   </div>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요.</p>
 </div></div>
@@ -191,6 +226,53 @@
     <button id="btnAdmForget" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 잠그기 (기억 지우기)</button>
   </div>
   <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
+</div></div>
+<div id="clean"><div class="inner">
+  <header>
+    <div class="hdr-l"><button id="btnCleanBack" class="back" aria-label="메뉴로">‹</button><h1>모터클리닝</h1></div>
+    <div class="hdr-r"><span id="cleanStick" class="conn">스틱 연결 안 됨</span></div>
+  </header>
+  <div class="card">
+    <div class="ttl">전원공급기 (DPS-150)</div>
+    <button id="btnDps" class="primary">전원공급기 연결 (USB)</button>
+    <div id="dpsInfo" class="help" style="margin-top:8px">휴대폰 USB-C ↔ DPS-150 <b>Micro USB(데이터)</b> 선으로 연결하고 누르세요. DPS-150 전원은 PD 충전기로 넣습니다.</div>
+    <div class="dpsLive">
+      <div><span id="dV">-.--</span><small>V</small></div>
+      <div><span id="dA">-.---</span><small>A</small></div>
+      <div><span id="dW">-.--</span><small>W</small></div>
+    </div>
+    <div id="dpsSub" class="help" style="text-align:center"></div>
+  </div>
+  <div class="card">
+    <div class="ttl">클리닝 설정</div>
+    <div class="cgrid">
+      <label>최소 전압 (V)<input id="cMin" type="number" inputmode="decimal" min="0" max="12" step="0.1"></label>
+      <label>최대 전압 (V)<input id="cMax" type="number" inputmode="decimal" min="0" max="12" step="0.1"></label>
+      <label>전류 제한 (A)<input id="cAmp" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"></label>
+      <label>왕복 1회 (초)<input id="cPer" type="number" inputmode="numeric" min="4" max="600" step="1"></label>
+      <label>반복 (회)<input id="cRep" type="number" inputmode="numeric" min="1" max="999" step="1"></label>
+      <label>방향<select id="cDir"><option value="fwd">정방향</option><option value="rev">역방향</option><option value="alt">번갈아 (1회마다)</option></select></label>
+    </div>
+    <div class="help" style="margin-top:6px">최소 → 최대 → 최소로 천천히 오르내리기를 반복합니다. 전압 범위 0~12 V.</div>
+    <details style="margin-top:8px"><summary class="help">릴레이 보드 (역방향용)</summary>
+      <div class="help" style="margin:6px 0">스틱 Grove 포트(G9·G10)에 2채널 릴레이를 연결해 극성을 바꿉니다. 보드의 트리거 방식을 고르세요.</div>
+      <select id="cRly"><option value="1">HIGH 트리거 (권장)</option><option value="0">LOW 트리거</option></select>
+      <button id="btnRlyTest" style="width:100%;margin-top:8px">릴레이 시험 (출력 꺼진 상태에서 딸깍 2번)</button>
+    </details>
+  </div>
+  <div class="card">
+    <div class="cstat">
+      <div><div class="help">파노</div><div id="cHz" class="cbig">---</div></div>
+      <div><div class="help">진행</div><div id="cProg" class="cmid">대기</div></div>
+    </div>
+    <div class="cbar"><div id="cBar"></div></div>
+    <div class="tools" style="grid-template-columns:2fr 1fr;margin-top:10px">
+      <button id="btnCStart" class="primary" style="padding:14px">▶ 시작</button>
+      <button id="btnCStop" style="background:#c92a2a;border-color:#c92a2a;color:#fff;font-weight:800">■ 정지</button>
+    </div>
+    <div id="cMsg" class="help" style="margin-top:8px;text-align:center"></div>
+  </div>
+  <p class="help">정지를 누르거나, 전원공급기·스틱 연결이 끊기거나, 보호 기능(OVP·OCP 등)이 동작하면 출력이 꺼집니다. 앱을 닫으면 출력이 켜진 채 남을 수 있으니 끝나면 꼭 정지하세요.</p>
 </div></div>
 <div id="settings"><div class="inner">
   <header>
@@ -374,6 +456,10 @@ const HOT_HZ = 550;                    // above this the big value turns red and
 const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
+// 모터클리닝 / DPS-150 state (used by the views before their code further down runs)
+const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
+const cl = { run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
+let stickDir = null, stickRly = null;               // from the stick's info text (firmware 1.9+)
 const hist = [];                       // {t, big, vib, mic}
 
 // ---------------------------------------------------------------- storage
@@ -471,7 +557,7 @@ async function openGatt() {
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
     try { await openGatt(); return; } catch (e) {}
@@ -655,7 +741,9 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // ---------------------------------------------------------------- navigation: menu / 파노측정 / 설정 (phone back button works)
 function showView() {
   const v = (location.hash || '#home').slice(1);
-  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings' && v !== 'admin');
+  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings' && v !== 'admin' && v !== 'clean');
+  $('clean').classList.toggle('open', v === 'clean');
+  if (v === 'clean') cleanRender();
   $('settings').classList.toggle('open', v === 'settings');
   $('admin').classList.toggle('open', v === 'admin');
   if (v === 'admin') adminShow();
@@ -668,6 +756,8 @@ function goHome() { if (location.hash && location.hash !== '#home' && history.le
 window.addEventListener('hashchange', showView);
 $('tileMeasure').onclick = () => go('measure');
 $('tileSettings').onclick = () => go('settings');
+$('tileClean').onclick = () => go('clean');
+$('tileBreakin').onclick = () => notify('모터길들이기는 준비 중입니다', true);
 $('btnHome').onclick = goHome;
 $('btnClose').onclick = goHome;
 $('btnConnect2').onclick = () => { unlockAudio(); connect(); };
@@ -980,6 +1070,8 @@ function onInfo(dv, whole) {
   devId = kv.ID || '';
   onActivation(kv);
   checkRevoked(kv);
+  stickDir = kv.DIR !== undefined ? +kv.DIR : null; stickRly = kv.RLY !== undefined ? +kv.RLY : null;
+  if ($('clean').classList.contains('open')) cleanRender();
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
 }
 
@@ -994,6 +1086,7 @@ function onStat(dv) {
   };
   const now = Date.now();
   hist.push({ t: now, big: cur.big, vib: cur.vib, mic: cur.mic });
+  if ($('clean').classList.contains('open')) cleanRender();
   while (hist.length && now - hist[0].t > 60000) hist.shift();
   autoRecord();
   render();
@@ -1140,6 +1233,293 @@ renderRecs();
 (() => { const sp = $('splash'); const go = () => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); };
   sp.onclick = go; setTimeout(go, 1800); })();
 setInterval(() => { if (cur) drawChart(); }, 1000);
+
+// ---------------------------------------------------------------- DPS-150 power supply over USB
+// Protocol from the open reverse-engineered description (cho45/fnirsi-dps-150, MIT):
+//   to device:   F1 <cmd> <reg> <len> <data...> <sum>     from device: F0 A1 <reg> <len> <data...> <sum>
+//   sum = (reg + len + data bytes) & 255, floats are little-endian float32.
+// PC Chrome uses Web Serial; Android Chrome (no wired Web Serial yet) talks to the USB CDC interface with WebUSB.
+const DPS_V = 193, DPS_I = 194, DPS_METER = 216, DPS_OUT = 219, DPS_MODEL = 222, DPS_ALL = 255;
+function dpsFrame(cmd, reg, data) {
+  const f = new Uint8Array(data.length + 5);
+  f[0] = 0xF1; f[1] = cmd; f[2] = reg; f[3] = data.length; f.set(data, 4);
+  let s = reg + data.length; for (const b of data) s += b;
+  f[f.length - 1] = s & 255;
+  return f;
+}
+function dpsSend(cmd, reg, data) {                 // one write at a time, small gap (the device needs it)
+  const run = async () => { if (!dps.link) throw new Error('전원공급기 연결 안 됨'); await dps.link.write(dpsFrame(cmd, reg, data)); await sleep(40); };
+  const p = dps.wq.then(run, run); dps.wq = p.catch(() => {}); return p;
+}
+const dpsByte = (reg, v) => dpsSend(0xB1, reg, [v & 255]);
+function dpsFloat(reg, v) { const b = new Uint8Array(4); new DataView(b.buffer).setFloat32(0, v, true); return dpsSend(0xB1, reg, b); }
+const dpsGet = reg => dpsSend(0xA1, reg, [0]);
+const dpsOutput = on => dpsByte(DPS_OUT, on ? 1 : 0);
+let dpsBuf = new Uint8Array(0);
+function dpsOnBytes(chunk) {
+  const b = new Uint8Array(dpsBuf.length + chunk.length); b.set(dpsBuf); b.set(chunk, dpsBuf.length); dpsBuf = b;
+  let i = 0;
+  while (i + 4 < dpsBuf.length) {
+    if (dpsBuf[i] !== 0xF0 || dpsBuf[i + 1] !== 0xA1) { i++; continue; }
+    const reg = dpsBuf[i + 2], len = dpsBuf[i + 3];
+    if (i + 4 + len >= dpsBuf.length) break;     // frame not complete yet
+    const data = dpsBuf.slice(i + 4, i + 4 + len);
+    let s = reg + len; for (const x of data) s += x;
+    if ((s & 255) === dpsBuf[i + 4 + len]) { dpsParse(reg, data); i += 5 + len; } else i++;
+  }
+  dpsBuf = dpsBuf.slice(i);
+  if (dpsBuf.length > 4096) dpsBuf = new Uint8Array(0);
+}
+const PROT = ['', 'OVP', 'OCP', 'OPP', 'OTP', 'LVP', 'REP'];
+function dpsParse(reg, d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength), f = o => v.getFloat32(o, true), st = dps.st;
+  if (reg === 195 && d.length >= 12) { st.v = f(0); st.i = f(4); st.p = f(8); }
+  else if (reg === 192 && d.length >= 4) st.vin = f(0);
+  else if (reg === 196 && d.length >= 4) st.temp = f(0);
+  else if (reg === DPS_OUT && d.length >= 1) st.on = d[0] === 1;
+  else if (reg === 220 && d.length >= 1) st.prot = PROT[d[0]] || '';
+  else if (reg === 221 && d.length >= 1) st.cc = d[0] === 0;
+  else if (reg === DPS_MODEL) st.model = String.fromCharCode(...d).replace(/\0/g, '').trim();
+  else if (reg === DPS_ALL && d.length >= 110) {
+    st.vin = f(0); st.vset = f(4); st.iset = f(8); st.v = f(12); st.i = f(16); st.p = f(20); st.temp = f(24);
+    st.on = d[107] === 1; st.prot = PROT[d[108]] || ''; st.cc = d[109] === 0;
+  }
+  st.t = Date.now();
+  dpsRender();
+  if (st.prot && cl.run) cleanStop('전원공급기 보호 동작: ' + st.prot);
+}
+async function dpsOpenSerial() {
+  const port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200, bufferSize: 1024 });
+  let reader = null, alive = true;
+  (async () => {
+    while (alive && port.readable) {
+      reader = port.readable.getReader();
+      try { for (;;) { const { value, done } = await reader.read(); if (done) break; if (value) dpsOnBytes(value); } }
+      catch (e) { break; } finally { try { reader.releaseLock(); } catch (e) {} }
+    }
+    if (alive) dpsLost();
+  })();
+  return {
+    kind: 'serial',
+    write: async b => { const w = port.writable.getWriter(); try { await w.write(b); } finally { w.releaseLock(); } },
+    close: async () => { alive = false; try { await reader.cancel(); } catch (e) {} try { await port.close(); } catch (e) {} }
+  };
+}
+async function dpsOpenUsb() {                       // minimal USB CDC-ACM driver (Android)
+  const dev = await navigator.usb.requestDevice({ filters: [{ classCode: 2 }, { classCode: 10 }] });
+  await dev.open();
+  if (!dev.configuration) await dev.selectConfiguration(1);
+  let ctrl = null, data = null;
+  for (const itf of dev.configuration.interfaces) {
+    const a = itf.alternates[0];
+    if (a.interfaceClass === 2 && ctrl === null) ctrl = itf.interfaceNumber;
+    if (a.interfaceClass === 10 && !data) data = itf;
+  }
+  if (!data) throw new Error('USB 시리얼 장치가 아닙니다');
+  if (ctrl !== null) { try { await dev.claimInterface(ctrl); } catch (e) {} }
+  await dev.claimInterface(data.interfaceNumber);
+  const eps = data.alternates[0].endpoints;
+  const epIn = eps.find(e => e.direction === 'in' && e.type === 'bulk'), epOut = eps.find(e => e.direction === 'out' && e.type === 'bulk');
+  if (!epIn || !epOut) throw new Error('USB 통신 경로를 찾지 못했습니다');
+  const idx = ctrl !== null ? ctrl : data.interfaceNumber;
+  try {
+    await dev.controlTransferOut({ requestType: 'class', recipient: 'interface', request: 0x20, value: 0, index: idx }, new Uint8Array([0x00, 0xC2, 0x01, 0x00, 0, 0, 8]));   // 115200 8N1
+    await dev.controlTransferOut({ requestType: 'class', recipient: 'interface', request: 0x22, value: 0x03, index: idx });   // DTR + RTS
+  } catch (e) {}
+  let alive = true;
+  (async () => {
+    while (alive) {
+      try { const r = await dev.transferIn(epIn.endpointNumber, 64); if (r.data && r.data.byteLength) dpsOnBytes(new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength)); }
+      catch (e) { break; }
+    }
+    if (alive) dpsLost();
+  })();
+  return {
+    kind: 'usb',
+    write: async b => { await dev.transferOut(epOut.endpointNumber, b); },
+    close: async () => { alive = false; try { await dev.close(); } catch (e) {} }
+  };
+}
+async function dpsConnect() {
+  if (dps.link) { await dpsDisconnect(); return; }
+  $('dpsInfo').textContent = '연결 중…';
+  try {
+    if ('serial' in navigator) dps.link = await dpsOpenSerial();
+    else if ('usb' in navigator) dps.link = await dpsOpenUsb();
+    else { $('dpsInfo').innerHTML = '<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'; return; }
+    dps.st = {};
+    await dpsSend(0xC1, 0, [1]);                  // start session
+    await dpsSend(0xB0, 0, [5]);                  // 115200 baud
+    await dpsGet(DPS_MODEL);
+    await dpsByte(DPS_METER, 1);                  // live V / A / W
+    await dpsGet(DPS_ALL);
+    clearInterval(dps.poll); dps.poll = setInterval(() => { if (dps.link) dpsGet(DPS_ALL).catch(() => {}); }, 1000);
+    setTimeout(() => { if (dps.link && !dps.st.t) $('dpsInfo').innerHTML = '<b style="color:#ff6b6b">응답이 없습니다.</b> 데이터선인지, DPS-150이 켜져 있는지 확인하세요.'; }, 2500);
+    dpsRender();
+  } catch (e) {
+    dps.link = null;
+    if (e.name !== 'NotFoundError') $('dpsInfo').textContent = '연결 실패: ' + e.message;
+    else dpsRender();
+  }
+}
+async function dpsDisconnect() {
+  if (cl.run) await cleanStop('연결을 끊었습니다');
+  clearInterval(dps.poll);
+  const l = dps.link; if (!l) return;
+  try { await dpsOutput(false); await dpsSend(0xC1, 0, [0]); } catch (e) {}
+  dps.link = null; await l.close(); dps.st = {}; dpsRender();
+}
+function dpsLost() {
+  clearInterval(dps.poll);
+  if (!dps.link) return;
+  dps.link = null;
+  if (cl.run) cleanStop('전원공급기 연결이 끊겼습니다');
+  notify('전원공급기 연결이 끊겼습니다', false); dpsRender();
+}
+if ('serial' in navigator) navigator.serial.addEventListener('disconnect', () => { if (dps.link && dps.link.kind === 'serial') dpsLost(); });
+if ('usb' in navigator) navigator.usb.addEventListener('disconnect', () => { if (dps.link && dps.link.kind === 'usb') dpsLost(); });
+function dpsRender() {
+  const st = dps.st, on = !!dps.link, n = (x, d) => (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '-.' + '-'.repeat(d);
+  $('btnDps').textContent = on ? '전원공급기 연결 끊기' : '전원공급기 연결 (USB)';
+  $('btnDps').classList.toggle('primary', !on);
+  $('dV').textContent = n(st.v, 2); $('dA').textContent = n(st.i, 3); $('dW').textContent = n(st.p, 2);
+  if (on && st.t) {
+    $('dpsInfo').textContent = (st.model || 'DPS-150') + ' 연결됨 · 출력 ' + (st.on ? 'ON' : 'OFF');
+    $('dpsSub').textContent = [st.vin ? '입력 ' + st.vin.toFixed(1) + ' V' : '', st.temp ? st.temp.toFixed(0) + ' °C' : '', st.on ? (st.cc ? 'CC (전류 제한 중)' : 'CV') : '', st.prot ? '⚠ ' + st.prot : ''].filter(Boolean).join(' · ');
+  } else if (!on) $('dpsSub').textContent = '';
+  cleanRenderBtns();
+}
+
+// ---------------------------------------------------------------- 모터클리닝: min -> max -> min ramps, forward / reverse / alternate
+const CLEAN_KEY = 'panocheck-clean';
+function cleanLoad() {
+  let s = {}; try { s = JSON.parse(localStorage.getItem(CLEAN_KEY) || '{}'); } catch (e) {}
+  const d = { min: 1.5, max: 3.0, amp: 1.0, per: 20, rep: 5, dir: 'fwd' };
+  for (const k in d) if (s[k] === undefined) s[k] = d[k];
+  $('cMin').value = s.min; $('cMax').value = s.max; $('cAmp').value = s.amp; $('cPer').value = s.per; $('cRep').value = s.rep; $('cDir').value = s.dir;
+}
+function cleanRead() {
+  const s = { min: +$('cMin').value, max: +$('cMax').value, amp: +$('cAmp').value, per: Math.round(+$('cPer').value), rep: Math.round(+$('cRep').value), dir: $('cDir').value };
+  const bad = m => { $('cMsg').innerHTML = '<b style="color:#ff6b6b">' + m + '</b>'; return null; };
+  if (!(s.min >= 0 && s.min <= 12) || !(s.max >= 0 && s.max <= 12)) return bad('전압은 0~12 V 사이로 넣어 주세요.');
+  if (s.min > s.max) return bad('최소 전압이 최대 전압보다 큽니다.');
+  if (!(s.amp >= 0.05 && s.amp <= 5)) return bad('전류 제한은 0.05~5 A 사이로 넣어 주세요.');
+  if (!(s.per >= 4 && s.per <= 600)) return bad('왕복 1회 시간은 4~600초입니다.');
+  if (!(s.rep >= 1 && s.rep <= 999)) return bad('반복은 1~999회입니다.');
+  try { localStorage.setItem(CLEAN_KEY, JSON.stringify(s)); } catch (e) {}
+  return s;
+}
+function relayReady() { return !!(cmdChar && actState && actState.act && stickDir !== null && !lockedOut()); }
+async function sendDir(d) {
+  const ch = cmdChar; if (!ch) throw new Error('스틱 연결 안 됨');
+  await gatt(() => ch.writeValue(new Uint8Array([68, d])));       // 'D', 0 forward / 1 reverse
+  for (let i = 0; i < 15; i++) { await sleep(100); if (stickDir === d) return; if (i === 4) refreshInfo(0); }
+  throw new Error('스틱이 방향 전환에 응답하지 않습니다');
+}
+const tri = ph => ph < 0.5 ? ph * 2 : (1 - ph) * 2;    // 0 -> 1 -> 0
+async function waitMotorStop() {                    // output off: let the motor coast down before the relay switches
+  const t = Date.now();
+  await sleep(600);
+  while (Date.now() - t < 2500 && dps.st.i > 0.03) await sleep(100);
+}
+async function cleanStart() {
+  if (cl.run || cl.busy) return;
+  const s = cleanRead(); if (!s) return;
+  if (!dps.link || !dps.st.t) { $('cMsg').innerHTML = '<b style="color:#ff6b6b">먼저 전원공급기를 연결하세요.</b>'; return; }
+  cl.needRelay = s.dir !== 'fwd';
+  if (cl.needRelay && !relayReady()) {
+    $('cMsg').innerHTML = '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 연결돼 있어야 합니다.</b>'; return;
+  }
+  cl.busy = true; cleanRenderBtns(); $('cMsg').textContent = '준비 중…';
+  try {
+    await dpsOutput(false);
+    await dpsFloat(DPS_I, s.amp);
+    await dpsFloat(DPS_V, s.min);
+    cl.dir = s.dir === 'rev' ? 1 : 0;
+    if (relayReady() && (cl.needRelay || stickDir !== 0)) { if (stickDir !== cl.dir) await waitMotorStop(); await sendDir(cl.dir); await sleep(150); }
+    await dpsOutput(true);
+  } catch (e) { cl.busy = false; await cleanStop('시작하지 못했습니다: ' + e.message); return; }
+  cl.set = s; cl.k = 0; cl.lastV = s.min; cl.t0 = cl.cycleT0 = Date.now(); cl.run = true; cl.busy = false;
+  try { if ('wakeLock' in navigator) cl.wake = await navigator.wakeLock.request('screen'); } catch (e) {}
+  $('cMsg').textContent = '';
+  clearInterval(cl.timer); cl.timer = setInterval(cleanTick, 200);
+  cleanRender();
+}
+async function cleanTick() {
+  if (!cl.run || cl.busy) return;
+  const s = cl.set, now = Date.now(), per = s.per * 1000;
+  if (now - cl.cycleT0 >= per) {                    // one ramp up and down finished
+    cl.k++;
+    if (cl.k >= s.rep) { await cleanStop('✓ 클리닝을 마쳤습니다', true); return; }
+    cl.cycleT0 = now;
+    if (s.dir === 'alt') {                          // switch direction with the output off
+      cl.busy = true;
+      try {
+        await dpsFloat(DPS_V, s.min); await dpsOutput(false); await waitMotorStop();
+        if (!cl.run) return;
+        cl.dir ^= 1; await sendDir(cl.dir); await sleep(150);
+        if (!cl.run) return;
+        await dpsOutput(true);
+      } catch (e) { cl.busy = false; await cleanStop('방향 전환 실패: ' + e.message); return; }
+      cl.busy = false; cl.cycleT0 = Date.now(); cl.lastV = s.min;
+    }
+  }
+  const v = Math.round((s.min + (s.max - s.min) * tri(Math.min(1, (Date.now() - cl.cycleT0) / per))) * 100) / 100;
+  if (Math.abs(v - cl.lastV) >= 0.01) { cl.lastV = v; dpsFloat(DPS_V, v).catch(() => {}); }
+  cleanRender();
+}
+async function cleanStop(msg, good) {
+  const was = cl.run || cl.busy;
+  cl.run = false; clearInterval(cl.timer);
+  if (dps.link) { try { await dpsOutput(false); if (cl.set) await dpsFloat(DPS_V, cl.set.min); } catch (e) {} }
+  if (was && cl.needRelay && relayReady() && stickDir !== 0) { try { await waitMotorStop(); await sendDir(0); } catch (e) {} }   // relays back off
+  cl.busy = false;
+  try { if (cl.wake) { await cl.wake.release(); cl.wake = null; } } catch (e) {}
+  if (msg) { $('cMsg').innerHTML = good ? msg : '<b style="color:#ff6b6b">' + msg + '</b>'; if (was) notify(msg.replace(/^✓ /, ''), !!good); }
+  cleanRender();
+}
+function cleanOnStickLost() { if ((cl.run || cl.busy) && cl.needRelay) cleanStop('스틱 연결이 끊겨 정지했습니다'); cleanRender(); }
+function cleanRenderBtns() {
+  if (!$('btnCStart')) return;
+  $('btnCStart').disabled = cl.run || cl.busy || !dps.link;
+  $('btnCStop').disabled = !(cl.run || cl.busy) && !(dps.st && dps.st.on);
+}
+function cleanRender() {
+  const on = !!cmdChar;
+  $('cleanStick').textContent = on ? shortName() + (stickDir === null ? '' : stickDir ? ' · 역' : ' · 정') : '스틱 연결 안 됨';
+  $('cleanStick').className = 'conn' + (on ? ' on' : '');
+  $('cHz').textContent = cur && on && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '---';
+  if (stickRly !== null && document.activeElement !== $('cRly')) $('cRly').value = stickRly ? '1' : '0';
+  if (cl.run && cl.set) {
+    const s = cl.set;
+    const sec = Math.round(Math.max(0, (s.rep - cl.k) * s.per * 1000 - (Date.now() - cl.cycleT0)) / 1000);
+    $('cProg').textContent = `${Math.min(cl.k + 1, s.rep)}/${s.rep}회 · ${cl.dir ? '역' : '정'} · ${cl.lastV.toFixed(2)} V · 남은 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    const done = (cl.k + Math.min(1, (Date.now() - cl.cycleT0) / (s.per * 1000))) / s.rep;
+    $('cBar').style.width = (done * 100).toFixed(1) + '%';
+  } else {
+    $('cProg').textContent = cl.busy ? '전환 중…' : '대기';
+    if (!cl.busy) $('cBar').style.width = '0%';
+  }
+  cleanRenderBtns();
+}
+$('btnDps').onclick = dpsConnect;
+$('btnCStart').onclick = () => { unlockAudio(); cleanStart(); };
+$('btnCStop').onclick = () => cleanStop('정지했습니다', true);
+$('btnCleanBack').onclick = goHome;
+$('cRly').onchange = async () => {
+  const ch = cmdChar; if (!ch) { notify('스틱을 먼저 연결하세요', false); return; }
+  const v = +$('cRly').value;
+  try { await gatt(() => ch.writeValue(new Uint8Array([80, 11, v, 0]))); refreshInfo(200); notify('릴레이 방식을 저장했습니다', true); } catch (e) {}
+};
+$('btnRlyTest').onclick = async () => {
+  if (cl.run || cl.busy) return;
+  if (!relayReady()) { notify('펌웨어 1.9 이상, 활성화된 스틱을 연결하세요', false); return; }
+  if (dps.st && dps.st.on) { notify('전원공급기 출력을 먼저 끄세요', false); return; }
+  try { await sendDir(1); await sleep(700); await sendDir(0); notify('딸깍 소리가 2번 났으면 정상입니다', true); } catch (e) { notify(e.message, false); }
+};
+['cMin', 'cMax', 'cAmp', 'cPer', 'cRep', 'cDir'].forEach(id => $(id).addEventListener('change', () => { if (!cl.run) { $('cMsg').textContent = ''; cleanRead(); } }));
+cleanLoad(); dpsRender(); cleanRender();
 </script>
 </body>
 </html>
