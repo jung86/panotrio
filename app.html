@@ -179,7 +179,7 @@
     <button id="btnAdmMake" class="primary" style="margin-top:10px">활성화 링크 만들기</button>
     <div id="aRes" style="display:none;margin-top:12px">
       <textarea id="aLink" readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#cfe"></textarea>
-      <div class="tools" style="margin-top:8px"><button id="btnAdmShare">공유 (카톡 등)</button><button id="btnAdmCopy">복사</button><button id="btnAdmHere">이 스틱에 바로</button></div>
+      <div class="tools" style="margin-top:8px"><button id="btnAdmShare" class="primary">📨 답장 보내기 (카톡)</button><button id="btnAdmCopy">복사</button><button id="btnAdmHere">이 스틱에 바로</button></div>
     </div>
     <div id="aMsg2" class="help" style="margin-top:8px;text-align:center"></div>
     <button id="btnAdmForget" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 잠그기 (기억 지우기)</button>
@@ -286,13 +286,15 @@
 
   <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
     <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
-    <p class="help" style="margin:6px 0">아래 스틱 ID를 제작자에게 보내세요. 받은 <b>활성화 링크</b>를 이 휴대폰에서 열고 스틱을 연결하면 자동으로 활성화됩니다. 링크나 코드를 아래에 붙여넣어도 됩니다.</p>
+    <p class="help" style="margin:6px 0">① <b>활성화 요청 보내기</b>를 눌러 제작자에게 카톡으로 보내세요.<br>② 답장으로 온 <b>활성화 링크</b>를 누르면 끝입니다. (스틱은 켜 두세요)</p>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">----.----</span>
       <button id="btnCopyId">ID 복사</button>
     </div>
+    <button id="btnReq" class="primary" style="margin-top:10px">📨 활성화 요청 보내기</button>
+    <details style="margin-top:10px"><summary class="help">링크 대신 코드를 직접 넣기</summary>
     <textarea id="actCode" placeholder="활성화 링크 또는 코드 붙여넣기" style="width:100%;height:70px;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fff"></textarea>
-    <button id="btnAct" class="primary" style="margin-top:10px">활성화</button>
+    <button id="btnAct" style="margin-top:10px;width:100%">활성화</button></details>
     <div id="actMsg" class="help" style="margin-top:8px;text-align:center"></div>
   </div>
 
@@ -343,6 +345,13 @@
 </main>
 
 <script>
+(() => {                                           // links opened inside KakaoTalk/other apps: move to Chrome (Bluetooth + saved keys live there)
+  const ua = navigator.userAgent, h = location.hash;
+  if (!/#(act|req)=/.test(h) || !/Android/i.test(ua)) return;
+  if (/KAKAOTALK/i.test(ua)) { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href); return; }
+  if (/; wv\)|NAVER|Instagram|FBAN|FB_IAB|Line\//i.test(ua))
+    location.href = 'intent://' + location.host + location.pathname + h + '#Intent;scheme=https;package=com.android.chrome;end';
+})();
 const SVC  = '7a1e0001-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const STAT = '7a1e0002-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const TEXT = '7a1e0003-5c1b-4f2e-9d3a-50a0b0c0d0e1';
@@ -731,6 +740,12 @@ $('btnCopyId').onclick = async () => {
   const t = '파노체크 스틱 ID: ' + $('devId').textContent;
   try { await navigator.clipboard.writeText(t); $('btnCopyId').textContent = '복사됨'; setTimeout(() => $('btnCopyId').textContent = 'ID 복사', 1200); } catch (e) {}
 };
+$('btnReq').onclick = async () => {
+  if (!actState) return;
+  const id = actState.id, t = '파노체크 활성화 요청 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ')\n' + APP_URL + '#req=' + id;
+  if (navigator.share) { try { await navigator.share({ title: '파노체크 활성화 요청', text: t }); $('actMsg').textContent = '요청을 보냈습니다 · 답장 링크를 기다려 주세요'; return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(t); $('actMsg').textContent = '복사했습니다 · 카톡에 붙여넣어 보내세요'; } catch (e) {}
+};
 $('btnAct').onclick = () => {
   if (!cmdChar || !actState) { $('actMsg').textContent = '먼저 스틱을 연결하세요.'; return; }
   const code = parseActInput($('actCode').value, actState.id);
@@ -810,7 +825,7 @@ $('btnAdmMake').onclick = async () => {
     const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, admKey, new TextEncoder().encode('PanoCheck|act|v2|' + id));
     admCode = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     admId = id; admLink = APP_URL + '#act=' + id + '.' + admCode;
-    $('aLink').value = '파노체크 활성화 링크 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 전용)\n' + admLink + '\n\n안드로이드 크롬으로 열고 스틱을 연결하면 자동으로 활성화됩니다.';
+    $('aLink').value = '파노체크 활성화 링크 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 전용)\n' + admLink + '\n\n스틱을 켜 두고 링크를 누른 뒤 [스틱 연결]만 누르면 활성화됩니다.';
     $('aRes').style.display = ''; $('aMsg2').textContent = '✓ 만들었습니다';
     $('btnAdmHere').disabled = !(cmdChar && actState && !actState.act && actState.id === id);
   } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
@@ -823,6 +838,18 @@ $('btnAdmCopy').onclick = async () => { try { await navigator.clipboard.writeTex
 $('btnAdmHere').onclick = () => { if (cmdChar && actState && actState.id === admId) { sendActivation(admCode); $('aMsg2').textContent = '연결된 스틱에 보냈습니다'; } };
 $('btnAdmForget').onclick = async () => { admKey = null; try { await idb(st => st.delete('sign')); } catch (e) {} $('aRes').style.display = 'none'; $('aId').value = ''; adminShow(); };
 $('btnAdminBack').onclick = goHome;
+async function checkReqHash() {                     // owner opened a request link: make the answer in one step
+  const m = /^#req=([0-9A-Fa-f]{8})/.exec(location.hash);
+  if (!m) return;
+  const id = m[1].toUpperCase();
+  if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
+  if (!admKey) { history.replaceState(null, '', location.pathname + '#home'); showView(); setTimeout(() => notify('활성화 요청 링크는 제작자 휴대폰에서 열어 주세요', false), 1500); return; }
+  history.replaceState(null, '', location.pathname + '#admin'); showView();
+  $('aId').value = id.slice(0, 4) + '-' + id.slice(4);
+  await adminShow(); $('btnAdmMake').click();
+  setTimeout(() => notify('스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 링크를 만들었습니다 · 공유를 눌러 보내세요', true), 800);
+}
+window.addEventListener('hashchange', checkReqHash);
 (() => {                                            // secret door: tap the logo 5 times
   let n = 0, t0 = 0;
   document.querySelector('#home .logo').addEventListener('click', () => {
@@ -831,6 +858,7 @@ $('btnAdminBack').onclick = goHome;
   });
 })();
 showView();
+checkReqHash();
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 applyWake();
 
