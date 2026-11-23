@@ -1,20 +1,26 @@
 {
+  "id": "app.html",
   "name": "파노체크",
   "short_name": "파노체크",
+  "description": "모터 파노(회전수) 측정 · 모터클리닝",
   "start_url": "app.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#111418",
   "theme_color": "#111418",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

@@ -199,6 +199,7 @@
       <div class="ts">밝기 · 감도 · 알림</div>
     </div>
   </div>
+  <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요.</p>
 </div></div>
 <div id="admin"><div class="inner">
@@ -1616,6 +1617,20 @@ function psuSnapshot() {                             // power-supply values that
   return o;
 }
 psuRender();
+
+// ---------------------------------------------------------------- install to the home screen (PWA)
+let installEvt = null;
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!isInstalled()) $('btnInstall').style.display = ''; });
+window.addEventListener('appinstalled', () => { installEvt = null; $('btnInstall').style.display = 'none'; notify('✓ 홈 화면에 설치했습니다', true); });
+setTimeout(() => { if (!isInstalled() && /Android/i.test(navigator.userAgent)) $('btnInstall').style.display = ''; }, 3000);
+$('btnInstall').onclick = async () => {
+  if (installEvt) {
+    installEvt.prompt();
+    try { const r = await installEvt.userChoice; if (r.outcome === 'accepted') $('btnInstall').style.display = 'none'; } catch (e) {}
+    installEvt = null;
+  } else notify('크롬 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', true);
+};
 </script>
 </body>
 </html>
