@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111418">
-<title>PanoTrio 앱</title>
+<title>파노체크</title>
+<link rel="manifest" href="app.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="application-name" content="파노체크">
 <style>
   :root { --bg:#111418; --card:#1b2028; --ink:#eef1f6; --mute:#8e98aa; --line:#2b323e; --acc:#e8590c;
           --grey:#5c6370; --green:#2f9e44; --yellow:#e0b000; --orange:#e8590c; --red:#e03131; --cyan:#1098ad; }
@@ -45,12 +49,17 @@
   .help { color:var(--mute); font-size:14px; }
   label.auto { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--mute); margin-top:8px; }
   .del { padding:2px 8px; font-size:13px; }
+  #splash { position:fixed; inset:0; z-index:99; background:#111418; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
+  #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
+  #splash .name { font-size:34px; font-weight:800; letter-spacing:2px; }
+  #splash.hide { opacity:0; pointer-events:none; }
 </style>
 </head>
 <body>
+<div id="splash"><img src="splash.jpg" alt=""><div class="name">파노체크</div></div>
 <main>
   <header>
-    <h1>PanoTrio</h1>
+    <h1>파노체크</h1>
     <span id="conn" class="conn">연결 안 됨</span>
   </header>
 
@@ -304,6 +313,9 @@ $('btnCsv').onclick = () => {
   a.click();
 };
 renderRecs();
+// start screen: 1.8 s or a tap
+(() => { const sp = $('splash'); const go = () => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); };
+  sp.onclick = go; setTimeout(go, 1800); })();
 setInterval(() => { if (cur) drawChart(); }, 1000);
 </script>
 </body>
