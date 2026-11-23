@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PanoTrio 설치 - M5StickS3 모터 파노 측정기</title>
+<title>파노체크 설치 - M5StickS3 모터 파노 측정기</title>
+<link rel="icon" href="icon-192.png">
 <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --mute:#5d6678; --line:#e2e6ee; --acc:#e8590c; --ok:#2b8a3e; }
@@ -31,8 +32,11 @@
 </head>
 <body>
 <main>
-  <h1>PanoTrio 1.1</h1>
-  <p class="sub">M5StickS3로 미니카 모터의 회전 주파수(파노)를 진동과 소리로 재는 프로그램입니다.</p>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+    <img src="icon-192.png" alt="" style="width:72px;height:72px;border-radius:16px">
+    <div><h1>파노체크 1.2</h1>
+    <p class="sub" style="margin:0">M5StickS3로 미니카 모터의 회전 주파수(파노)를 진동과 소리로 재는 프로그램입니다.</p></div>
+  </div>
 
   <div class="card install">
     <esp-web-install-button manifest="manifest.json">
@@ -44,7 +48,7 @@
 
   <div class="card" style="text-align:center">
     <h2>📱 휴대폰 앱 (블루투스)</h2>
-    <p style="margin:4px 0 12px">설치 후 안드로이드 크롬에서 아래 버튼을 누르면 스틱 값을 폰으로 보고, 모드 변경·기록·그래프를 쓸 수 있습니다.</p>
+    <p style="margin:4px 0 12px">설치 후 안드로이드 크롬에서 열면 측정값·그래프·기록을 보고, 스틱 설정(밝기·감도·대기 모드 등)을 바꿀 수 있습니다.</p>
     <a href="app.html" style="display:inline-block;background:#1098ad;color:#fff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px">파노체크 앱 열기</a>
     <p class="small" style="margin:10px 0 0">크롬 메뉴 ⋮ → <b>홈 화면에 추가</b>를 하면 앱처럼 쓸 수 있습니다.</p>
   </div>
@@ -54,8 +58,8 @@
     <ol>
       <li>M5StickS3를 USB-C 케이블로 PC에 연결합니다. (충전 전용 케이블은 안 됩니다)</li>
       <li>위의 <b>CONNECT</b> 버튼을 누르고, 목록에서 <b>USB JTAG/serial debug unit</b> (COM 번호)을 선택합니다.</li>
-      <li><b>INSTALL PANOTRIO</b> → <b>INSTALL</b>을 누르고 끝날 때까지 기다립니다.</li>
-      <li>끝나면 스틱이 자동으로 다시 켜지고 PanoTrio 화면이 나옵니다.</li>
+      <li><b>INSTALL 파노체크</b> → <b>INSTALL</b>을 누르고 끝날 때까지 기다립니다.</li>
+      <li>끝나면 스틱이 자동으로 다시 켜지고 파노체크 시작 화면이 나옵니다.</li>
     </ol>
   </div>
 
@@ -77,13 +81,16 @@
       <tr><th>옆 버튼 B 짧게</th><td>탐색 범위: AUTO 250–700 Hz / LOW 40–260 Hz (저전압 길들이기) / WIDE 40–700 Hz</td></tr>
       <tr><th>옆 버튼 B 1초</th><td>화면 180도 회전</td></tr>
     </table>
-    <p style="margin:14px 0 6px"><b>MIC 모드</b>: 진동이 느껴지면 3초 뒤 모터 소리에서 파노를 읽습니다.</p>
-    <p style="margin:6px 0"><b>VIB+MIC 모드</b>: 진동을 인식하면 3초를 센 뒤 진동값과 소리값을 비교해 보여줍니다.</p>
+    <p style="margin:14px 0 6px"><b>MIC 모드</b>: 진동이 느껴지면 잠시(기본 2.5초) 뒤 모터 소리에서 파노를 읽습니다.</p>
+    <p style="margin:6px 0"><b>VIB+MIC 모드</b>: 진동을 인식하고 잠시 뒤 진동값과 소리값을 비교해 보여줍니다.</p>
     <ul>
       <li><b>MATCH</b> 두 값이 일치 · <b>CLOSE</b> 조금 다름 · <b>VIB ONLY</b> 소리가 안 잡힘</li>
       <li><b>HOLD</b> 모터가 멈춘 뒤 마지막 결과 유지</li>
+      <li>큰 숫자 = 파노(Hz). 기준값(기본 550 Hz)을 넘으면 빨갛게 흔들립니다.</li>
+      <li>아래 줄: V = 진동값, M = 소리값</li>
     </ul>
-    <p class="small">큰 숫자 = 파노(Hz), 옆 숫자 = rpm (Hz × 60)</p>
+    <p style="margin:14px 0 6px"><b>대기 모드</b>: 모터가 안 돌고 조작이 없으면 화면이 꺼집니다 (기본 30초). 버튼을 누르거나 모터가 돌면 바로 켜지며, 이때 첫 버튼은 화면만 켭니다.</p>
+    <p style="margin:6px 0"><b>자동 꺼짐</b>: 배터리로 쓸 때 오래(기본 10분) 쓰지 않으면 꺼집니다. 꺼지기 10초 전에 화면 아래에 알려주고, USB에 꽂혀 있으면 꺼지지 않습니다.</p>
   </div>
 
   <div class="card">
@@ -91,7 +98,8 @@
     <ul>
       <li>설치하면 스틱에 있던 기존 프로그램은 지워집니다.</li>
       <li>휴대폰(아이폰)과 사파리에서는 설치되지 않습니다. PC 크롬/엣지를 쓰세요.</li>
-      <li>버전 1.1입니다. 측정값이 이상하면 제작자에게 알려주세요.</li>
+      <li>앱에서 바꾼 설정은 <b>스틱에 저장</b>을 누르면 스틱에 들어가고, 스틱을 연결할 때도 자동으로 맞춰집니다.</li>
+      <li>버전 1.2입니다. 측정값이 이상하면 제작자에게 알려주세요.</li>
     </ul>
   </div>
 </main>

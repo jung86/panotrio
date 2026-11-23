@@ -228,21 +228,9 @@
 
   <div id="connectBox" class="card">
     <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
-    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-xxxx</b>를 고르면 됩니다. (예전 펌웨어는 PanoTrio-xxxx)</p>
+    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-xxxx</b>를 고르면 됩니다.</p>
   </div>
 
-  <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
-    <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
-    <p class="help" style="margin:6px 0">아래 스틱 ID를 제작자에게 보내고, 받은 활성화 코드를 입력하세요.</p>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">----.----</span>
-      <button id="btnCopyId">ID 복사</button>
-    </div>
-    <input id="actCode" maxlength="12" placeholder="활성화 코드 (예: ABCD-EFGH)" autocomplete="off"
-      style="width:100%;margin-top:10px;font:700 22px ui-monospace,Consolas,monospace;letter-spacing:2px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fff;text-transform:uppercase">
-    <button id="btnAct" class="primary" style="margin-top:10px">활성화</button>
-    <div id="actMsg" class="help" style="margin-top:8px;text-align:center"></div>
-  </div>
 
   <div class="card big" id="bigCard">
     <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
@@ -557,7 +545,7 @@ function renderHome() {
 showView();
 applyWake();
 
-// ---------------------------------------------------------------- activation
+// ---------------------------------------------------------------- stick info
 let devId = '';
 function onInfo(dv, whole) {
   const txt = new TextDecoder().decode(dv);
@@ -570,20 +558,7 @@ function onInfo(dv, whole) {
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
   devId = kv.ID || '';
-  $('devId').textContent = devId ? devId.slice(0, 4) + '-' + devId.slice(4) : '----.----';
-  const locked = kv.ACT === '0';
-  $('lockBox').style.display = locked ? '' : 'none';
-  if (kv.RES === 'BAD') $('actMsg').innerHTML = '<b style="color:#ff6b6b">코드가 맞지 않습니다. 다시 확인해 주세요.</b>';
-  if (kv.RES === 'OK' && !locked) $('actMsg').textContent = '';
 }
-$('btnCopyId').onclick = async () => { try { await navigator.clipboard.writeText('파노체크 스틱 ID: ' + $('devId').textContent); $('btnCopyId').textContent = '복사됨'; setTimeout(() => $('btnCopyId').textContent = 'ID 복사', 1200); } catch (e) {} };
-$('btnAct').onclick = async () => {
-  const code = $('actCode').value.trim();
-  if (!cmdChar || !code) return;
-  $('actMsg').textContent = '확인 중…';
-  const ch = cmdChar;
-  try { await gatt(() => ch.writeValue(new TextEncoder().encode('C' + code))); } catch (e) { $('actMsg').textContent = '전송 실패: ' + e.message; }
-};
 
 // ---------------------------------------------------------------- data
 function onText(dv) { statusText = new TextDecoder().decode(dv).trim(); render(); }
