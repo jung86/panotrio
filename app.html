@@ -27,6 +27,15 @@
   .big .hz { font-size:76px; font-weight:800; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
   .big .unit { font-size:20px; color:var(--mute); font-weight:600; }
   .big .rpm { font-size:22px; color:var(--mute); margin-top:6px; font-variant-numeric:tabular-nums; }
+  /* above 550 Hz: red, shaking, glowing */
+  .big.hot { border-color:#ff2d2d; animation:cardGlow .6s ease-in-out infinite alternate; }
+  .big.hot .hz { color:#ff2d2d; display:inline-block; animation:shake .28s linear infinite, hotFlash .5s steps(2) infinite; }
+  .big.hot .unit { color:#ff8787; }
+  @keyframes shake { 0%{transform:translate(0,0) rotate(0)} 20%{transform:translate(-3px,1px) rotate(-1deg)} 40%{transform:translate(3px,-1px) rotate(1deg)}
+                     60%{transform:translate(-2px,2px) rotate(0)} 80%{transform:translate(2px,-2px) rotate(1deg)} 100%{transform:translate(0,0) rotate(0)} }
+  @keyframes hotFlash { 0%{color:#ff2d2d; text-shadow:0 0 18px #ff000099} 100%{color:#ff7a1a; text-shadow:0 0 30px #ff5a00cc} }
+  @keyframes cardGlow { from{box-shadow:0 0 8px #ff000055} to{box-shadow:0 0 28px #ff2d2dbb} }
+  @media (prefers-reduced-motion: reduce) { .big.hot .hz, .big.hot { animation:none; } }
   .status { margin-top:12px; border-radius:10px; padding:9px; text-align:center; font-weight:700; color:#000; background:var(--grey); }
   .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .val { background:#151a21; border-radius:10px; padding:10px 12px; }
@@ -91,7 +100,7 @@
     <div id="actMsg" class="help" style="margin-top:8px;text-align:center"></div>
   </div>
 
-  <div class="card big">
+  <div class="card big" id="bigCard">
     <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
     <div class="rpm"><span id="rpm">-----</span> rpm</div>
     <div id="status" class="status">대기</div>
@@ -141,6 +150,7 @@ const CMD  = '7a1e0004-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const INFO = '7a1e0005-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const COLORS = ['var(--grey)','var(--green)','var(--yellow)','var(--orange)','var(--red)','var(--cyan)'];
 const MODES = ['진동','소리','진동+소리'];
+const HOT_HZ = 550;                    // above this the big value turns red and shakes
 const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
@@ -260,6 +270,7 @@ function fmt(v) { return v > 0 ? v.toFixed(1) : '---.-'; }
 function render() {
   if (!cur) return;
   $('hz').textContent = fmt(cur.big);
+  $('bigCard').classList.toggle('hot', cur.big > HOT_HZ);
   $('rpm').textContent = cur.big > 0 ? Math.round(cur.big * 60).toLocaleString() : '-----';
   $('status').textContent = statusText || ' ';
   $('status').style.background = COLORS[cur.color] || COLORS[0];
