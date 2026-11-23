@@ -250,6 +250,18 @@
     <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-xxxx</b>를 고르면 됩니다.</p>
   </div>
 
+  <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
+    <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
+    <p class="help" style="margin:6px 0">아래 스틱 ID를 제작자에게 보내세요. 받은 <b>활성화 링크</b>를 이 휴대폰에서 열고 스틱을 연결하면 자동으로 활성화됩니다. 링크나 코드를 아래에 붙여넣어도 됩니다.</p>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">----.----</span>
+      <button id="btnCopyId">ID 복사</button>
+    </div>
+    <textarea id="actCode" placeholder="활성화 링크 또는 코드 붙여넣기" style="width:100%;height:70px;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fff"></textarea>
+    <button id="btnAct" class="primary" style="margin-top:10px">활성화</button>
+    <div id="actMsg" class="help" style="margin-top:8px;text-align:center"></div>
+  </div>
+
 
   <div class="card big" id="bigCard">
     <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
@@ -405,7 +417,7 @@ async function openGatt() {
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; $('btnSave').disabled = true; renderSettings(); renderHome();
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
     try { await openGatt(); return; } catch (e) {}
@@ -621,11 +633,74 @@ function onBattery(pct, usb) {
 }
 function renderHome() {
   const on = !!cmdChar;
-  $('homeConn').textContent = on ? (device && device.name || '스틱') + ' 연결됨' + batText() : '스틱 연결 안 됨';
+  $('homeConn').textContent = on ? (device && device.name || '스틱') + (actState && !actState.act ? ' · 🔒 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
   $('homeConn').className = on ? 'pill on' : 'pill';
   $('btnConnect2').style.display = on ? 'none' : '';
   $('tileHz').textContent = on && cur && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '진동·소리로 회전수';
 }
+// ---------------------------------------------------------------- activation (signed code per stick)
+// A link "app.html#act=<ID>.<code>" from the owner is remembered and sent when that stick connects.
+let actState = null, actSentFor = '';
+function actKey(id) { return 'panotrio-act-' + id; }
+function checkActHash() {                          // the owner's link was opened (new page or app already open)
+  const m = /^#act=([0-9A-Fa-f]{8})\.([A-Za-z0-9_-]{80,90})/.exec(location.hash);
+  if (!m) return false;
+  const id = m[1].toUpperCase();
+  try { localStorage.setItem(actKey(id), m[2]); } catch (e) {}
+  history.replaceState(null, '', location.pathname + '#home');
+  actSentFor = '';
+  setTimeout(() => notify('활성화 링크를 받았습니다 · 스틱을 연결하면 활성화됩니다', true), document.getElementById('splash') ? 2000 : 0);
+  if (actState && !actState.act && actState.id === id && cmdChar) { actSentFor = id; sendActivation(m[2]); }   // stick already connected
+  return true;
+}
+window.addEventListener('hashchange', () => { if (checkActHash()) showView(); });
+checkActHash();
+function parseActInput(t, id) {                    // a whole link or just the code
+  t = (t || '').trim();
+  const m = /act=([0-9A-Fa-f]{8})\.([A-Za-z0-9_-]+)/.exec(t);
+  if (m) return m[1].toUpperCase() === id ? m[2] : null;
+  return /^[A-Za-z0-9_-]{80,90}$/.test(t) ? t : null;
+}
+function b64uBytes(c) {
+  const b = atob(c.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((c.length + 3) % 4));
+  return Uint8Array.from(b, ch => ch.charCodeAt(0));
+}
+async function sendActivation(code) {
+  const ch = cmdChar; if (!ch) return;
+  let sig; try { sig = b64uBytes(code); } catch (e) { sig = null; }
+  if (!sig || sig.length !== 64) { $('actMsg').innerHTML = '<b style="color:#ff6b6b">코드 형식이 맞지 않습니다.</b>'; return; }
+  $('actMsg').textContent = '확인 중…';
+  for (let i = 0; i < 4; i++) {
+    const part = new Uint8Array(18); part[0] = 65; part[1] = i; part.set(sig.subarray(i * 16, i * 16 + 16), 2);   // 'A', index, 16 bytes
+    try { await gatt(() => ch.writeValue(part)); } catch (e) { $('actMsg').textContent = '전송 실패: 다시 눌러 주세요'; return; }
+  }
+  refreshInfo(300);
+}
+function onActivation(kv) {
+  const id = kv.ID || '', act = kv.ACT !== '0';
+  const was = actState;
+  actState = { id, act, res: kv.RES || '' };
+  $('lockBox').style.display = act ? 'none' : '';
+  $('devId').textContent = id ? id.slice(0, 4) + '-' + id.slice(4) : '----.----';
+  if (act) {
+    if (was && !was.act) { notify('✓ 활성화되었습니다', true); try { localStorage.removeItem(actKey(id)); } catch (e) {} $('actMsg').textContent = ''; }
+    return;
+  }
+  if (kv.RES === 'BAD') $('actMsg').innerHTML = '<b style="color:#ff6b6b">이 스틱의 코드가 아닙니다. 스틱 ID를 확인해 주세요.</b>';
+  let saved = null; try { saved = localStorage.getItem(actKey(id)); } catch (e) {}
+  if (saved && actSentFor !== id) { actSentFor = id; sendActivation(saved); }   // link opened earlier: activate now
+  renderHome();
+}
+$('btnCopyId').onclick = async () => {
+  const t = '파노체크 스틱 ID: ' + $('devId').textContent;
+  try { await navigator.clipboard.writeText(t); $('btnCopyId').textContent = '복사됨'; setTimeout(() => $('btnCopyId').textContent = 'ID 복사', 1200); } catch (e) {}
+};
+$('btnAct').onclick = () => {
+  if (!cmdChar || !actState) { $('actMsg').textContent = '먼저 스틱을 연결하세요.'; return; }
+  const code = parseActInput($('actCode').value, actState.id);
+  if (!code) { $('actMsg').innerHTML = '<b style="color:#ff6b6b">이 스틱(' + $('devId').textContent + ')의 링크나 코드가 아닙니다.</b>'; return; }
+  sendActivation(code);
+};
 showView();
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 applyWake();
@@ -644,6 +719,7 @@ function onInfo(dv, whole) {
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
   devId = kv.ID || '';
+  onActivation(kv);
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
 }
 
