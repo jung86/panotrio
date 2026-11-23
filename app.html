@@ -34,13 +34,17 @@
   .val .v { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
   .val .s { font-size:13px; color:var(--mute); }
   .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+  .seg button { min-height:52px; line-height:1.25; }
+  .seg small { font-size:12px; opacity:.75; }
   .seg button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
-  .lbl { font-size:13px; color:var(--mute); margin-top:8px; }
+  .lbl { font-size:13px; color:var(--mute); margin-top:14px; }
+  .ttl { font-size:13px; font-weight:700; color:var(--mute); letter-spacing:.5px; margin:0 0 8px; }
+  .reset { width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; color:#ffd8a8; border-color:#5c3d1e; background:#221a12; }
   canvas { width:100%; height:180px; display:block; }
   .legend { display:flex; gap:14px; font-size:13px; color:var(--mute); margin-top:6px; }
   .legend i { display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:5px; }
-  .tools { display:flex; gap:8px; flex-wrap:wrap; }
-  .tools button { flex:1; }
+  .tools { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .tools button { font-size:14px; padding:10px 4px; white-space:nowrap; }
   table { width:100%; border-collapse:collapse; font-size:14px; }
   td, th { padding:7px 4px; border-bottom:1px solid var(--line); text-align:left; }
   th { color:var(--mute); font-weight:600; }
@@ -49,6 +53,12 @@
   .help { color:var(--mute); font-size:14px; }
   label.auto { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--mute); margin-top:8px; }
   .del { padding:2px 8px; font-size:13px; }
+  .rec { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); }
+  .rec .hz { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; min-width:78px; }
+  .rec .mid { flex:1; min-width:0; }
+  .rec .meta { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rec .memo { font-size:14px; color:#74c0fc; text-decoration:none; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chip { font-size:11px; font-weight:700; color:#000; border-radius:6px; padding:2px 6px; background:var(--grey); white-space:nowrap; }
   #splash { position:fixed; inset:0; z-index:99; background:#111418; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
   #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
   #splash .name { font-size:34px; font-weight:800; letter-spacing:2px; }
@@ -92,6 +102,7 @@
       <div class="val"><div class="k">진동 (V)</div><div id="vHz" class="v">---.-</div><div id="vMg" class="s">&nbsp;</div></div>
       <div class="val"><div class="k">소리 (M)</div><div id="mHz" class="v">---.-</div><div id="mDb" class="s">&nbsp;</div></div>
     </div>
+    <button id="btnReset" class="reset">↺ 측정 초기화 <small style="color:var(--mute)">지난 결과 지우고 다시 대기</small></button>
     <div class="lbl">모드</div>
     <div class="seg" id="segMode">
       <button data-v="0">진동</button><button data-v="1">소리</button><button data-v="2">진동+소리</button>
@@ -100,25 +111,23 @@
     <div class="seg" id="segRange">
       <button data-v="0">AUTO<br><small>250–700</small></button><button data-v="1">LOW<br><small>40–260</small></button><button data-v="2">WIDE<br><small>40–700</small></button>
     </div>
-    <button id="btnReset" style="width:100%;margin-top:10px">측정 초기화 <small style="color:var(--mute)">(지난 결과 지우고 다시 대기)</small></button>
   </div>
 
   <div class="card">
+    <div class="ttl">최근 60초</div>
     <canvas id="chart" width="1040" height="360"></canvas>
-    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#ff922b"></i>진동</span><span><i style="background:#3bc9db"></i>소리</span><span id="span">최근 60초</span></div>
+    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#ff922b"></i>진동</span><span><i style="background:#3bc9db"></i>소리</span></div>
   </div>
 
   <div class="card">
+    <div class="ttl">기록</div>
     <div class="tools">
-      <button id="btnSave" disabled>지금 값 기록</button>
-      <button id="btnCsv">CSV 내보내기</button>
-      <button id="btnClear">기록 지우기</button>
+      <button id="btnSave" disabled>＋ 지금 값</button>
+      <button id="btnCsv">CSV 저장</button>
+      <button id="btnClear">모두 지우기</button>
     </div>
     <label class="auto"><input type="checkbox" id="autoRec" checked> 결과가 나올 때마다 자동 기록</label>
-    <table style="margin-top:8px">
-      <thead><tr><th>시간</th><th>메모</th><th>파노</th><th>rpm</th><th>결과</th><th></th></tr></thead>
-      <tbody id="recs"></tbody>
-    </table>
+    <div id="recs" style="margin-top:6px"></div>
   </div>
 
   <p class="help">안드로이드 크롬에서 사용하세요. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
@@ -284,12 +293,19 @@ function drawChart() {
   }
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function recColor(st) { return /^MATCH|^MIC OK|^VIB OK/.test(st) ? 'var(--green)' : /^CLOSE/.test(st) ? 'var(--yellow)' : /^VIB ONLY/.test(st) ? 'var(--orange)' : /정회전|역회전/.test(st) ? 'var(--cyan)' : 'var(--grey)'; }
 function renderRecs() {
-  const tb = $('recs');
-  if (!recs.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">기록이 없습니다</td></tr>'; return; }
-  tb.innerHTML = recs.map((r, i) => {
-    const d = new Date(r.t), tm = d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-    return `<tr><td>${tm}</td><td><a href="#" data-memo="${i}" style="color:#74c0fc">${r.memo ? esc(r.memo) : '+메모'}</a></td><td class="n">${r.big.toFixed(1)}</td><td class="n">${Math.round(r.big * 60)}</td><td>${esc((r.status || '').split('  ')[0])}</td><td><button class="del" data-del="${i}">×</button></td></tr>`;
+  const box = $('recs');
+  if (!recs.length) { box.innerHTML = '<div class="empty">기록이 없습니다</div>'; return; }
+  const p2 = n => String(n).padStart(2, '0');
+  box.innerHTML = recs.map((r, i) => {
+    const d = new Date(r.t), tm = `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    const st = (r.status || '').split('  ')[0];
+    return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
+      <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.memo ? esc(r.memo) : '+ 메모'}</a>
+      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm</div></div>
+      ${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
+      <button class="del" data-del="${i}">×</button></div>`;
   }).join('');
 }
 $('recs').onclick = e => {
