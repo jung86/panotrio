@@ -273,6 +273,7 @@
     <div style="display:flex;gap:8px;align-items:center;margin:4px 0 8px">
       <span style="flex:1"><span class="set-help">스틱 ID</span><br><span id="infoId" style="font:800 26px ui-monospace,Consolas,monospace;letter-spacing:2px">----.----</span></span>
       <button id="btnInfoId">복사</button>
+      <button id="btnInfoShare">📨 카톡</button>
     </div>
     <div class="set-help" id="infoTxt">스틱 연결 안 됨</div>
   </div>
@@ -285,7 +286,7 @@
 
   <div id="connectBox" class="card">
     <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
-    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-xxxx</b>를 고르면 됩니다.</p>
+    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다.</p>
   </div>
 
   <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
@@ -750,6 +751,12 @@ $('btnReq').onclick = async () => {
   if (navigator.share) { try { await navigator.share({ title: '파노체크 활성화 요청', text: t }); $('actMsg').textContent = '요청을 보냈습니다 · 답장 링크를 기다려 주세요'; return; } catch (e) { if (e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(t); $('actMsg').textContent = '복사했습니다 · 카톡에 붙여넣어 보내세요'; } catch (e) {}
 };
+$('btnInfoShare').onclick = async () => {
+  const t = $('infoId').textContent; if (t.startsWith('-')) return;
+  const msg = '파노체크 스틱 ID: ' + t;
+  if (navigator.share) { try { await navigator.share({ title: '파노체크 스틱 ID', text: msg }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(msg); $('btnInfoShare').textContent = '복사됨'; setTimeout(() => $('btnInfoShare').textContent = '📨 카톡', 1200); } catch (e) {}
+};
 $('btnInfoId').onclick = async () => {
   const t = $('infoId').textContent; if (t.startsWith('-')) return;
   try { await navigator.clipboard.writeText('파노체크 스틱 ID: ' + t); $('btnInfoId').textContent = '복사됨'; setTimeout(() => $('btnInfoId').textContent = '복사', 1200); } catch (e) {}
@@ -882,7 +889,7 @@ function onInfo(dv, whole) {
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo();
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '----.----';
-  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')}<br>블루투스 이름 끝 4자리 = ID 뒤 4자리`;
+  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')}<br>블루투스 이름: 파노체크-${esc(kv.ID || '')}`;
   renderSettings();
   devId = kv.ID || '';
   onActivation(kv);
