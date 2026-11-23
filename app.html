@@ -176,15 +176,21 @@
   <div class="card" id="admMake" style="display:none">
     <div class="ttl">스틱 ID</div>
     <input id="aId" type="text" maxlength="9" placeholder="XXXX-XXXX" autocomplete="off">
-    <button id="btnAdmMake" class="primary" style="margin-top:10px">활성화 링크 만들기</button>
+    <div id="aLvInfo" class="help" style="margin-top:6px"></div>
+    <div class="tools" style="margin-top:10px"><button id="btnAdmMake" class="primary">활성화 링크 만들기</button><button id="btnAdmRvk">🚫 허락 취소</button></div>
     <div id="aRes" style="display:none;margin-top:12px">
       <textarea id="aLink" readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#cfe"></textarea>
       <div class="tools" style="margin-top:8px"><button id="btnAdmShare" class="primary">📨 답장 보내기 (카톡)</button><button id="btnAdmCopy">복사</button><button id="btnAdmHere">이 스틱에 바로</button></div>
     </div>
+    <div id="aRvkRes" style="display:none;margin-top:12px;border:1px solid #e8590c;border-radius:12px;padding:10px">
+      <div class="set-help" style="margin:0 0 6px">아래 한 줄을 <b>취소 목록</b>에 붙여넣고 저장하면, 그 사람이 인터넷 켠 상태로 앱에 스틱을 연결할 때 스틱이 잠깁니다. (펌웨어 1.8 이상)</div>
+      <textarea id="aRvkLine" readonly style="width:100%;height:64px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fcc"></textarea>
+      <div class="tools" style="margin-top:8px"><button id="btnRvkGh" class="primary">복사하고 목록 열기 (GitHub)</button><button id="btnRvkHere">이 스틱에 바로</button></div>
+    </div>
     <div id="aMsg2" class="help" style="margin-top:8px;text-align:center"></div>
     <button id="btnAdmForget" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 잠그기 (기억 지우기)</button>
   </div>
-  <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.</p>
+  <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
 </div></div>
 <div id="settings"><div class="inner">
   <header>
@@ -465,7 +471,7 @@ async function openGatt() {
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; $('btnSave').disabled = true; renderSettings(); renderHome();
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
     try { await openGatt(); return; } catch (e) {}
@@ -727,6 +733,43 @@ async function sendActivation(code) {
   }
   refreshInfo(300);
 }
+// ---------------------------------------------------------------- permission taken back (revoked.txt: "ID LEVEL CODE" per line)
+const RVK_URL = 'revoked.txt';
+let rvkList = null, rvkSentFor = '';
+async function loadRvkList(force) {
+  if (rvkList && !force) return rvkList;
+  try {
+    const r = await fetch(RVK_URL, { cache: 'no-cache' });
+    if (!r.ok) return rvkList;
+    const m = new Map();
+    (await r.text()).split(/\r?\n/).forEach(line => {
+      const t = line.trim().split(/\s+/);
+      if (t.length < 3 || t[0].startsWith('#') || !/^[0-9A-Fa-f]{8}$/.test(t[0]) || !/^\d+$/.test(t[1]) || !/^[A-Za-z0-9_-]{80,90}$/.test(t[2])) return;
+      const id = t[0].toUpperCase(), lv = +t[1], cur = m.get(id);
+      if (!cur || lv > cur.lv) m.set(id, { lv, code: t[2] });
+    });
+    rvkList = m;
+  } catch (e) {}
+  return rvkList;
+}
+async function sendRevoke(code, lv) {
+  const ch = cmdChar; if (!ch) return false;
+  let sig; try { sig = b64uBytes(code); } catch (e) { return false; }
+  if (sig.length !== 64) return false;
+  for (let i = 0; i < 4; i++) {
+    const part = new Uint8Array(19); part[0] = 86; part[1] = i; part.set(sig.subarray(i * 16, i * 16 + 16), 2); part[18] = lv;   // 'V', index, 16 bytes, level
+    try { await gatt(() => ch.writeValue(part)); } catch (e) { return false; }
+  }
+  refreshInfo(300);
+  return true;
+}
+async function checkRevoked(kv) {                    // the app passes the owner's removal to the stick
+  const id = kv.ID || '';
+  if (!id || kv.ACT === '0' || kv.RV === undefined || rvkSentFor === id || !navigator.onLine) return;
+  rvkSentFor = id;
+  const list = await loadRvkList(true); const e = list && list.get(id);
+  if (e && e.lv > +kv.RV && actState && actState.id === id) await sendRevoke(e.code, e.lv);
+}
 function onActivation(kv) {
   const id = kv.ID || '', act = kv.ACT !== '0';
   const was = actState;
@@ -738,6 +781,7 @@ function onActivation(kv) {
     return;
   }
   if (kv.RES === 'BAD') $('actMsg').innerHTML = '<b style="color:#ff6b6b">이 스틱의 코드가 아닙니다. 스틱 ID를 확인해 주세요.</b>';
+  if (kv.RES === 'RVK') $('actMsg').innerHTML = '<b style="color:#ff6b6b">제작자가 이 스틱의 사용 허락을 취소했습니다.</b><br>다시 쓰려면 위 버튼으로 제작자에게 요청해 주세요.';
   let saved = null; try { saved = localStorage.getItem(actKey(id)); } catch (e) {}
   if (saved && actSentFor !== id) { actSentFor = id; sendActivation(saved); }   // link opened earlier: activate now
   renderHome();
@@ -834,15 +878,54 @@ $('aFile').onchange = async () => {
 };
 $('aPw').onkeydown = e => { if (e.key === 'Enter') $('btnAdmOpen').click(); };
 let admLink = '', admCode = '', admId = '';
-$('btnAdmMake').onclick = async () => {
+function admIdValue() {
   const id = $('aId').value.toUpperCase().replace(/[^0-9A-F]/g, '');
-  if (id.length !== 8) { $('aMsg2').innerHTML = '<b style="color:#ff6b6b">ID는 8자리(0-9, A-F)입니다.</b>'; return; }
+  if (id.length !== 8) { $('aMsg2').innerHTML = '<b style="color:#ff6b6b">ID는 8자리(0-9, A-F)입니다.</b>'; return null; }
+  return id;
+}
+async function admSign(msg) {
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, admKey, new TextEncoder().encode(msg));
+  return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function admRvkLevel(id) {                    // -1 = never taken back
+  const list = await loadRvkList(true);
+  if (!list) throw new Error('취소 목록을 읽지 못했습니다 (인터넷 확인)');
+  const e = list.get(id); return e ? e.lv : -1;
+}
+$('aId').oninput = () => { $('aLvInfo').textContent = ''; };
+let admRvk = null;
+$('btnAdmRvk').onclick = async () => {
+  const id = admIdValue(); if (!id) return;
   try {
-    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, admKey, new TextEncoder().encode('PanoCheck|act|v2|' + id));
-    admCode = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const lv = (await admRvkLevel(id)) + 1;
+    const code = await admSign('PanoCheck|rvk|v1|' + id + '|' + lv);
+    admRvk = { id, lv, code };
+    $('aRvkLine').value = id + ' ' + lv + ' ' + code;
+    $('aRvkRes').style.display = ''; $('aRes').style.display = 'none';
+    $('btnRvkHere').disabled = !(cmdChar && actState && actState.id === id);
+    $('aMsg2').textContent = '✓ 취소 줄을 만들었습니다 · 목록에 올려야 적용됩니다';
+  } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
+};
+$('btnRvkGh').onclick = async () => {
+  try { await navigator.clipboard.writeText($('aRvkLine').value); } catch (e) { $('aRvkLine').select(); document.execCommand('copy'); }
+  $('aMsg2').innerHTML = '✓ 복사했습니다 · 열린 GitHub 화면에서 <b>맨 아래 줄에 붙여넣고 Commit changes</b>를 누르세요';
+  window.open('https://github.com/jung86/panotrio/edit/main/revoked.txt', '_blank');
+};
+$('btnRvkHere').onclick = async () => {
+  if (admRvk && cmdChar && actState && actState.id === admRvk.id) { rvkSentFor = admRvk.id; $('aMsg2').textContent = (await sendRevoke(admRvk.code, admRvk.lv)) ? '연결된 스틱에 보냈습니다 (펌웨어 1.8 이상)' : '보내지 못했습니다'; }
+};
+$('btnAdmMake').onclick = async () => {
+  const id = admIdValue(); if (!id) return;
+  try {
+    let lv = 0, warn = '';                                // allowed again after a removal: next level
+    try { lv = (await admRvkLevel(id)) + 1; } catch (e) { warn = ' (취소 목록 확인 못 함 · 인터넷 확인)'; }
+    const code = await admSign(lv === 0 ? 'PanoCheck|act|v2|' + id : 'PanoCheck|act|v2|' + id + '|' + lv);
+    $('aLvInfo').textContent = lv > 0 ? '허락을 취소했던 스틱입니다 → 다시 허락하는 새 링크를 만듭니다 (펌웨어 1.8 이상 필요)' : '';
+    $('aRvkRes').style.display = 'none';
+    admCode = code;
     admId = id; admLink = APP_URL + '#act=' + id + '.' + admCode;
     $('aLink').value = '파노체크 활성화 링크 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 전용)\n' + admLink + '\n\n스틱을 켜 두고 링크를 누른 뒤 [스틱 연결]만 누르면 활성화됩니다.';
-    $('aRes').style.display = ''; $('aMsg2').textContent = '✓ 만들었습니다';
+    $('aRes').style.display = ''; $('aMsg2').textContent = '✓ 만들었습니다' + warn;
     $('btnAdmHere').disabled = !(cmdChar && actState && !actState.act && actState.id === id);
   } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
 };
@@ -894,6 +977,7 @@ function onInfo(dv, whole) {
   renderSettings();
   devId = kv.ID || '';
   onActivation(kv);
+  checkRevoked(kv);
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
 }
 
