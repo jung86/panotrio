@@ -83,6 +83,13 @@
   #psuOut.on { background:var(--green); border-color:var(--green); color:#fff; }
   #psuDir { margin-top:10px; grid-template-columns:1fr 1fr; }
   .seg button.sel2 { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+  .condTop { display:flex; align-items:center; gap:14px; }
+  .condScore { font-size:44px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; min-width:84px; text-align:center; }
+  .condScore small { font-size:15px; color:var(--mute); font-weight:600; }
+  .condGrade { font-size:13px; font-weight:800; border-radius:8px; padding:3px 10px; color:#000; display:inline-block; }
+  .condRows { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:14px; margin-top:10px; font-variant-numeric:tabular-nums; }
+  .condRows .k { color:var(--mute); }
+  .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -429,6 +436,15 @@
       <div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div>
       <div id="psuMsg" class="help" style="margin-top:6px;text-align:center"></div>
     </div>
+  </div>
+
+  <div class="card" id="condCard">
+    <div class="ttl">🩺 모터 컨디션</div>
+    <div class="condTop">
+      <div id="condScore" class="condScore">--</div>
+      <div style="flex:1;min-width:0"><span id="condGrade" class="condGrade" style="background:var(--grey)">대기</span><div id="condNote" class="help" style="margin-top:4px">전원공급기 출력을 켜고 모터를 돌리면 표시됩니다.</div></div>
+    </div>
+    <div id="condRows" class="condRows"></div>
   </div>
 
   <div class="card">
@@ -1086,7 +1102,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24d';
+const APP_BUILD = '2026-11-24e';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1133,6 +1149,7 @@ function onStat(dv) {
   };
   const now = Date.now();
   hist.push({ t: now, big: cur.big, vib: cur.vib, mic: cur.mic });
+  condRender();
   if ($('clean').classList.contains('open')) cleanRender();
   while (hist.length && now - hist[0].t > 60000) hist.shift();
   autoRecord();
@@ -1182,7 +1199,7 @@ $('btnMotorEdit').onclick = () => {
 };
 function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
-  recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot()));
+  recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot(), condSnapshot()));
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs();
 }
@@ -1246,7 +1263,7 @@ function renderRecs() {
     const st = (r.status || '').split('  ')[0];
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
       <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
-      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
+      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}${r.cond !== undefined ? ` · 🩺${r.cond}점` : ''}</div></div>
       ${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('');
@@ -1266,9 +1283,9 @@ $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send
 $('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
 $('btnClear').onclick = () => { if (confirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
 $('btnCsv').onclick = () => {
-  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status', 'volt', 'amp', 'direction']].concat(
+  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status', 'volt', 'amp', 'direction', 'condition']].concat(
     recs.map(r => [new Date(r.t).toISOString(), r.motor || '', r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status,
-                   r.volt !== undefined ? r.volt : '', r.amp !== undefined ? r.amp : '', r.dir === undefined ? '' : r.dir ? 'reverse' : 'forward']));
+                   r.volt !== undefined ? r.volt : '', r.amp !== undefined ? r.amp : '', r.dir === undefined ? '' : r.dir ? 'reverse' : 'forward', r.cond !== undefined ? r.cond : '']));
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -1438,6 +1455,7 @@ function dpsRender() {
   } else if (!on) $('dpsSub').textContent = '';
   cleanRenderBtns();
   if (typeof psuRender === 'function' && $('psuCard')) psuRender();
+  if (typeof condRender === 'function') condRender();
 }
 
 // ---------------------------------------------------------------- 모터클리닝: min -> max -> min ramps, forward / reverse / alternate
@@ -1652,6 +1670,64 @@ $('btnInstall').onclick = async () => {
   } else notify('크롬 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', true);
 };
 $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mode: standalone)').matches ? ' · 설치된 앱' : '');
+
+// ---------------------------------------------------------------- 🩺 motor condition: current, rpm per volt, steadiness, forward/reverse
+// Compared with the selected motor's own records at about the same voltage (median of the earlier ones).
+var condLast = null, condT = 0;                       // var: condRender can run before this line (clean module init)
+function median(a) { const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
+function condSame(r, v) { return r.volt !== undefined && r.volt > 0.3 && Math.abs(r.volt - v) <= Math.max(0.2, v * 0.05); }
+function condCompute() {
+  const st = dps.st || {};
+  if (!cur || !(cur.big > 0) || !dps.link || !st.on || !(st.v > 0.3) || !(st.i >= 0)) return null;
+  const v = st.v, i = st.i, hz = cur.big, rpv = hz * 60 / v;
+  const now = Date.now(), win = hist.filter(h => now - h.t < 5000 && h.big > 0).map(h => h.big);
+  let cv = null;
+  if (win.length >= 6) { const m = win.reduce((a, b) => a + b, 0) / win.length; cv = Math.sqrt(win.reduce((a, b) => a + (b - m) ** 2, 0) / win.length) / m * 100; }
+  const agree = cur.vib > 0 && cur.mic > 0 ? Math.abs(cur.vib - cur.mic) / Math.max(cur.vib, cur.mic) * 100 : null;
+  const dir = stickDir;
+  const base = curMotor ? recs.filter(r => r.motor === curMotor && condSame(r, v) && (r.dir === undefined || dir === null || r.dir === dir)) : [];
+  let bI = null, bR = null;
+  if (base.length >= 2) { bI = median(base.map(r => r.amp)); bR = median(base.map(r => r.big * 60 / r.volt)); }
+  const dI = bI > 0.005 ? (i - bI) / bI * 100 : null, dR = bR ? (rpv - bR) / bR * 100 : null;
+  let score = 100;
+  if (dI !== null && dI > 3) score -= Math.min(40, (dI - 3) * 1.5);
+  if (dR !== null && dR < -2) score -= Math.min(40, (-dR - 2) * 2);
+  if (cv !== null && cv > 1) score -= Math.min(20, (cv - 1) * 10);
+  if (agree !== null && agree > 2) score -= Math.min(10, (agree - 2) * 2);
+  // forward / reverse: latest record of each direction at this voltage
+  let fr = null;
+  if (curMotor) {
+    const f = recs.find(r => r.motor === curMotor && r.dir === 0 && condSame(r, v)), rv = recs.find(r => r.motor === curMotor && r.dir === 1 && condSame(r, v));
+    if (f && rv) fr = Math.abs(f.big / f.volt - rv.big / rv.volt) / Math.max(f.big / f.volt, rv.big / rv.volt) * 100;
+  }
+  if (fr !== null && fr > 3) score -= Math.min(15, (fr - 3) * 2);
+  return { score: Math.max(0, Math.round(score)), v, i, hz, rpv, cv, agree, dI, dR, bN: base.length, fr, hasBase: bI !== null, clear: isClearResult(statusText) };
+}
+function condRender(force) {
+  const now = Date.now(); if (!force && now - condT < 400) return; condT = now;
+  if (!$('condCard')) return;
+  const c = condCompute(); condLast = c;
+  if (!c) {
+    $('condScore').innerHTML = '--'; $('condGrade').textContent = '대기'; $('condGrade').style.background = 'var(--grey)';
+    $('condNote').textContent = !dps.link ? '전원공급기를 연결하고 출력을 켜면 표시됩니다.' : !(dps.st && dps.st.on) ? '출력을 켜고 모터를 돌리면 표시됩니다.' : '파노 측정을 기다리는 중…';
+    $('condRows').innerHTML = ''; return;
+  }
+  const g = !c.hasBase ? ['기준 쌓는 중', 'var(--cyan)'] : c.score >= 85 ? ['좋음', 'var(--green)'] : c.score >= 65 ? ['보통', 'var(--yellow)'] : ['점검 필요', 'var(--red)'];
+  $('condScore').innerHTML = c.score + '<small>점</small>';
+  $('condGrade').textContent = g[0]; $('condGrade').style.background = g[1];
+  $('condNote').textContent = !curMotor ? '모터를 선택하면 그 모터의 평소 값과 비교합니다.' : !c.hasBase ? `같은 전압(${c.v.toFixed(1)}V) 기록 ${c.bN}/2개 · 기록이 쌓이면 평소와 비교합니다` : `${esc(curMotor)} · ${c.v.toFixed(1)}V 기록 ${c.bN}개와 비교`;
+  const pct = (d, badUp) => d === null ? '' : ` <span class="${(badUp ? d > 3 : d < -2) ? 'up' : (badUp ? d < -3 : d > 2) ? 'dn' : ''}">(평소 ${(Math.round(d * 10) / 10 || 0) >= 0 ? '+' : ''}${(Math.round(d * 10) / 10 || 0).toFixed(1)}%)</span>`;
+  const rows = [
+    ['전류', `${c.i.toFixed(3)} A @ ${c.v.toFixed(2)} V` + pct(c.dI, true)],
+    ['전압당 회전', `${Math.round(c.rpv).toLocaleString()} rpm/V` + pct(c.dR, false)],
+    ['안정성', c.cv === null ? '측정 중…' : `±${c.cv.toFixed(2)}% ${c.cv < 0.5 ? '(아주 고름)' : c.cv < 1.5 ? '(보통)' : '(흔들림)'}`]
+  ];
+  if (c.agree !== null) rows.push(['진동·소리 차이', c.agree.toFixed(1) + '%']);
+  if (c.fr !== null) rows.push(['정/역 차이', c.fr.toFixed(1) + '%' + (c.fr > 3 ? ' (한쪽으로 치우침)' : '')]);
+  $('condRows').innerHTML = rows.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('');
+}
+function condSnapshot() { const c = condLast; return c && c.hasBase ? { cond: c.score } : {}; }
+condRender(true);
 </script>
 </body>
 </html>
