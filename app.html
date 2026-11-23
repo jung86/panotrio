@@ -320,6 +320,33 @@ function notify(text, good) {
   if (appSet.snd) beep(good ? [880, 1320] : [660, 440]);
 }
 
+// ---------------------------------------------------------------- one Bluetooth operation at a time
+// Android Chrome refuses a read / write while another is still running ("GATT operation already in
+// progress") - and the refused setting was silently lost. Every operation goes through this queue
+// and is retried a few times.
+let gattQ = Promise.resolve();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function gatt(op, tries = 4) {
+  const run = async () => {
+    for (let i = 0; i < tries; i++) {
+      try { return await op(); }
+      catch (e) { if (i === tries - 1) throw e; await sleep(150 + i * 150); }
+    }
+  };
+  const p = gattQ.then(run, run);
+  gattQ = p.catch(() => {});
+  return p;
+}
+let infoReadPending = false;
+function refreshInfo(delay = 60) {                 // read the whole INFO text once (notifications may be cut off)
+  if (infoReadPending || !infoChar) return;
+  infoReadPending = true;
+  setTimeout(async () => {
+    try { const ch = infoChar; if (ch) { const v = await gatt(() => ch.readValue()); infoReadPending = false; onInfo(v, true); return; } } catch (e) {}
+    infoReadPending = false;
+  }, delay);
+}
+
 // ---------------------------------------------------------------- bluetooth
 async function connect() {
   if (!navigator.bluetooth) {
@@ -343,15 +370,15 @@ async function openGatt() {
   cmdChar = await svc.getCharacteristic(CMD);
   st.addEventListener('characteristicvaluechanged', e => onStat(e.target.value));
   tx.addEventListener('characteristicvaluechanged', e => onText(e.target.value));
-  await st.startNotifications();
-  await tx.startNotifications();
-  onText(await tx.readValue());
-  onStat(await st.readValue());
+  await gatt(() => st.startNotifications());
+  await gatt(() => tx.startNotifications());
+  onText(await gatt(() => tx.readValue()));
+  onStat(await gatt(() => st.readValue()));
   try {
     const inf = await svc.getCharacteristic(INFO); infoChar = inf;
     inf.addEventListener('characteristicvaluechanged', e => onInfo(e.target.value));
-    await inf.startNotifications();
-    onInfo(await inf.readValue());
+    await gatt(() => inf.startNotifications());
+    onInfo(await gatt(() => inf.readValue()), true);
   } catch (e) {}
   $('conn').textContent = device.name || '연결됨'; $('conn').className = 'conn on';
   notify((device.name || '스틱') + ' 연결됨', true);
@@ -371,7 +398,8 @@ async function onDisconnected() {
 }
 async function send(kind, val) {
   if (!cmdChar) return;
-  try { await cmdChar.writeValue(new Uint8Array([kind.charCodeAt(0), val])); } catch (e) {}
+  const ch = cmdChar;
+  try { await gatt(() => ch.writeValue(new Uint8Array([kind.charCodeAt(0), val]))); } catch (e) {}
 }
 
 // ---------------------------------------------------------------- settings
@@ -380,7 +408,9 @@ const APPSET_KEY = 'panotrio-appset';
 let appSet = { vib: true, snd: true, hot: true, wake: false };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
-let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false;
+let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false, pendingSet = 0;
+let lastStickSet = null;                           // last values read from the stick (shown greyed while not connected)
+try { lastStickSet = JSON.parse(localStorage.getItem('panotrio-stickset') || 'null'); } catch (e) {}
 function vmIndex(mg) { let best = 0; VM_STEPS.forEach((v, i) => { if (Math.abs(v - mg) < Math.abs(VM_STEPS[best] - mg)) best = i; }); return best; }
 function vmLabel(mg) { return mg + ' mg' + (mg <= 20 ? ' (민감)' : mg >= 120 ? ' (둔감)' : mg === 40 ? ' (기본)' : ''); }
 function renderSettings() {
@@ -388,7 +418,9 @@ function renderSettings() {
   $('stickRows').classList.toggle('off', !has);
   $('stickNote').textContent = !cmdChar ? '스틱을 연결하면 바꿀 수 있습니다.' : !stickSet ? '스틱 펌웨어를 0.9 이상으로 업데이트하면 바꿀 수 있습니다.' : '바꾸면 바로 스틱에 저장됩니다.';
   $('stickNote').style.display = has ? 'none' : '';
-  if (stickSet && !dragging) {
+  const shown = stickSet || lastStickSet;
+  if (shown && !dragging) {
+    const stickSet = shown;
     $('sBr').value = stickSet.br; $('vBr').textContent = Math.round(stickSet.br / 255 * 100) + '%';
     $('sVm').value = vmIndex(stickSet.vm); $('vVm').textContent = vmLabel(stickSet.vm);
     $('sWt').value = stickSet.wt; $('vWt').textContent = (stickSet.wt / 10).toFixed(1) + '초';
@@ -411,8 +443,12 @@ function renderSettings() {
 }
 async function sendSetting(id, val) {
   if (!cmdChar) return;
-  try { await cmdChar.writeValue(new Uint8Array([80, id, val & 255, (val >> 8) & 255])); } catch (e) {}   // 'P'
-  setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 350);
+  pendingSet = Date.now();
+  const ch = cmdChar;
+  try { await gatt(() => ch.writeValue(new Uint8Array([80, id, val & 255, (val >> 8) & 255]))); }   // 'P'
+  catch (e) { notify('설정을 보내지 못했습니다. 다시 해 주세요', false); }
+  pendingSet = 0;
+  refreshInfo(250);                                // confirm what the stick now uses
 }
 function bindRange(id, show, send) {
   const el = $(id);
@@ -430,7 +466,7 @@ $('segOff').onclick = e => { const b = e.target.closest('button'); if (b) sendSe
 $('cSave').onchange = () => sendSetting(8, $('cSave').checked ? 1 : 0);
 $('btnDefaults').onclick = () => { if (confirm('스틱 설정을 기본값으로 되돌릴까요?')) sendSetting(9, 0); };
 for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
-  $(id).onchange = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
+  $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
 let wakeLock = null;
 async function applyWake() {
   try {
@@ -468,14 +504,13 @@ applyWake();
 
 // ---------------------------------------------------------------- activation
 let devId = '';
-function onInfo(dv) {
+function onInfo(dv, whole) {
   const txt = new TextDecoder().decode(dv);
-  if (txt.indexOf('RES=') >= 0 && txt.indexOf('MIC=') < 0 && txt.indexOf('BR=') >= 0) {      // cut-off notification: read it whole
-    setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 50); return;
-  }
-  if (txt.indexOf('RES=') < 0) { setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 50); return; }
+  if (txt.indexOf('RES=') < 0 || (txt.indexOf('BR=') >= 0 && txt.indexOf('MIC=') < 0)) { refreshInfo(); return; }   // cut-off notification
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
-  stickSet = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null } : null;
+  const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null } : null;
+  stickSet = parsed;
+  if (parsed) { lastStickSet = parsed; try { localStorage.setItem('panotrio-stickset', JSON.stringify(parsed)); } catch (e) {} }
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
@@ -491,7 +526,8 @@ $('btnAct').onclick = async () => {
   const code = $('actCode').value.trim();
   if (!cmdChar || !code) return;
   $('actMsg').textContent = '확인 중…';
-  try { await cmdChar.writeValue(new TextEncoder().encode('C' + code)); } catch (e) { $('actMsg').textContent = '전송 실패: ' + e.message; }
+  const ch = cmdChar;
+  try { await gatt(() => ch.writeValue(new TextEncoder().encode('C' + code))); } catch (e) { $('actMsg').textContent = '전송 실패: ' + e.message; }
 };
 
 // ---------------------------------------------------------------- data
