@@ -374,6 +374,7 @@
       <button id="btnInfoShare">📨 카톡</button>
     </div>
     <div class="set-help" id="infoTxt">스틱 연결 안 됨</div>
+    <div class="set-help" id="appBuild" style="margin-top:4px"></div>
   </div>
 </div></div>
 <main>
@@ -1078,7 +1079,20 @@ window.addEventListener('hashchange', checkReqHash);
 })();
 showView();
 checkReqHash();
-if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
+// App updates: the installed app keeps running in the background, so look for a new version whenever it comes
+// back to the front, and reload once when the new version has taken over (not while the motor is running).
+const APP_BUILD = '2026-11-24b';
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  const hadCtrl = !!navigator.serviceWorker.controller;
+  let reloading = false, pendingReload = false;
+  const doReload = () => { if (reloading) return; if (cl.run || cl.busy || (dps.st && dps.st.on)) { pendingReload = true; return; } reloading = true; location.reload(); };
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl) doReload(); });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    const check = () => { reg.update().catch(() => {}); if (pendingReload) doReload(); };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch(() => {});
+}
 applyWake();
 
 // ---------------------------------------------------------------- stick info
@@ -1093,7 +1107,7 @@ function onInfo(dv, whole) {
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo();
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
-  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')}`;
+  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
   renderSettings();
   devId = kv.ID || '';
   onActivation(kv);
@@ -1631,6 +1645,7 @@ $('btnInstall').onclick = async () => {
     installEvt = null;
   } else notify('크롬 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', true);
 };
+$('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mode: standalone)').matches ? ' · 설치된 앱' : '');
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 // 파노체크 app: works without internet after it was opened once.
 // Pages are fetched from the network first (so updates arrive), the saved copy is used when offline.
-const CACHE = 'panocheck-v2';
+const CACHE = 'panocheck-v3';
 const CORE = ['app.html', 'splash.jpg', 'icon-192.png', 'icon-512.png', 'app.webmanifest'];
 
 self.addEventListener('install', e => {
