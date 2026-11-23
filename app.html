@@ -75,7 +75,8 @@
   .cbar div { height:100%; width:0; background:var(--acc); transition:width .2s; }
   .psuHead { display:flex; align-items:center; gap:8px; }
   .psuHead .ttl { margin:0; flex:1; }
-  .psuRow { display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:8px; margin-top:10px; align-items:end; }
+  .psuRow { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; align-items:end; }
+  .psuRow #psuOut { grid-column:1 / -1; padding:12px 4px; font-size:17px; }
   .psuRow label { font-size:12px; color:var(--mute); display:flex; flex-direction:column; gap:3px; }
   .psuRow input { width:100%; font:700 18px system-ui; padding:8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
   #psuOut { padding:10px 4px; font-weight:800; }
@@ -102,6 +103,9 @@
   .stepper input { flex:1; min-width:0; }
   .stp { width:44px; height:40px; flex:0 0 44px; padding:0; font-size:24px; font-weight:700; line-height:1; border-radius:12px; user-select:none; touch-action:manipulation; }
   .stp:active { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .nstep { display:flex; align-items:stretch; gap:4px; }
+  .nstep .stp { width:38px; height:auto; min-height:44px; flex:0 0 38px; font-size:22px; }
+  .nstep input { flex:1; min-width:0; text-align:center; }
   .sw { display:flex; justify-content:space-between; align-items:center; gap:12px; }
   .sw input { width:46px; height:26px; accent-color:var(--acc); }
   .off { opacity:.45; pointer-events:none; }
@@ -256,11 +260,11 @@
   <div class="card">
     <div class="ttl">클리닝 설정</div>
     <div class="cgrid">
-      <label>최소 전압 (V)<input id="cMin" type="number" inputmode="decimal" min="0" max="12" step="0.1"></label>
-      <label>최대 전압 (V)<input id="cMax" type="number" inputmode="decimal" min="0" max="12" step="0.1"></label>
-      <label>전류 제한 (A)<input id="cAmp" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"></label>
-      <label>왕복 1회 (초)<input id="cPer" type="number" inputmode="numeric" min="4" max="600" step="1"></label>
-      <label>반복 (회)<input id="cRep" type="number" inputmode="numeric" min="1" max="999" step="1"></label>
+      <label>최소 전압 (V)<span class="nstep"><button class="stp" data-for="cMin" data-d="-1" aria-label="줄이기">−</button><input id="cMin" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMin" data-d="1" aria-label="늘리기">+</button></span></label>
+      <label>최대 전압 (V)<span class="nstep"><button class="stp" data-for="cMax" data-d="-1" aria-label="줄이기">−</button><input id="cMax" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMax" data-d="1" aria-label="늘리기">+</button></span></label>
+      <label>전류 제한 (A)<span class="nstep"><button class="stp" data-for="cAmp" data-d="-1" aria-label="줄이기">−</button><input id="cAmp" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"><button class="stp" data-for="cAmp" data-d="1" aria-label="늘리기">+</button></span></label>
+      <label>왕복 1회 (초)<span class="nstep"><button class="stp" data-for="cPer" data-d="-1" aria-label="줄이기">−</button><input id="cPer" type="number" inputmode="numeric" min="4" max="600" step="1"><button class="stp" data-for="cPer" data-d="1" aria-label="늘리기">+</button></span></label>
+      <label>반복 (회)<span class="nstep"><button class="stp" data-for="cRep" data-d="-1" aria-label="줄이기">−</button><input id="cRep" type="number" inputmode="numeric" min="1" max="999" step="1"><button class="stp" data-for="cRep" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>방향<select id="cDir"><option value="fwd">정방향</option><option value="rev">역방향</option><option value="alt">번갈아 (1회마다)</option></select></label>
     </div>
     <div class="help" style="margin-top:6px">최소 → 최대 → 최소로 천천히 오르내리기를 반복합니다. 전압 범위 0~12 V.</div>
@@ -410,16 +414,16 @@
   </div>
 
   <div class="card" id="psuCard">
-    <div class="psuHead"><div class="ttl">⚡ 전원공급기</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
-    <div id="psuBody" style="display:none">
+    <div class="psuHead"><div class="ttl">⚡ 전원공급기 · 정역</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
+    <div id="psuBody">
       <div class="dpsLive" style="margin-top:8px">
         <div><span id="pV">-.--</span><small>V</small></div>
         <div><span id="pA">-.---</span><small>A</small></div>
         <div><span id="pW">-.--</span><small>W</small></div>
       </div>
       <div class="psuRow">
-        <label>전압 (V)<input id="psuV" type="number" inputmode="decimal" min="0" max="12" step="0.1"></label>
-        <label>전류 제한 (A)<input id="psuA" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"></label>
+        <label>전압 (V) · 0~12<span class="nstep"><button class="stp" data-for="psuV" data-d="-1" aria-label="줄이기">−</button><input id="psuV" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="psuV" data-d="1" aria-label="늘리기">+</button></span></label>
+        <label>전류 제한 (A) · 0.05~5<span class="nstep"><button class="stp" data-for="psuA" data-d="-1" aria-label="줄이기">−</button><input id="psuA" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"><button class="stp" data-for="psuA" data-d="1" aria-label="늘리기">+</button></span></label>
         <button id="psuOut">출력 켜기</button>
       </div>
       <div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div>
@@ -720,12 +724,13 @@ function bindRange(id, show, commit) {
   el.addEventListener('input', () => { dragging = true; show(+el.value); });
   el.addEventListener('change', () => { dragging = false; commit(+el.value); });
 }
-// − / + buttons next to every slider: one step per tap, repeats while held
+// − / + buttons next to every slider and number box: one step per tap, repeats while held
 (() => {
   let timer = 0, held = null;
   const stepOnce = (b) => {
     const el = $(b.dataset.for); if (!el || el.disabled) return false;
-    const st = +el.step || 1, v = Math.min(+el.max, Math.max(+el.min, +el.value + st * +b.dataset.d));
+    const st = +el.step || 1, dec = (String(el.step).split('.')[1] || '').length;
+    const v = +Math.min(+el.max, Math.max(+el.min, (+el.value || 0) + st * +b.dataset.d)).toFixed(dec);
     if (v === +el.value) return false;
     el.value = v; el.dispatchEvent(new Event('input'));
     return true;
@@ -1081,7 +1086,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24b';
+const APP_BUILD = '2026-11-24c';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1584,6 +1589,7 @@ async function psuApply() {                          // new voltage / current: s
   try { await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); } catch (e) { $('psuMsg').textContent = '보내지 못했습니다: ' + e.message; }
 }
 async function psuToggle() {
+  if (!dps.link) { $('psuMsg').textContent = '먼저 위의 [연결]로 전원공급기를 연결하세요 (휴대폰 ↔ DPS-150 데이터선)'; return; }
   if (!psuFree()) return;
   if (dps.st.on) { try { await dpsOutput(false); dps.st.on = false; } catch (e) {} psuRender(); return; }
   const s = psuRead(); if (!s) return;
@@ -1593,9 +1599,9 @@ async function psuToggle() {
   psuBusy = false; psuRender();
 }
 async function psuDir(d) {
-  if (!psuFree() || stickDir === d) return;
+  if (cl.run || cl.busy || psuBusy || stickDir === d) return;
   if (!relayReady()) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 필요합니다.</b>'; return; }
-  const wasOn = !!dps.st.on;
+  const wasOn = !!(dps.link && dps.st.on);
   psuBusy = true; $('psuMsg').textContent = '방향 바꾸는 중…'; psuRender();
   try {
     if (wasOn) { await dpsOutput(false); await waitMotorStop(); }
@@ -1608,14 +1614,14 @@ async function psuDir(d) {
 function psuRender() {
   const on = !!dps.link, st = dps.st || {}, n = (x, d) => (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '-.' + '-'.repeat(d);
   $('btnPsu').textContent = on ? '끊기' : '연결';
-  $('psuBody').style.display = on ? '' : 'none';
-  $('psuLive').textContent = on && st.t ? (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ⚠ ' + st.prot : '') : (on ? '연결 중…' : 'DPS-150 · USB');
+  $('psuLive').textContent = on && st.t ? (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ⚠ ' + st.prot : '') : (on ? '연결 중…' : '연결 안 됨');
   $('pV').textContent = n(st.v, 2); $('pA').textContent = n(st.i, 3); $('pW').textContent = n(st.p, 2);
   const free = psuFree();
   $('psuOut').textContent = st.on ? '출력 끄기' : '출력 켜기';
   $('psuOut').classList.toggle('on', !!st.on);
-  $('psuOut').disabled = !free;
-  [...$('psuDir').children].forEach(b => { b.classList.toggle('sel2', stickDir !== null && +b.dataset.d === stickDir); b.disabled = !free || !relayReady(); });
+  $('psuOut').disabled = on && !free;
+  const dirFree = !cl.run && !cl.busy && !psuBusy;
+  [...$('psuDir').children].forEach(b => { b.classList.toggle('sel2', stickDir !== null && +b.dataset.d === stickDir); b.disabled = !dirFree; });
   if (cl.run || cl.busy) $('psuMsg').textContent = '모터클리닝 실행 중에는 여기서 바꿀 수 없습니다';
 }
 $('btnPsu').onclick = () => { unlockAudio(); dpsConnect(); };
