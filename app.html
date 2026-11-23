@@ -67,7 +67,11 @@
   .set-val { font-variant-numeric:tabular-nums; color:#ffd8a8; font-weight:700; white-space:nowrap; }
   .set-help { font-size:13px; color:var(--mute); margin-top:2px; }
   .set-ends { display:flex; justify-content:space-between; font-size:12px; color:var(--mute); }
-  input[type=range] { width:100%; margin:10px 0 2px; accent-color:var(--acc); height:28px; }
+  input[type=range] { width:100%; margin:0; accent-color:var(--acc); height:28px; }
+  .stepper { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
+  .stepper input { flex:1; min-width:0; }
+  .stp { width:44px; height:40px; flex:0 0 44px; padding:0; font-size:24px; font-weight:700; line-height:1; border-radius:12px; user-select:none; touch-action:manipulation; }
+  .stp:active { background:var(--acc); border-color:var(--acc); color:#fff; }
   .sw { display:flex; justify-content:space-between; align-items:center; gap:12px; }
   .sw input { width:46px; height:26px; accent-color:var(--acc); }
   .off { opacity:.45; pointer-events:none; }
@@ -159,12 +163,12 @@
       <div class="set-help" style="margin-bottom:4px">값을 바꾼 뒤 아래 <b>스틱에 저장</b>을 누르세요. 스틱이 연결될 때도 이 설정이 자동으로 들어갑니다.</div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">화면 밝기</span><span class="set-val" id="vBr">-</span></div>
-        <input type="range" id="sBr" min="10" max="255" step="5">
+        <div class="stepper"><button class="stp" data-for="sBr" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sBr" min="10" max="255" step="5"><button class="stp" data-for="sBr" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>어둡게</span><span>밝게</span></div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">진동 감도</span><span class="set-val" id="vVm">-</span></div>
-        <input type="range" id="sVm" min="0" max="10" step="1">
+        <div class="stepper"><button class="stp" data-for="sVm" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sVm" min="0" max="10" step="1"><button class="stp" data-for="sVm" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>민감</span><span>둔감</span></div>
         <div class="set-help">민감할수록 약한 진동도 모터로 봅니다. 너무 민감하면 책상 떨림에도 측정이 시작될 수 있습니다.</div>
       </div>
@@ -175,13 +179,13 @@
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">측정 대기 시간</span><span class="set-val" id="vWt">-</span></div>
-        <input type="range" id="sWt" min="10" max="50" step="5">
+        <div class="stepper"><button class="stp" data-for="sWt" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sWt" min="10" max="50" step="1"><button class="stp" data-for="sWt" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>1.0초</span><span>5.0초</span></div>
         <div class="set-help">진동을 인식한 뒤 측정하기까지 기다리는 시간.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">빨간 숫자 기준</span><span class="set-val" id="vHot">-</span></div>
-        <input type="range" id="sHot" min="300" max="900" step="10">
+        <div class="stepper"><button class="stp" data-for="sHot" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sHot" min="300" max="900" step="5"><button class="stp" data-for="sHot" data-d="1" aria-label="늘리기">+</button></div>
         <label class="sw" style="margin-top:6px"><span class="set-help" style="margin:0">빨간 숫자 효과 끄기</span><input type="checkbox" id="cHotOff"></label>
         <div class="set-help">이 값보다 빠르면 스틱과 앱의 숫자가 빨갛게 흔들립니다.</div>
       </div>
@@ -535,6 +539,30 @@ function bindRange(id, show, commit) {
   el.addEventListener('input', () => { dragging = true; show(+el.value); });
   el.addEventListener('change', () => { dragging = false; commit(+el.value); });
 }
+// − / + buttons next to every slider: one step per tap, repeats while held
+(() => {
+  let timer = 0, held = null;
+  const stepOnce = (b) => {
+    const el = $(b.dataset.for); if (!el || el.disabled) return false;
+    const st = +el.step || 1, v = Math.min(+el.max, Math.max(+el.min, +el.value + st * +b.dataset.d));
+    if (v === +el.value) return false;
+    el.value = v; el.dispatchEvent(new Event('input'));
+    return true;
+  };
+  const stop = () => {
+    clearTimeout(timer); clearInterval(timer); timer = 0;
+    if (held) { const el = $(held.dataset.for); held = null; if (el) el.dispatchEvent(new Event('change')); }
+  };
+  document.querySelectorAll('.stp').forEach(b => {
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault(); stop(); held = b;
+      stepOnce(b);
+      timer = setTimeout(() => { timer = setInterval(() => { if (!stepOnce(b)) stop(); }, 110); }, 420);
+    });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, stop);
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  });
+})();
 bindRange('sBr', v => $('vBr').textContent = Math.round(v / 255 * 100) + '%', v => edit('br', v));
 bindRange('sVm', i => $('vVm').textContent = vmLabel(VM_STEPS[i]), i => edit('vm', VM_STEPS[i]));
 bindRange('sWt', v => $('vWt').textContent = (v / 10).toFixed(1) + '초', v => edit('wt', v));
