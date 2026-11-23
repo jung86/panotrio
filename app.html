@@ -36,6 +36,10 @@
   @keyframes hotFlash { 0%{color:#ff2d2d; text-shadow:0 0 18px #ff000099} 100%{color:#ff7a1a; text-shadow:0 0 30px #ff5a00cc} }
   @keyframes cardGlow { from{box-shadow:0 0 8px #ff000055} to{box-shadow:0 0 28px #ff2d2dbb} }
   @media (prefers-reduced-motion: reduce) { .big.hot .hz, .big.hot { animation:none; } }
+  #toast { position:fixed; left:50%; top:14px; transform:translate(-50%,-140%); z-index:50; padding:12px 18px; border-radius:12px;
+           font-weight:800; font-size:16px; color:#fff; background:#1971c2; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
+  #toast.show { transform:translate(-50%,0); }
+  #toast.bad { background:#c92a2a; }
   .status { margin-top:12px; border-radius:10px; padding:9px; text-align:center; font-weight:700; color:#000; background:var(--grey); }
   .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .val { background:#151a21; border-radius:10px; padding:10px 12px; }
@@ -76,6 +80,7 @@
 </head>
 <body>
 <div id="splash"><img src="splash.jpg" alt=""><div class="name">파노체크</div></div>
+<div id="toast"></div>
 <main>
   <header>
     <h1>파노체크</h1>
@@ -163,6 +168,26 @@ let recs = loadRecs();
 try { $('autoRec').checked = localStorage.getItem('panotrio-auto') !== '0'; } catch (e) {}
 $('autoRec').onchange = () => { try { localStorage.setItem('panotrio-auto', $('autoRec').checked ? '1' : '0'); } catch (e) {} };
 
+// ---------------------------------------------------------------- connection notice (vibration, sound, banner)
+let audio = null, toastT = 0;
+function unlockAudio() { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch (e) {} }
+function beep(freqs) {
+  if (!audio) return;
+  let t = audio.currentTime;
+  for (const f of freqs) {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    o.start(t); o.stop(t + 0.17); t += 0.18;
+  }
+}
+function notify(text, good) {
+  const el = $('toast'); el.textContent = text; el.className = good ? 'show' : 'show bad';
+  clearTimeout(toastT); toastT = setTimeout(() => { el.className = good ? '' : 'bad'; }, 2500);
+  try { navigator.vibrate && navigator.vibrate(good ? 150 : [120, 90, 120]); } catch (e) {}
+  beep(good ? [880, 1320] : [660, 440]);
+}
+
 // ---------------------------------------------------------------- bluetooth
 async function connect() {
   if (!navigator.bluetooth) {
@@ -197,11 +222,13 @@ async function openGatt() {
     onInfo(await inf.readValue());
   } catch (e) {}
   $('conn').textContent = device.name || '연결됨'; $('conn').className = 'conn on';
+  notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none';
   $('btnSave').disabled = false;
 }
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn';
+  notify('블루투스 연결 끊김', false);
   cmdChar = null; $('btnSave').disabled = true;
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
@@ -326,7 +353,7 @@ $('recs').onclick = e => {
 };
 
 // ---------------------------------------------------------------- buttons
-$('btnConnect').onclick = connect;
+$('btnConnect').onclick = () => { unlockAudio(); connect(); };
 $('btnReset').onclick = () => { send('X', 0); lastAutoBig = 0; hist.length = 0; drawChart(); };
 $('segMode').onclick = e => { const b = e.target.closest('button'); if (b) send('M', +b.dataset.v); };
 $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send('R', +b.dataset.v); };
