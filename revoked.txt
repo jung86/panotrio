@@ -1,3 +1,4 @@
 # 파노체크: 사용 허락을 취소한 스틱 목록
 # 한 줄에 하나: 스틱ID 레벨 취소코드   (앱 관리자 화면의 [허락 취소]가 이 줄을 만들어 줍니다)
 # 줄은 지우지 마세요. 다시 허락할 때도 그대로 두고, 관리자 화면에서 새 활성화 링크를 만들면 됩니다.
+1DD625E0 0 M02ZOydWkgTuySQGHv86B9eiQA9WdAbnFFAfN2-ONBm7vrL8j3aP1kgfnQBPFpFxwaSm40AZEwwyK_7a8FKJdg

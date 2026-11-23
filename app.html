@@ -773,7 +773,7 @@ async function checkRevoked(kv) {                    // the app passes the owner
 function onActivation(kv) {
   const id = kv.ID || '', act = kv.ACT !== '0';
   const was = actState;
-  actState = { id, act, res: kv.RES || '' };
+  actState = { id, act, res: kv.RES || '', rv: kv.RV !== undefined ? +kv.RV : null };
   $('lockBox').style.display = act ? 'none' : '';
   $('devId').textContent = id ? id.slice(0, 4) + '-' + id.slice(4) : '---- ----';
   if (act) {
@@ -890,7 +890,9 @@ async function admSign(msg) {
 async function admRvkLevel(id) {                    // -1 = never taken back
   const list = await loadRvkList(true);
   if (!list) throw new Error('취소 목록을 읽지 못했습니다 (인터넷 확인)');
-  const e = list.get(id); return e ? e.lv : -1;
+  const e = list.get(id); let lv = e ? e.lv : -1;
+  if (actState && actState.id === id && actState.rv !== null && actState.rv > lv) lv = actState.rv;   // the connected stick knows a newer removal
+  return lv;
 }
 $('aId').oninput = () => { $('aLvInfo').textContent = ''; };
 let admRvk = null;
@@ -903,7 +905,7 @@ $('btnAdmRvk').onclick = async () => {
     $('aRvkLine').value = id + ' ' + lv + ' ' + code;
     $('aRvkRes').style.display = ''; $('aRes').style.display = 'none';
     $('btnRvkHere').disabled = !(cmdChar && actState && actState.id === id);
-    $('aMsg2').textContent = '✓ 취소 줄을 만들었습니다 · 목록에 올려야 적용됩니다';
+    $('aMsg2').textContent = '✓ 취소 줄을 만들었습니다 · 목록에 꼭 올려 주세요 (바로 보낸 경우도)';
   } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
 };
 $('btnRvkGh').onclick = async () => {
@@ -912,7 +914,7 @@ $('btnRvkGh').onclick = async () => {
   window.open('https://github.com/jung86/panotrio/edit/main/revoked.txt', '_blank');
 };
 $('btnRvkHere').onclick = async () => {
-  if (admRvk && cmdChar && actState && actState.id === admRvk.id) { rvkSentFor = admRvk.id; $('aMsg2').textContent = (await sendRevoke(admRvk.code, admRvk.lv)) ? '연결된 스틱에 보냈습니다 (펌웨어 1.8 이상)' : '보내지 못했습니다'; }
+  if (admRvk && cmdChar && actState && actState.id === admRvk.id) { rvkSentFor = admRvk.id; $('aMsg2').textContent = (await sendRevoke(admRvk.code, admRvk.lv)) ? '연결된 스틱에 보냈습니다 · 이 줄도 목록에 꼭 올려 주세요' : '보내지 못했습니다'; }
 };
 $('btnAdmMake').onclick = async () => {
   const id = admIdValue(); if (!id) return;
