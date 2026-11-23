@@ -148,8 +148,8 @@
 
   <div class="card" id="stickSet">
     <div class="ttl">스틱 설정</div>
-    <div id="stickNote" class="set-help" style="margin-bottom:6px">스틱을 연결하면 바꿀 수 있습니다.</div>
     <div id="stickRows">
+      <div class="set-help" style="margin-bottom:4px">값을 바꾼 뒤 아래 <b>스틱에 저장</b>을 누르세요. 스틱이 연결될 때도 이 설정이 자동으로 들어갑니다.</div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">화면 밝기</span><span class="set-val" id="vBr">-</span></div>
         <input type="range" id="sBr" min="10" max="255" step="5">
@@ -195,7 +195,9 @@
         <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-help">모터가 없을 때 스틱의 처리 속도를 낮춰 전기를 아낍니다. 모터가 돌기 시작하면 바로 원래 속도로 측정합니다.</div></span><input type="checkbox" id="cSave"></label>
       </div>
       <div class="set-row">
-        <button id="btnDefaults" style="width:100%">스틱 설정 기본값으로</button>
+        <button id="btnStickSave" style="width:100%;padding:14px;font-size:17px;font-weight:800">스틱에 저장</button>
+        <div id="saveState" class="set-help" style="text-align:center;margin-top:8px">&nbsp;</div>
+        <button id="btnDefaults" style="width:100%;margin-top:10px;font-size:14px">기본값으로 되돌리기</button>
       </div>
     </div>
   </div>
@@ -375,7 +377,7 @@ async function openGatt() {
   onText(await gatt(() => tx.readValue()));
   onStat(await gatt(() => st.readValue()));
   try {
-    const inf = await svc.getCharacteristic(INFO); infoChar = inf;
+    const inf = await svc.getCharacteristic(INFO); infoChar = inf; syncOnConnect = true;
     inf.addEventListener('characteristicvaluechanged', e => onInfo(e.target.value));
     await gatt(() => inf.startNotifications());
     onInfo(await gatt(() => inf.readValue()), true);
@@ -403,68 +405,111 @@ async function send(kind, val) {
 }
 
 // ---------------------------------------------------------------- settings
+// The app keeps "my settings" (mySet). [스틱에 저장] sends all of them to the stick and reads them back
+// to check. When the stick connects and its values differ, mySet is copied to the stick automatically.
 const VM_STEPS = [10, 15, 20, 30, 40, 60, 80, 120, 160, 200, 300];   // vibration threshold (mg)
-const APPSET_KEY = 'panotrio-appset';
+const APPSET_KEY = 'panotrio-appset', MYSET_KEY = 'panotrio-myset';
+const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1 };
+const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8 };
+const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '화면 자동 어둡게', off: '자동 꺼짐', ps: '대기 중 절전' };
 let appSet = { vib: true, snd: true, hot: true, wake: false };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
-let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false, pendingSet = 0;
-let lastStickSet = null;                           // last values read from the stick (shown greyed while not connected)
-try { lastStickSet = JSON.parse(localStorage.getItem('panotrio-stickset') || 'null'); } catch (e) {}
+let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false, syncOnConnect = false, saving = false;
+let mySet = null;                                   // null until the first stick values are known or the user changes something
+try { mySet = JSON.parse(localStorage.getItem(MYSET_KEY) || 'null'); } catch (e) {}
+function saveMySet() { try { localStorage.setItem(MYSET_KEY, JSON.stringify(mySet)); } catch (e) {} }
 function vmIndex(mg) { let best = 0; VM_STEPS.forEach((v, i) => { if (Math.abs(v - mg) < Math.abs(VM_STEPS[best] - mg)) best = i; }); return best; }
 function vmLabel(mg) { return mg + ' mg' + (mg <= 20 ? ' (민감)' : mg >= 120 ? ' (둔감)' : mg === 40 ? ' (기본)' : ''); }
+function supported(k) { return !stickSet || stickSet[k] !== null && stickSet[k] !== undefined; }
+function diffKeys() {                               // settings where the stick differs from mySet
+  if (!stickSet || !mySet) return [];
+  return Object.keys(SET_IDS).filter(k => supported(k) && mySet[k] !== undefined && +mySet[k] !== +stickSet[k]);
+}
+function edit(k, v) {                               // the user changed a value (kept in the app until saved)
+  mySet = Object.assign({}, DEFAULTS, mySet || stickSet || {}, { [k]: v });
+  saveMySet(); renderSettings();
+}
 function renderSettings() {
-  const has = !!(stickSet && cmdChar);
-  $('stickRows').classList.toggle('off', !has);
-  $('stickNote').textContent = !cmdChar ? '스틱을 연결하면 바꿀 수 있습니다.' : !stickSet ? '스틱 펌웨어를 0.9 이상으로 업데이트하면 바꿀 수 있습니다.' : '바꾸면 바로 스틱에 저장됩니다.';
-  $('stickNote').style.display = has ? 'none' : '';
-  const shown = stickSet || lastStickSet;
-  if (shown && !dragging) {
-    const stickSet = shown;
-    $('sBr').value = stickSet.br; $('vBr').textContent = Math.round(stickSet.br / 255 * 100) + '%';
-    $('sVm').value = vmIndex(stickSet.vm); $('vVm').textContent = vmLabel(stickSet.vm);
-    $('sWt').value = stickSet.wt; $('vWt').textContent = (stickSet.wt / 10).toFixed(1) + '초';
-    $('cHotOff').checked = stickSet.hot === 0; $('sHot').disabled = stickSet.hot === 0;
-    if (stickSet.hot) $('sHot').value = stickSet.hot;
-    $('vHot').textContent = stickSet.hot ? stickSet.hot + ' Hz' : '꺼짐';
-    for (const b of $('segMic').children) b.classList.toggle('sel', Math.abs(+b.dataset.v - stickSet.mic) <= 7);
-    $('vMic').textContent = stickSet.mic <= 30 ? '높음' : stickSet.mic >= 60 ? '낮음' : '보통';
-    const hasPw = stickSet.dim !== null;
-    for (const id of ['segDim', 'segOff', 'cSave']) $(id).closest('.set-row').classList.toggle('off', !hasPw);
-    if (hasPw) {
-      for (const b of $('segDim').children) b.classList.toggle('sel', +b.dataset.v === stickSet.dim);
-      for (const b of $('segOff').children) b.classList.toggle('sel', +b.dataset.v === stickSet.off);
-      $('vDim').textContent = stickSet.dim ? (stickSet.dim >= 60 ? stickSet.dim / 60 + '분' : stickSet.dim + '초') : '끔';
-      $('vOff').textContent = stickSet.off ? stickSet.off + '분' : '끔';
-      $('cSave').checked = !!stickSet.ps;
-    } else { $('vDim').textContent = $('vOff').textContent = '펌웨어 업데이트 필요'; }
+  const conn = !!cmdChar, has = !!(stickSet && conn);
+  const view = mySet || stickSet || DEFAULTS;
+  if (!dragging) {
+    $('sBr').value = view.br; $('vBr').textContent = Math.round(view.br / 255 * 100) + '%';
+    $('sVm').value = vmIndex(view.vm); $('vVm').textContent = vmLabel(view.vm);
+    $('sWt').value = view.wt; $('vWt').textContent = (view.wt / 10).toFixed(1) + '초';
+    $('cHotOff').checked = +view.hot === 0; $('sHot').disabled = +view.hot === 0;
+    if (+view.hot) $('sHot').value = view.hot;
+    $('vHot').textContent = +view.hot ? view.hot + ' Hz' : '꺼짐';
   }
+  for (const b of $('segMic').children) b.classList.toggle('sel', Math.abs(+b.dataset.v - view.mic) <= 7);
+  $('vMic').textContent = view.mic <= 30 ? '높음' : view.mic >= 60 ? '낮음' : '보통';
+  const pw = supported('dim');
+  for (const id of ['segDim', 'segOff', 'cSave']) $(id).closest('.set-row').classList.toggle('off', !pw);
+  for (const b of $('segDim').children) b.classList.toggle('sel', +b.dataset.v === +view.dim);
+  for (const b of $('segOff').children) b.classList.toggle('sel', +b.dataset.v === +view.off);
+  $('vDim').textContent = !pw ? '펌웨어 업데이트 필요' : +view.dim ? (view.dim >= 60 ? view.dim / 60 + '분' : view.dim + '초') : '끔';
+  $('vOff').textContent = !pw ? '펌웨어 업데이트 필요' : +view.off ? view.off + '분' : '끔';
+  $('cSave').checked = !!+view.ps;
+  // save state
+  const d = diffKeys();
+  const st = $('saveState'), btn = $('btnStickSave');
+  if (saving) { st.textContent = '스틱에 저장하는 중…'; st.style.color = '#ffd8a8'; }
+  else if (!conn) { st.textContent = mySet ? '스틱을 연결하면 이 설정이 자동으로 스틱에 들어갑니다.' : '스틱을 연결하면 스틱의 설정을 불러옵니다.'; st.style.color = 'var(--mute)'; }
+  else if (!stickSet) { st.textContent = '스틱 펌웨어를 0.9 이상으로 업데이트하면 저장할 수 있습니다.'; st.style.color = 'var(--mute)'; }
+  else if (d.length) { st.textContent = '저장 안 됨 · ' + d.map(k => SET_NAMES[k]).join(', '); st.style.color = '#ffa94d'; }
+  else { st.textContent = '✓ 스틱에 저장됨'; st.style.color = '#69db7c'; }
+  btn.disabled = !has || saving;
+  btn.classList.toggle('go', has && d.length > 0);
   $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake;
 }
-async function sendSetting(id, val) {
-  if (!cmdChar) return;
-  pendingSet = Date.now();
-  const ch = cmdChar;
-  try { await gatt(() => ch.writeValue(new Uint8Array([80, id, val & 255, (val >> 8) & 255]))); }   // 'P'
-  catch (e) { notify('설정을 보내지 못했습니다. 다시 해 주세요', false); }
-  pendingSet = 0;
-  refreshInfo(250);                                // confirm what the stick now uses
+async function readInfoNow() {                     // read the stick's settings and wait for the answer
+  const ch = infoChar; if (!ch) return null;
+  try { const v = await gatt(() => ch.readValue()); onInfo(v, true); return stickSet; } catch (e) { return null; }
 }
-function bindRange(id, show, send) {
+async function saveToStick(auto) {                 // send every setting, then read back and compare
+  if (!cmdChar || !stickSet || !mySet || saving) return false;
+  saving = true; renderSettings();
+  const ch = cmdChar;
+  for (let round = 0; round < 2; round++) {
+    const keys = diffKeys();
+    if (!keys.length) break;
+    for (const k of keys) {
+      const v = +mySet[k];
+      try { await gatt(() => ch.writeValue(new Uint8Array([80, SET_IDS[k], v & 255, (v >> 8) & 255]))); } catch (e) {}
+    }
+    await sleep(250);
+    await readInfoNow();
+  }
+  saving = false;
+  const left = diffKeys();
+  renderSettings();
+  if (left.length) notify('저장 실패: ' + left.map(k => SET_NAMES[k]).join(', '), false);
+  else if (!auto) notify('✓ 스틱에 저장했습니다', true);
+  else notify('앱 설정을 스틱에 맞췄습니다', true);
+  return !left.length;
+}
+function afterStickInfo() {                        // called whenever fresh stick values arrive
+  if (!stickSet) return;
+  if (!mySet) { mySet = Object.assign({}, DEFAULTS, stickSet); saveMySet(); }   // first time: adopt the stick's values
+  if (syncOnConnect) { syncOnConnect = false; if (diffKeys().length) saveToStick(true); }
+  renderSettings();
+}
+function bindRange(id, show, commit) {
   const el = $(id);
   el.addEventListener('input', () => { dragging = true; show(+el.value); });
-  el.addEventListener('change', () => { dragging = false; send(+el.value); });
+  el.addEventListener('change', () => { dragging = false; commit(+el.value); });
 }
-bindRange('sBr', v => $('vBr').textContent = Math.round(v / 255 * 100) + '%', v => sendSetting(1, v));
-bindRange('sVm', i => $('vVm').textContent = vmLabel(VM_STEPS[i]), i => sendSetting(2, VM_STEPS[i]));
-bindRange('sWt', v => $('vWt').textContent = (v / 10).toFixed(1) + '초', v => sendSetting(3, v));
-bindRange('sHot', v => $('vHot').textContent = v + ' Hz', v => sendSetting(4, v));
-$('cHotOff').onchange = () => sendSetting(4, $('cHotOff').checked ? 0 : (+$('sHot').value || 550));
-$('segMic').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(5, +b.dataset.v); };
-$('segDim').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(6, +b.dataset.v); };
-$('segOff').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(7, +b.dataset.v); };
-$('cSave').onchange = () => sendSetting(8, $('cSave').checked ? 1 : 0);
-$('btnDefaults').onclick = () => { if (confirm('스틱 설정을 기본값으로 되돌릴까요?')) sendSetting(9, 0); };
+bindRange('sBr', v => $('vBr').textContent = Math.round(v / 255 * 100) + '%', v => edit('br', v));
+bindRange('sVm', i => $('vVm').textContent = vmLabel(VM_STEPS[i]), i => edit('vm', VM_STEPS[i]));
+bindRange('sWt', v => $('vWt').textContent = (v / 10).toFixed(1) + '초', v => edit('wt', v));
+bindRange('sHot', v => $('vHot').textContent = v + ' Hz', v => edit('hot', v));
+$('cHotOff').onchange = () => edit('hot', $('cHotOff').checked ? 0 : (+$('sHot').value || 550));
+$('segMic').onclick = e => { const b = e.target.closest('button'); if (b) edit('mic', +b.dataset.v); };
+$('segDim').onclick = e => { const b = e.target.closest('button'); if (b) edit('dim', +b.dataset.v); };
+$('segOff').onclick = e => { const b = e.target.closest('button'); if (b) edit('off', +b.dataset.v); };
+$('cSave').onchange = () => edit('ps', $('cSave').checked ? 1 : 0);
+$('btnStickSave').onclick = () => saveToStick(false);
+$('btnDefaults').onclick = () => { if (confirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
 for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
   $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
 let wakeLock = null;
@@ -510,8 +555,8 @@ function onInfo(dv, whole) {
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
   const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null } : null;
   stickSet = parsed;
-  if (parsed) { lastStickSet = parsed; try { localStorage.setItem('panotrio-stickset', JSON.stringify(parsed)); } catch (e) {} }
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
+  afterStickInfo();
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
   devId = kv.ID || '';
