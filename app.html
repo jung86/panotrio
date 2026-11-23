@@ -36,12 +36,27 @@
   @keyframes hotFlash { 0%{color:#ff2d2d; text-shadow:0 0 18px #ff000099} 100%{color:#ff7a1a; text-shadow:0 0 30px #ff5a00cc} }
   @keyframes cardGlow { from{box-shadow:0 0 8px #ff000055} to{box-shadow:0 0 28px #ff2d2dbb} }
   @media (prefers-reduced-motion: reduce) { .big.hot .hz, .big.hot { animation:none; } }
-  #toast { position:fixed; left:50%; top:14px; transform:translate(-50%,-140%); z-index:50; padding:12px 18px; border-radius:12px;
+  #toast { position:fixed; left:50%; top:14px; transform:translate(-50%,calc(-100% - 30px)); z-index:70; padding:12px 18px; border-radius:12px;
            font-weight:800; font-size:16px; color:#fff; background:#1971c2; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
   #toast.show { transform:translate(-50%,0); }
   #toast.bad { background:#c92a2a; }
   .hdr-r { display:flex; align-items:center; gap:10px; }
   .gear { font-size:22px; padding:4px 10px; line-height:1; }
+  #home { position:fixed; inset:0; z-index:55; background:var(--bg); overflow-y:auto; display:none; }
+  #home.show { display:block; }
+  #home .inner { max-width:560px; margin:0 auto; padding:26px 18px 40px; text-align:center; }
+  #home .logo { width:132px; height:132px; border-radius:26px; box-shadow:0 8px 28px #000a; }
+  #home h1 { font-size:30px; margin:14px 0 4px; letter-spacing:1px; }
+  .pill { display:inline-block; font-size:13px; padding:4px 12px; border-radius:20px; background:#232a35; color:var(--mute); }
+  .pill.on { background:#16351f; color:#69db7c; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:22px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px 10px 18px; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:pointer; }
+  .tile:active { transform:scale(.97); }
+  .tile svg { width:64px; height:64px; }
+  .tile .tl { font-size:19px; font-weight:800; color:var(--ink); }
+  .tile .ts { font-size:13px; color:var(--mute); min-height:18px; font-variant-numeric:tabular-nums; }
+  .back { font-size:26px; padding:0 12px 2px; line-height:1.2; }
+  .hdr-l { display:flex; align-items:center; gap:8px; }
   #settings { position:fixed; inset:0; z-index:60; background:var(--bg); overflow-y:auto; transform:translateX(100%); transition:transform .25s; }
   #settings.open { transform:translateX(0); }
   #settings .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -97,10 +112,37 @@
 <body>
 <div id="splash"><img src="splash.jpg" alt=""><div class="name">파노체크</div></div>
 <div id="toast"></div>
+<div id="home"><div class="inner">
+  <img class="logo" src="splash.jpg" alt="">
+  <h1>파노체크</h1>
+  <span id="homeConn" class="pill">스틱 연결 안 됨</span>
+  <button id="btnConnect2" class="primary" style="margin-top:18px">스틱 연결 (블루투스)</button>
+  <div class="tiles">
+    <div class="tile" id="tileMeasure" role="button">
+      <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 44a24 24 0 0 1 48 0" stroke="#e8590c" stroke-width="5"/>
+        <path d="M14 44a18 18 0 0 1 4-11" stroke="#ffd8a8" stroke-width="2" opacity=".6"/>
+        <path d="M32 44 45 26" stroke="#ffffff" stroke-width="4"/>
+        <circle cx="32" cy="44" r="5" fill="#ffffff"/>
+        <path d="M6 54h52" stroke="#5c6370" stroke-width="3"/>
+      </svg>
+      <div class="tl">파노측정</div>
+      <div class="ts" id="tileHz">진동·소리로 회전수</div>
+    </div>
+    <div class="tile" id="tileSettings" role="button">
+      <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="32" cy="32" r="9" stroke="#ffffff" stroke-width="4"/>
+        <path d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.7 5.7M44.7 44.7l5.7 5.7M13.6 50.4l5.7-5.7M44.7 19.3l5.7-5.7" stroke="#e8590c" stroke-width="5"/>
+      </svg>
+      <div class="tl">설정</div>
+      <div class="ts">밝기 · 감도 · 알림</div>
+    </div>
+  </div>
+  <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요.</p>
+</div></div>
 <div id="settings"><div class="inner">
   <header>
-    <h1>설정</h1>
-    <button id="btnClose" class="gear" aria-label="닫기">✕</button>
+    <div class="hdr-l"><button id="btnClose" class="back" aria-label="메뉴로">‹</button><h1>설정</h1></div>
   </header>
 
   <div class="card" id="stickSet">
@@ -156,8 +198,8 @@
 </div></div>
 <main>
   <header>
-    <h1>파노체크</h1>
-    <div class="hdr-r"><span id="conn" class="conn">연결 안 됨</span><button id="btnMenu" class="gear" aria-label="설정">⚙</button></div>
+    <div class="hdr-l"><button id="btnHome" class="back" aria-label="메뉴로">‹</button><h1>파노측정</h1></div>
+    <div class="hdr-r"><span id="conn" class="conn">연결 안 됨</span></div>
   </header>
 
   <div id="connectBox" class="card">
@@ -296,19 +338,19 @@ async function openGatt() {
   } catch (e) {}
   $('conn').textContent = device.name || '연결됨'; $('conn').className = 'conn on';
   notify((device.name || '스틱') + ' 연결됨', true);
-  $('connectBox').style.display = 'none';
+  $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
 }
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn';
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; stickSet = null; $('btnSave').disabled = true; renderSettings();
+  cmdChar = null; infoChar = null; stickSet = null; $('btnSave').disabled = true; renderSettings(); renderHome();
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
     try { await openGatt(); return; } catch (e) {}
   }
   $('conn').textContent = '연결 안 됨';
-  $('connectBox').style.display = '';
+  $('connectBox').style.display = ''; renderHome();
 }
 async function send(kind, val) {
   if (!cmdChar) return;
@@ -368,8 +410,31 @@ async function applyWake() {
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') applyWake(); });
-$('btnMenu').onclick = () => { unlockAudio(); renderSettings(); $('settings').classList.add('open'); };
-$('btnClose').onclick = () => $('settings').classList.remove('open');
+// ---------------------------------------------------------------- navigation: menu / 파노측정 / 설정 (phone back button works)
+function showView() {
+  const v = (location.hash || '#home').slice(1);
+  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings');
+  $('settings').classList.toggle('open', v === 'settings');
+  if (v === 'settings') renderSettings();
+  if (v === 'measure' && cur) drawChart();
+  window.scrollTo(0, 0);
+}
+function go(v) { unlockAudio(); if (location.hash !== '#' + v) location.hash = v; else showView(); }
+function goHome() { if (location.hash && location.hash !== '#home' && history.length > 1) history.back(); else { location.hash = 'home'; } }
+window.addEventListener('hashchange', showView);
+$('tileMeasure').onclick = () => go('measure');
+$('tileSettings').onclick = () => go('settings');
+$('btnHome').onclick = goHome;
+$('btnClose').onclick = goHome;
+$('btnConnect2').onclick = () => { unlockAudio(); connect(); };
+function renderHome() {
+  const on = !!cmdChar;
+  $('homeConn').textContent = on ? (device && device.name || '스틱') + ' 연결됨' : '스틱 연결 안 됨';
+  $('homeConn').className = on ? 'pill on' : 'pill';
+  $('btnConnect2').style.display = on ? 'none' : '';
+  $('tileHz').textContent = on && cur && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '진동·소리로 회전수';
+}
+showView();
 applyWake();
 
 // ---------------------------------------------------------------- activation
@@ -435,6 +500,7 @@ function addRecord(memo) {
 function fmt(v) { return v > 0 ? v.toFixed(1) : '---.-'; }
 function render() {
   if (!cur) return;
+  renderHome();
   $('hz').textContent = fmt(cur.big);
   $('bigCard').classList.toggle('hot', appSet.hot && cur.big > hotHz);
   $('rpm').textContent = cur.big > 0 ? Math.round(cur.big * 60).toLocaleString() : '-----';
