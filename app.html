@@ -59,6 +59,19 @@
     <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>PanoTrio-xxxx</b>를 고르면 됩니다.</p>
   </div>
 
+  <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
+    <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
+    <p class="help" style="margin:6px 0">아래 스틱 ID를 제작자에게 보내고, 받은 활성화 코드를 입력하세요.</p>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">----.----</span>
+      <button id="btnCopyId">ID 복사</button>
+    </div>
+    <input id="actCode" maxlength="12" placeholder="활성화 코드 (예: ABCD-EFGH)" autocomplete="off"
+      style="width:100%;margin-top:10px;font:700 22px ui-monospace,Consolas,monospace;letter-spacing:2px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fff;text-transform:uppercase">
+    <button id="btnAct" class="primary" style="margin-top:10px">활성화</button>
+    <div id="actMsg" class="help" style="margin-top:8px;text-align:center"></div>
+  </div>
+
   <div class="card big">
     <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
     <div class="rpm"><span id="rpm">-----</span> rpm</div>
@@ -106,6 +119,7 @@ const SVC  = '7a1e0001-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const STAT = '7a1e0002-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const TEXT = '7a1e0003-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const CMD  = '7a1e0004-5c1b-4f2e-9d3a-50a0b0c0d0e1';
+const INFO = '7a1e0005-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const COLORS = ['var(--grey)','var(--green)','var(--yellow)','var(--orange)','var(--red)','var(--cyan)'];
 const MODES = ['진동','소리','진동+소리'];
 const $ = id => document.getElementById(id);
@@ -147,6 +161,12 @@ async function openGatt() {
   await tx.startNotifications();
   onText(await tx.readValue());
   onStat(await st.readValue());
+  try {
+    const inf = await svc.getCharacteristic(INFO);
+    inf.addEventListener('characteristicvaluechanged', e => onInfo(e.target.value));
+    await inf.startNotifications();
+    onInfo(await inf.readValue());
+  } catch (e) {}
   $('conn').textContent = device.name || '연결됨'; $('conn').className = 'conn on';
   $('connectBox').style.display = 'none';
   $('btnSave').disabled = false;
@@ -165,6 +185,25 @@ async function send(kind, val) {
   if (!cmdChar) return;
   try { await cmdChar.writeValue(new Uint8Array([kind.charCodeAt(0), val])); } catch (e) {}
 }
+
+// ---------------------------------------------------------------- activation
+let devId = '';
+function onInfo(dv) {
+  const kv = {}; new TextDecoder().decode(dv).split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
+  devId = kv.ID || '';
+  $('devId').textContent = devId ? devId.slice(0, 4) + '-' + devId.slice(4) : '----.----';
+  const locked = kv.ACT === '0';
+  $('lockBox').style.display = locked ? '' : 'none';
+  if (kv.RES === 'BAD') $('actMsg').innerHTML = '<b style="color:#ff6b6b">코드가 맞지 않습니다. 다시 확인해 주세요.</b>';
+  if (kv.RES === 'OK' && !locked) $('actMsg').textContent = '';
+}
+$('btnCopyId').onclick = async () => { try { await navigator.clipboard.writeText('PanoTrio 스틱 ID: ' + $('devId').textContent); $('btnCopyId').textContent = '복사됨'; setTimeout(() => $('btnCopyId').textContent = 'ID 복사', 1200); } catch (e) {} };
+$('btnAct').onclick = async () => {
+  const code = $('actCode').value.trim();
+  if (!cmdChar || !code) return;
+  $('actMsg').textContent = '확인 중…';
+  try { await cmdChar.writeValue(new TextEncoder().encode('C' + code)); } catch (e) { $('actMsg').textContent = '전송 실패: ' + e.message; }
+};
 
 // ---------------------------------------------------------------- data
 function onText(dv) { statusText = new TextDecoder().decode(dv).trim(); render(); }
