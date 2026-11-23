@@ -57,6 +57,11 @@
   .tile .ts { font-size:13px; color:var(--mute); min-height:18px; font-variant-numeric:tabular-nums; }
   .back { font-size:26px; padding:0 12px 2px; line-height:1.2; }
   .hdr-l { display:flex; align-items:center; gap:8px; }
+  #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
+  #admin.open { display:block; }
+  #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
+  #admin input[type=password], #admin input[type=text] { width:100%; font:700 20px system-ui; padding:12px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:#fff; }
+  #aId { font:800 26px ui-monospace,Consolas,monospace !important; letter-spacing:3px; text-transform:uppercase; }
   #settings { position:fixed; inset:0; z-index:60; background:var(--bg); overflow-y:auto; transform:translateX(100%); transition:transform .25s; }
   #settings.open { transform:translateX(0); }
   #settings .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -151,6 +156,30 @@
     </div>
   </div>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요.</p>
+</div></div>
+<div id="admin"><div class="inner">
+  <header>
+    <div class="hdr-l"><button id="btnAdminBack" class="back" aria-label="메뉴로">‹</button><h1>관리자 · 활성화 코드</h1></div>
+  </header>
+  <div class="card" id="admOpen">
+    <div class="ttl">관리자 비밀번호</div>
+    <input id="aPw" type="password" placeholder="비밀번호" autocomplete="current-password">
+    <label class="sw" style="margin-top:10px"><span class="set-help" style="margin:0">이 휴대폰에서 기억하기 (다음부터 비밀번호 없이)</span><input type="checkbox" id="aRemember"></label>
+    <button id="btnAdmOpen" class="primary" style="margin-top:10px">열기</button>
+    <div id="aMsg" class="help" style="margin-top:8px;text-align:center"></div>
+  </div>
+  <div class="card" id="admMake" style="display:none">
+    <div class="ttl">스틱 ID</div>
+    <input id="aId" type="text" maxlength="9" placeholder="XXXX-XXXX" autocomplete="off">
+    <button id="btnAdmMake" class="primary" style="margin-top:10px">활성화 링크 만들기</button>
+    <div id="aRes" style="display:none;margin-top:12px">
+      <textarea id="aLink" readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#cfe"></textarea>
+      <div class="tools" style="margin-top:8px"><button id="btnAdmShare">공유 (카톡 등)</button><button id="btnAdmCopy">복사</button><button id="btnAdmHere">이 스틱에 바로</button></div>
+    </div>
+    <div id="aMsg2" class="help" style="margin-top:8px;text-align:center"></div>
+    <button id="btnAdmForget" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 잠그기 (기억 지우기)</button>
+  </div>
+  <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.</p>
 </div></div>
 <div id="settings"><div class="inner">
   <header>
@@ -601,8 +630,10 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // ---------------------------------------------------------------- navigation: menu / 파노측정 / 설정 (phone back button works)
 function showView() {
   const v = (location.hash || '#home').slice(1);
-  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings');
+  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings' && v !== 'admin');
   $('settings').classList.toggle('open', v === 'settings');
+  $('admin').classList.toggle('open', v === 'admin');
+  if (v === 'admin') adminShow();
   if (v === 'settings') renderSettings();
   if (v === 'measure' && cur) drawChart();
   window.scrollTo(0, 0);
@@ -701,6 +732,73 @@ $('btnAct').onclick = () => {
   if (!code) { $('actMsg').innerHTML = '<b style="color:#ff6b6b">이 스틱(' + $('devId').textContent + ')의 링크나 코드가 아닙니다.</b>'; return; }
   sendActivation(code);
 };
+// ---------------------------------------------------------------- hidden admin: make activation links on the phone
+// The owner's private key is in admin.key, encrypted with the owner's password (PBKDF2 600k + AES-GCM).
+// "Remember" keeps a non-extractable signing key in this phone's IndexedDB (it cannot be read back out).
+let admKey = null;
+const APP_URL = 'https://jung86.github.io/panotrio/app.html';
+function idb(op) {
+  return new Promise((ok, no) => {
+    const rq = indexedDB.open('panocheck-admin', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('k');
+    rq.onerror = () => no(rq.error);
+    rq.onsuccess = () => { const tx = rq.result.transaction('k', 'readwrite'), st = tx.objectStore('k'); const r = op(st); tx.oncomplete = () => ok(r && r.result); tx.onerror = () => no(tx.error); };
+  });
+}
+async function adminShow() {
+  if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
+  $('admOpen').style.display = admKey ? 'none' : '';
+  $('admMake').style.display = admKey ? '' : 'none';
+  if (admKey && actState && !actState.act && !$('aId').value) $('aId').value = actState.id.slice(0, 4) + '-' + actState.id.slice(4);
+}
+const ub64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+$('btnAdmOpen').onclick = async () => {
+  const pw = $('aPw').value; if (!pw) return;
+  $('aMsg').textContent = '여는 중…';
+  try {
+    const txt = (await (await fetch('admin.key', { cache: 'no-cache' })).text()).trim();
+    if (!txt.startsWith('PANOKEY1.')) { $('aMsg').textContent = '관리자 키가 아직 설정되지 않았습니다.'; return; }
+    const b = JSON.parse(txt.slice(9));
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const aes = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: ub64(b.s), iterations: b.it, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    let jwk;
+    try { jwk = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ub64(b.iv) }, aes, ub64(b.ct)))); }
+    catch (e) { $('aMsg').innerHTML = '<b style="color:#ff6b6b">비밀번호가 맞지 않습니다.</b>'; return; }
+    admKey = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+    jwk = null; $('aPw').value = '';
+    if ($('aRemember').checked) { try { await idb(st => st.put(admKey, 'sign')); } catch (e) {} }
+    $('aMsg').textContent = ''; adminShow();
+  } catch (e) { $('aMsg').textContent = '열지 못했습니다: ' + e.message; }
+};
+$('aPw').onkeydown = e => { if (e.key === 'Enter') $('btnAdmOpen').click(); };
+let admLink = '', admCode = '', admId = '';
+$('btnAdmMake').onclick = async () => {
+  const id = $('aId').value.toUpperCase().replace(/[^0-9A-F]/g, '');
+  if (id.length !== 8) { $('aMsg2').innerHTML = '<b style="color:#ff6b6b">ID는 8자리(0-9, A-F)입니다.</b>'; return; }
+  try {
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, admKey, new TextEncoder().encode('PanoCheck|act|v2|' + id));
+    admCode = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    admId = id; admLink = APP_URL + '#act=' + id + '.' + admCode;
+    $('aLink').value = '파노체크 활성화 링크 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 전용)\n' + admLink + '\n\n안드로이드 크롬으로 열고 스틱을 연결하면 자동으로 활성화됩니다.';
+    $('aRes').style.display = ''; $('aMsg2').textContent = '✓ 만들었습니다';
+    $('btnAdmHere').disabled = !(cmdChar && actState && !actState.act && actState.id === id);
+  } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
+};
+$('btnAdmShare').onclick = async () => {
+  if (navigator.share) { try { await navigator.share({ title: '파노체크 활성화', text: $('aLink').value }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  $('btnAdmCopy').click();
+};
+$('btnAdmCopy').onclick = async () => { try { await navigator.clipboard.writeText($('aLink').value); $('aMsg2').textContent = '✓ 복사했습니다'; } catch (e) { $('aLink').select(); document.execCommand('copy'); } };
+$('btnAdmHere').onclick = () => { if (cmdChar && actState && actState.id === admId) { sendActivation(admCode); $('aMsg2').textContent = '연결된 스틱에 보냈습니다'; } };
+$('btnAdmForget').onclick = async () => { admKey = null; try { await idb(st => st.delete('sign')); } catch (e) {} $('aRes').style.display = 'none'; $('aId').value = ''; adminShow(); };
+$('btnAdminBack').onclick = goHome;
+(() => {                                            // secret door: tap the logo 5 times
+  let n = 0, t0 = 0;
+  document.querySelector('#home .logo').addEventListener('click', () => {
+    const now = Date.now(); if (now - t0 > 2500) n = 0; t0 = now;
+    if (++n >= 5) { n = 0; go('admin'); }
+  });
+})();
 showView();
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 applyWake();
