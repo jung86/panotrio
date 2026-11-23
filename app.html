@@ -80,6 +80,7 @@
   .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
   .seg button { min-height:52px; line-height:1.25; }
   .seg small { font-size:12px; opacity:.75; }
+  #segDim button, #segOff button { white-space:nowrap; font-size:14px; padding:10px 2px; }
   .seg button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
   .lbl { font-size:13px; color:var(--mute); margin-top:14px; }
   .ttl { font-size:13px; font-weight:700; color:var(--mute); letter-spacing:.5px; margin:0 0 8px; }
@@ -176,6 +177,22 @@
         <input type="range" id="sHot" min="300" max="900" step="10">
         <label class="sw" style="margin-top:6px"><span class="set-help" style="margin:0">빨간 숫자 효과 끄기</span><input type="checkbox" id="cHotOff"></label>
         <div class="set-help">이 값보다 빠르면 스틱과 앱의 숫자가 빨갛게 흔들립니다.</div>
+      </div>
+      <div class="set-row">
+        <div class="ttl" style="margin:4px 0 0">배터리 절약</div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">화면 자동 어둡게</span><span class="set-val" id="vDim">-</span></div>
+        <div class="seg" id="segDim" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="15">15초</button><button data-v="30">30초</button><button data-v="60">1분</button><button data-v="180">3분</button></div>
+        <div class="set-help">모터가 안 돌면 이 시간 뒤 화면을 어둡게 합니다. 버튼을 누르거나 모터가 돌면 다시 밝아집니다 (이때 첫 버튼은 화면만 켭니다).</div>
+      </div>
+      <div class="set-row">
+        <div class="set-top"><span class="set-name">자동 꺼짐</span><span class="set-val" id="vOff">-</span></div>
+        <div class="seg" id="segOff" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="5">5분</button><button data-v="10">10분</button><button data-v="20">20분</button><button data-v="30">30분</button></div>
+        <div class="set-help">모터가 안 돌고 아무 조작이 없으면 스틱을 끕니다. 꺼지기 10초 전에 화면 아래에 알려줍니다. USB에 꽂혀 있으면 꺼지지 않습니다.</div>
+      </div>
+      <div class="set-row">
+        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-help">모터가 없을 때 스틱의 처리 속도를 낮춰 전기를 아낍니다. 모터가 돌기 시작하면 바로 원래 속도로 측정합니다.</div></span><input type="checkbox" id="cSave"></label>
       </div>
       <div class="set-row">
         <button id="btnDefaults" style="width:100%">스틱 설정 기본값으로</button>
@@ -380,6 +397,15 @@ function renderSettings() {
     $('vHot').textContent = stickSet.hot ? stickSet.hot + ' Hz' : '꺼짐';
     for (const b of $('segMic').children) b.classList.toggle('sel', Math.abs(+b.dataset.v - stickSet.mic) <= 7);
     $('vMic').textContent = stickSet.mic <= 30 ? '높음' : stickSet.mic >= 60 ? '낮음' : '보통';
+    const hasPw = stickSet.dim !== null;
+    for (const id of ['segDim', 'segOff', 'cSave']) $(id).closest('.set-row').classList.toggle('off', !hasPw);
+    if (hasPw) {
+      for (const b of $('segDim').children) b.classList.toggle('sel', +b.dataset.v === stickSet.dim);
+      for (const b of $('segOff').children) b.classList.toggle('sel', +b.dataset.v === stickSet.off);
+      $('vDim').textContent = stickSet.dim ? (stickSet.dim >= 60 ? stickSet.dim / 60 + '분' : stickSet.dim + '초') : '끔';
+      $('vOff').textContent = stickSet.off ? stickSet.off + '분' : '끔';
+      $('cSave').checked = !!stickSet.ps;
+    } else { $('vDim').textContent = $('vOff').textContent = '펌웨어 업데이트 필요'; }
   }
   $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake;
 }
@@ -399,6 +425,9 @@ bindRange('sWt', v => $('vWt').textContent = (v / 10).toFixed(1) + '초', v => s
 bindRange('sHot', v => $('vHot').textContent = v + ' Hz', v => sendSetting(4, v));
 $('cHotOff').onchange = () => sendSetting(4, $('cHotOff').checked ? 0 : (+$('sHot').value || 550));
 $('segMic').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(5, +b.dataset.v); };
+$('segDim').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(6, +b.dataset.v); };
+$('segOff').onclick = e => { const b = e.target.closest('button'); if (b) sendSetting(7, +b.dataset.v); };
+$('cSave').onchange = () => sendSetting(8, $('cSave').checked ? 1 : 0);
 $('btnDefaults').onclick = () => { if (confirm('스틱 설정을 기본값으로 되돌릴까요?')) sendSetting(9, 0); };
 for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
   $(id).onchange = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
@@ -446,7 +475,7 @@ function onInfo(dv) {
   }
   if (txt.indexOf('RES=') < 0) { setTimeout(async () => { try { if (infoChar) onInfo(await infoChar.readValue()); } catch (e) {} }, 50); return; }
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
-  stickSet = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC } : null;
+  stickSet = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
   renderSettings();
