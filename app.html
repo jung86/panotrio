@@ -262,7 +262,7 @@
     <div class="cgrid">
       <label>최소 전압 (V)<span class="nstep"><button class="stp" data-for="cMin" data-d="-1" aria-label="줄이기">−</button><input id="cMin" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMin" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>최대 전압 (V)<span class="nstep"><button class="stp" data-for="cMax" data-d="-1" aria-label="줄이기">−</button><input id="cMax" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMax" data-d="1" aria-label="늘리기">+</button></span></label>
-      <label>전류 제한 (A)<span class="nstep"><button class="stp" data-for="cAmp" data-d="-1" aria-label="줄이기">−</button><input id="cAmp" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"><button class="stp" data-for="cAmp" data-d="1" aria-label="늘리기">+</button></span></label>
+      <label>전류 제한 (A)<span class="nstep"><button class="stp" data-for="cAmp" data-d="-1" aria-label="줄이기">−</button><input id="cAmp" type="number" inputmode="decimal" min="0.1" max="5" step="0.1"><button class="stp" data-for="cAmp" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>왕복 1회 (초)<span class="nstep"><button class="stp" data-for="cPer" data-d="-1" aria-label="줄이기">−</button><input id="cPer" type="number" inputmode="numeric" min="4" max="600" step="1"><button class="stp" data-for="cPer" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>반복 (회)<span class="nstep"><button class="stp" data-for="cRep" data-d="-1" aria-label="줄이기">−</button><input id="cRep" type="number" inputmode="numeric" min="1" max="999" step="1"><button class="stp" data-for="cRep" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>방향<select id="cDir"><option value="fwd">정방향</option><option value="rev">역방향</option><option value="alt">번갈아 (1회마다)</option></select></label>
@@ -423,7 +423,7 @@
       </div>
       <div class="psuRow">
         <label>전압 (V) · 0~12<span class="nstep"><button class="stp" data-for="psuV" data-d="-1" aria-label="줄이기">−</button><input id="psuV" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="psuV" data-d="1" aria-label="늘리기">+</button></span></label>
-        <label>전류 제한 (A) · 0.05~5<span class="nstep"><button class="stp" data-for="psuA" data-d="-1" aria-label="줄이기">−</button><input id="psuA" type="number" inputmode="decimal" min="0.05" max="5" step="0.05"><button class="stp" data-for="psuA" data-d="1" aria-label="늘리기">+</button></span></label>
+        <label>전류 제한 (A) · 0.1~5<span class="nstep"><button class="stp" data-for="psuA" data-d="-1" aria-label="줄이기">−</button><input id="psuA" type="number" inputmode="decimal" min="0.1" max="5" step="0.1"><button class="stp" data-for="psuA" data-d="1" aria-label="늘리기">+</button></span></label>
         <button id="psuOut">출력 켜기</button>
       </div>
       <div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div>
@@ -1086,7 +1086,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24c';
+const APP_BUILD = '2026-11-24d';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1453,7 +1453,7 @@ function cleanRead() {
   const bad = m => { $('cMsg').innerHTML = '<b style="color:#ff6b6b">' + m + '</b>'; return null; };
   if (!(s.min >= 0 && s.min <= 12) || !(s.max >= 0 && s.max <= 12)) return bad('전압은 0~12 V 사이로 넣어 주세요.');
   if (s.min > s.max) return bad('최소 전압이 최대 전압보다 큽니다.');
-  if (!(s.amp >= 0.05 && s.amp <= 5)) return bad('전류 제한은 0.05~5 A 사이로 넣어 주세요.');
+  if (!(s.amp >= 0.1 && s.amp <= 5)) return bad('전류 제한은 0.1~5 A 사이로 넣어 주세요.');
   if (!(s.per >= 4 && s.per <= 600)) return bad('왕복 1회 시간은 4~600초입니다.');
   if (!(s.rep >= 1 && s.rep <= 999)) return bad('반복은 1~999회입니다.');
   try { localStorage.setItem(CLEAN_KEY, JSON.stringify(s)); } catch (e) {}
@@ -1578,7 +1578,7 @@ var psuBusy = false;                                 // var: psuRender can run b
 function psuRead() {
   const v = +$('psuV').value, a = +$('psuA').value;
   if (!(v >= 0 && v <= 12)) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">전압은 0~12 V 사이로 넣어 주세요.</b>'; return null; }
-  if (!(a >= 0.05 && a <= 5)) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">전류 제한은 0.05~5 A 사이로 넣어 주세요.</b>'; return null; }
+  if (!(a >= 0.1 && a <= 5)) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">전류 제한은 0.1~5 A 사이로 넣어 주세요.</b>'; return null; }
   try { localStorage.setItem(PSU_KEY, JSON.stringify({ v, a })); } catch (e) {}
   $('psuMsg').textContent = '';
   return { v, a };
