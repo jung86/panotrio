@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111418">
+<title>PanoTrio 앱</title>
+<style>
+  :root { --bg:#111418; --card:#1b2028; --ink:#eef1f6; --mute:#8e98aa; --line:#2b323e; --acc:#e8590c;
+          --grey:#5c6370; --green:#2f9e44; --yellow:#e0b000; --orange:#e8590c; --red:#e03131; --cyan:#1098ad; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
+  header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  header h1 { font-size:20px; margin:0; }
+  .conn { font-size:13px; color:var(--mute); }
+  .conn.on { color:#69db7c; }
+  button { font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; cursor:pointer; }
+  button:disabled { opacity:.4; }
+  .primary { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; width:100%; padding:16px; font-size:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin:12px 0; }
+  .big { text-align:center; padding:18px 10px 8px; }
+  .big .hz { font-size:76px; font-weight:800; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
+  .big .unit { font-size:20px; color:var(--mute); font-weight:600; }
+  .big .rpm { font-size:22px; color:var(--mute); margin-top:6px; font-variant-numeric:tabular-nums; }
+  .status { margin-top:12px; border-radius:10px; padding:9px; text-align:center; font-weight:700; color:#000; background:var(--grey); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .val { background:#151a21; border-radius:10px; padding:10px 12px; }
+  .val .k { font-size:13px; color:var(--mute); }
+  .val .v { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .val .s { font-size:13px; color:var(--mute); }
+  .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+  .seg button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+  .lbl { font-size:13px; color:var(--mute); margin-top:8px; }
+  canvas { width:100%; height:180px; display:block; }
+  .legend { display:flex; gap:14px; font-size:13px; color:var(--mute); margin-top:6px; }
+  .legend i { display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:5px; }
+  .tools { display:flex; gap:8px; flex-wrap:wrap; }
+  .tools button { flex:1; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td, th { padding:7px 4px; border-bottom:1px solid var(--line); text-align:left; }
+  th { color:var(--mute); font-weight:600; }
+  td.n { font-variant-numeric:tabular-nums; }
+  .empty { color:var(--mute); text-align:center; padding:14px; }
+  .help { color:var(--mute); font-size:14px; }
+  label.auto { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--mute); margin-top:8px; }
+  .del { padding:2px 8px; font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>PanoTrio</h1>
+    <span id="conn" class="conn">연결 안 됨</span>
+  </header>
+
+  <div id="connectBox" class="card">
+    <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
+    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>PanoTrio-xxxx</b>를 고르면 됩니다.</p>
+  </div>
+
+  <div class="card big">
+    <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
+    <div class="rpm"><span id="rpm">-----</span> rpm</div>
+    <div id="status" class="status">대기</div>
+  </div>
+
+  <div class="card">
+    <div class="row2">
+      <div class="val"><div class="k">진동 (V)</div><div id="vHz" class="v">---.-</div><div id="vMg" class="s">&nbsp;</div></div>
+      <div class="val"><div class="k">소리 (M)</div><div id="mHz" class="v">---.-</div><div id="mDb" class="s">&nbsp;</div></div>
+    </div>
+    <div class="lbl">모드</div>
+    <div class="seg" id="segMode">
+      <button data-v="0">진동</button><button data-v="1">소리</button><button data-v="2">진동+소리</button>
+    </div>
+    <div class="lbl">범위</div>
+    <div class="seg" id="segRange">
+      <button data-v="0">AUTO<br><small>250–700</small></button><button data-v="1">LOW<br><small>40–260</small></button><button data-v="2">WIDE<br><small>40–700</small></button>
+    </div>
+  </div>
+
+  <div class="card">
+    <canvas id="chart" width="1040" height="360"></canvas>
+    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#ff922b"></i>진동</span><span><i style="background:#3bc9db"></i>소리</span><span id="span">최근 60초</span></div>
+  </div>
+
+  <div class="card">
+    <div class="tools">
+      <button id="btnSave" disabled>지금 값 기록</button>
+      <button id="btnCsv">CSV 내보내기</button>
+      <button id="btnClear">기록 지우기</button>
+    </div>
+    <label class="auto"><input type="checkbox" id="autoRec" checked> 결과가 나올 때마다 자동 기록</label>
+    <table style="margin-top:8px">
+      <thead><tr><th>시간</th><th>메모</th><th>파노</th><th>rpm</th><th>결과</th><th></th></tr></thead>
+      <tbody id="recs"></tbody>
+    </table>
+  </div>
+
+  <p class="help">안드로이드 크롬에서 사용하세요. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
+</main>
+
+<script>
+const SVC  = '7a1e0001-5c1b-4f2e-9d3a-50a0b0c0d0e1';
+const STAT = '7a1e0002-5c1b-4f2e-9d3a-50a0b0c0d0e1';
+const TEXT = '7a1e0003-5c1b-4f2e-9d3a-50a0b0c0d0e1';
+const CMD  = '7a1e0004-5c1b-4f2e-9d3a-50a0b0c0d0e1';
+const COLORS = ['var(--grey)','var(--green)','var(--yellow)','var(--orange)','var(--red)','var(--cyan)'];
+const MODES = ['진동','소리','진동+소리'];
+const $ = id => document.getElementById(id);
+
+let device = null, cmdChar = null, cur = null, statusText = '';
+const hist = [];                       // {t, big, vib, mic}
+
+// ---------------------------------------------------------------- storage
+function loadRecs() { try { return JSON.parse(localStorage.getItem('panotrio-recs') || '[]'); } catch (e) { return []; } }
+function saveRecs(r) { try { localStorage.setItem('panotrio-recs', JSON.stringify(r)); } catch (e) {} }
+let recs = loadRecs();
+try { $('autoRec').checked = localStorage.getItem('panotrio-auto') !== '0'; } catch (e) {}
+$('autoRec').onchange = () => { try { localStorage.setItem('panotrio-auto', $('autoRec').checked ? '1' : '0'); } catch (e) {} };
+
+// ---------------------------------------------------------------- bluetooth
+async function connect() {
+  if (!navigator.bluetooth) {
+    $('hint').innerHTML = '<b style="color:#ff6b6b">이 브라우저는 블루투스를 지원하지 않습니다.</b> 안드로이드 크롬으로 열어주세요.';
+    return;
+  }
+  try {
+    device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SVC] }, { namePrefix: 'PanoTrio' }], optionalServices: [SVC] });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    await openGatt();
+  } catch (e) {
+    if (e.name !== 'NotFoundError') $('hint').textContent = '연결 실패: ' + e.message;
+  }
+}
+async function openGatt() {
+  $('conn').textContent = '연결 중…';
+  const server = await device.gatt.connect();
+  const svc = await server.getPrimaryService(SVC);
+  const st = await svc.getCharacteristic(STAT);
+  const tx = await svc.getCharacteristic(TEXT);
+  cmdChar = await svc.getCharacteristic(CMD);
+  st.addEventListener('characteristicvaluechanged', e => onStat(e.target.value));
+  tx.addEventListener('characteristicvaluechanged', e => onText(e.target.value));
+  await st.startNotifications();
+  await tx.startNotifications();
+  onText(await tx.readValue());
+  onStat(await st.readValue());
+  $('conn').textContent = device.name || '연결됨'; $('conn').className = 'conn on';
+  $('connectBox').style.display = 'none';
+  $('btnSave').disabled = false;
+}
+async function onDisconnected() {
+  $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn';
+  cmdChar = null; $('btnSave').disabled = true;
+  for (let i = 0; i < 5; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    try { await openGatt(); return; } catch (e) {}
+  }
+  $('conn').textContent = '연결 안 됨';
+  $('connectBox').style.display = '';
+}
+async function send(kind, val) {
+  if (!cmdChar) return;
+  try { await cmdChar.writeValue(new Uint8Array([kind.charCodeAt(0), val])); } catch (e) {}
+}
+
+// ---------------------------------------------------------------- data
+function onText(dv) { statusText = new TextDecoder().decode(dv).trim(); render(); }
+function onStat(dv) {
+  if (dv.byteLength < 20 || dv.getUint8(0) !== 1) return;
+  cur = {
+    mode: dv.getUint8(1), range: dv.getUint8(2), color: dv.getUint8(3),
+    big: dv.getFloat32(4, true), vib: dv.getFloat32(8, true), mic: dv.getFloat32(12, true),
+    mg: dv.getUint16(16, true), db: dv.getInt8(18), harm: dv.getUint8(19)
+  };
+  const now = Date.now();
+  hist.push({ t: now, big: cur.big, vib: cur.vib, mic: cur.mic });
+  while (hist.length && now - hist[0].t > 60000) hist.shift();
+  autoRecord();
+  render();
+}
+function isResult(s) { return /^(MATCH|CLOSE|MIC OK|VIB OK|VIB ONLY)/.test(s); }
+let lastAutoBig = 0;
+function autoRecord() {
+  if (!cur || !$('autoRec').checked) return;
+  if (!isResult(statusText) || cur.big <= 0) { lastAutoBig = 0; return; }
+  if (lastAutoBig && Math.abs(cur.big - lastAutoBig) < 3) return;      // same result still on screen
+  lastAutoBig = cur.big;
+  addRecord('');
+}
+function addRecord(memo) {
+  if (!cur || cur.big <= 0) return;
+  recs.unshift({ t: Date.now(), memo, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText });
+  if (recs.length > 500) recs.length = 500;
+  saveRecs(recs); renderRecs();
+}
+
+// ---------------------------------------------------------------- view
+function fmt(v) { return v > 0 ? v.toFixed(1) : '---.-'; }
+function render() {
+  if (!cur) return;
+  $('hz').textContent = fmt(cur.big);
+  $('rpm').textContent = cur.big > 0 ? Math.round(cur.big * 60).toLocaleString() : '-----';
+  $('status').textContent = statusText || ' ';
+  $('status').style.background = COLORS[cur.color] || COLORS[0];
+  $('vHz').textContent = fmt(cur.vib);
+  $('vMg').textContent = cur.mg ? cur.mg + ' mg' : ' ';
+  $('mHz').textContent = fmt(cur.mic);
+  $('mDb').textContent = cur.db ? cur.db + ' dB' + (cur.harm ? '  ×' + cur.harm : '') : ' ';
+  for (const b of $('segMode').children) b.classList.toggle('sel', +b.dataset.v === cur.mode);
+  for (const b of $('segRange').children) b.classList.toggle('sel', +b.dataset.v === cur.range);
+  drawChart();
+}
+function drawChart() {
+  const c = $('chart'), g = c.getContext('2d'), W = c.width, H = c.height, pad = 50;
+  g.clearRect(0, 0, W, H);
+  const pts = hist.filter(h => h.big > 0 || h.vib > 0 || h.mic > 0);
+  const vals = []; for (const h of pts) for (const k of ['big', 'vib', 'mic']) if (h[k] > 0) vals.push(h[k]);
+  let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
+  if (hi - lo < 10) { const m = (hi + lo) / 2; lo = m - 5; hi = m + 5; }
+  lo -= (hi - lo) * 0.1; hi += (hi - lo) * 0.1;
+  g.strokeStyle = '#2b323e'; g.fillStyle = '#8e98aa'; g.font = '22px system-ui'; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = 10 + (H - 30) * i / 4, v = hi - (hi - lo) * i / 4;
+    g.beginPath(); g.moveTo(pad, y); g.lineTo(W, y); g.stroke();
+    g.fillText(v.toFixed(0), 0, y + 7);
+  }
+  const now = Date.now(), x = t => pad + (W - pad) * (1 - (now - t) / 60000), y = v => 10 + (H - 30) * (hi - v) / (hi - lo);
+  for (const [k, col, w] of [['vib', '#ff922b', 2], ['mic', '#3bc9db', 2], ['big', '#ffffff', 4]]) {
+    g.strokeStyle = col; g.lineWidth = w; g.beginPath(); let on = false;
+    for (const h of hist) { if (h[k] > 0) { on ? g.lineTo(x(h.t), y(h[k])) : g.moveTo(x(h.t), y(h[k])); on = true; } else on = false; }
+    g.stroke();
+  }
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function renderRecs() {
+  const tb = $('recs');
+  if (!recs.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">기록이 없습니다</td></tr>'; return; }
+  tb.innerHTML = recs.map((r, i) => {
+    const d = new Date(r.t), tm = d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    return `<tr><td>${tm}</td><td><a href="#" data-memo="${i}" style="color:#74c0fc">${r.memo ? esc(r.memo) : '+메모'}</a></td><td class="n">${r.big.toFixed(1)}</td><td class="n">${Math.round(r.big * 60)}</td><td>${esc((r.status || '').split('  ')[0])}</td><td><button class="del" data-del="${i}">×</button></td></tr>`;
+  }).join('');
+}
+$('recs').onclick = e => {
+  const m = e.target.dataset.memo, d = e.target.dataset.del;
+  if (m !== undefined) { e.preventDefault(); const v = prompt('메모 (예: 모터 이름, 전압)', recs[m].memo || ''); if (v !== null) { recs[m].memo = v; saveRecs(recs); renderRecs(); } }
+  if (d !== undefined) { recs.splice(+d, 1); saveRecs(recs); renderRecs(); }
+};
+
+// ---------------------------------------------------------------- buttons
+$('btnConnect').onclick = connect;
+$('segMode').onclick = e => { const b = e.target.closest('button'); if (b) send('M', +b.dataset.v); };
+$('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send('R', +b.dataset.v); };
+$('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
+$('btnClear').onclick = () => { if (confirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
+$('btnCsv').onclick = () => {
+  const rows = [['time', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status']].concat(
+    recs.map(r => [new Date(r.t).toISOString(), r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status]));
+  const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'panotrio-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+};
+renderRecs();
+setInterval(() => { if (cur) drawChart(); }, 1000);
+</script>
+</body>
+</html>

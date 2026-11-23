@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PanoTrio 설치 - M5StickS3 모터 파노 측정기</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --mute:#5d6678; --line:#e2e6ee; --acc:#e8590c; --ok:#2b8a3e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12151b; --card:#1b2029; --ink:#e8ebf1; --mute:#9aa3b5; --line:#2b3240; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:32px 20px 60px; }
+  h1 { font-size:28px; margin:0 0 4px; }
+  .sub { color:var(--mute); margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px 24px; margin:16px 0; }
+  .card h2 { font-size:18px; margin:0 0 10px; }
+  .install { text-align:center; padding:30px 24px; }
+  esp-web-install-button button, .install button {
+    font:600 18px/1 inherit; color:#fff; background:var(--acc); border:0; border-radius:10px; padding:16px 34px; cursor:pointer; }
+  esp-web-install-button { --esp-tools-button-color: #e8590c; --esp-tools-button-text-color:#fff; }
+  .warn { color:#c92a2a; font-weight:600; }
+  ol, ul { margin:6px 0; padding-left:22px; }
+  li { margin:4px 0; }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  td, th { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; width:32%; }
+  code { background:rgba(127,127,127,.15); padding:1px 5px; border-radius:4px; }
+  .small { font-size:14px; color:var(--mute); }
+</style>
+</head>
+<body>
+<main>
+  <h1>PanoTrio 0.3</h1>
+  <p class="sub">M5StickS3로 미니카 모터의 회전 주파수(파노)를 진동과 소리로 재는 프로그램입니다.</p>
+
+  <div class="card install">
+    <esp-web-install-button manifest="manifest.json">
+      <span slot="unsupported" class="warn">이 브라우저는 지원하지 않습니다.<br>PC의 크롬(Chrome) 또는 엣지(Edge)로 열어주세요.</span>
+      <span slot="not-allowed" class="warn">https 주소에서만 설치할 수 있습니다.</span>
+    </esp-web-install-button>
+    <p class="small" style="margin:14px 0 0">설치 시간 약 30초 · 프로그램 설치 필요 없음</p>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <h2>📱 휴대폰 앱 (블루투스)</h2>
+    <p style="margin:4px 0 12px">설치 후 안드로이드 크롬에서 아래 버튼을 누르면 스틱 값을 폰으로 보고, 모드 변경·기록·그래프를 쓸 수 있습니다.</p>
+    <a href="app.html" style="display:inline-block;background:#1098ad;color:#fff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px">앱 열기</a>
+    <p class="small" style="margin:10px 0 0">크롬 메뉴 ⋮ → <b>홈 화면에 추가</b>를 하면 앱처럼 쓸 수 있습니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>설치 방법</h2>
+    <ol>
+      <li>M5StickS3를 USB-C 케이블로 PC에 연결합니다. (충전 전용 케이블은 안 됩니다)</li>
+      <li>위의 <b>CONNECT</b> 버튼을 누르고, 목록에서 <b>USB JTAG/serial debug unit</b> (COM 번호)을 선택합니다.</li>
+      <li><b>INSTALL PANOTRIO</b> → <b>INSTALL</b>을 누르고 끝날 때까지 기다립니다.</li>
+      <li>끝나면 스틱이 자동으로 다시 켜지고 PanoTrio 화면이 나옵니다.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>목록에 스틱이 안 보일 때</h2>
+    <ul>
+      <li>스틱 <b>옆면 전원 버튼을 약 2초</b> 누르고 있다가, 초록 LED가 깜빡이면 놓습니다 (다운로드 모드). 그 다음 다시 CONNECT를 누르세요.</li>
+      <li>다른 USB 케이블이나 다른 USB 포트를 써 보세요.</li>
+      <li>Arduino IDE나 다른 시리얼 프로그램이 켜져 있으면 끄고 다시 시도하세요.</li>
+      <li>설치가 끝났는데 화면이 그대로면 전원 버튼을 한 번 눌러 다시 켜세요.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>사용법</h2>
+    <table>
+      <tr><th>앞 버튼 A 짧게</th><td>모드 변경: VIB(진동) → MIC(소리) → VIB+MIC</td></tr>
+      <tr><th>앞 버튼 A 3초</th><td>전원 끄기</td></tr>
+      <tr><th>옆 버튼 B 짧게</th><td>탐색 범위: AUTO 250–700 Hz / LOW 40–260 Hz (저전압 길들이기) / WIDE 40–700 Hz</td></tr>
+      <tr><th>옆 버튼 B 1초</th><td>화면 180도 회전</td></tr>
+    </table>
+    <p style="margin:14px 0 6px"><b>MIC 모드</b>: 진동이 느껴지면 3초 뒤 모터 소리에서 파노를 읽습니다.</p>
+    <p style="margin:6px 0"><b>VIB+MIC 모드</b>: 진동을 인식하면 3초를 센 뒤 진동값과 소리값을 비교해 보여줍니다.</p>
+    <ul>
+      <li><b>MATCH</b> 두 값이 일치 · <b>CLOSE</b> 조금 다름 · <b>VIB ONLY</b> 소리가 안 잡힘</li>
+      <li><b>HOLD</b> 모터가 멈춘 뒤 마지막 결과 유지</li>
+    </ul>
+    <p class="small">큰 숫자 = 파노(Hz), 옆 숫자 = rpm (Hz × 60)</p>
+  </div>
+
+  <div class="card">
+    <h2>알아둘 점</h2>
+    <ul>
+      <li>설치하면 스틱에 있던 기존 프로그램은 지워집니다.</li>
+      <li>휴대폰(아이폰)과 사파리에서는 설치되지 않습니다. PC 크롬/엣지를 쓰세요.</li>
+      <li>시험 버전(0.3)입니다. 측정값이 이상하면 제작자에게 알려주세요.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>
