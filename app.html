@@ -103,6 +103,13 @@
   .rec .mid { flex:1; min-width:0; }
   .rec .meta { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rec .memo { font-size:14px; color:#74c0fc; text-decoration:none; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mrow { display:flex; gap:8px; align-items:center; margin:10px 0 4px; }
+  .mrow select { flex:1; font:600 16px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  .fchips { display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; }
+  .fchips button { padding:5px 12px; border-radius:16px; font-size:13px; white-space:nowrap; }
+  .fchips button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+  .msum { font-size:13px; color:var(--mute); padding:4px 2px; min-height:18px; }
+  .mtag { font-size:11px; color:#ffd8a8; background:#3a2a1a; border-radius:5px; padding:1px 5px; margin-right:4px; }
   .chip { font-size:11px; font-weight:700; color:#000; border-radius:6px; padding:2px 6px; background:var(--grey); white-space:nowrap; }
   #splash { position:fixed; inset:0; z-index:99; background:#111418; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
   #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
@@ -207,6 +214,14 @@
     </div>
   </div>
 
+  <div class="card" id="lockCard">
+    <div class="ttl">블루투스 잠금</div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">이 휴대폰에서만 바꿀 수 있게 잠그기</span>
+      <div class="set-help">잠그면 다른 휴대폰은 값만 볼 수 있고, 모드·설정은 바꿀 수 없습니다. 휴대폰을 잃어버렸으면 스틱의 앞(A)·옆(B) 버튼을 함께 3초 누르면 잠금이 풀립니다.</div></span>
+      <input type="checkbox" id="cLock"></label></div>
+    <div id="lockState" class="set-help" style="text-align:center">&nbsp;</div>
+  </div>
+
   <div class="card">
     <div class="ttl">앱 설정</div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span></span><input type="checkbox" id="aVib"></label></div>
@@ -267,8 +282,11 @@
       <button id="btnCsv">CSV 저장</button>
       <button id="btnClear">모두 지우기</button>
     </div>
-    <label class="auto"><input type="checkbox" id="autoRec" checked> 결과가 나올 때마다 자동 기록</label>
-    <div id="recs" style="margin-top:6px"></div>
+    <div class="mrow"><span class="set-help" style="margin:0">모터</span><select id="motorSel"></select><button id="btnMotorEdit" style="padding:8px 12px">✎</button></div>
+    <label class="auto"><input type="checkbox" id="autoRec" checked> 결과가 나올 때마다 자동 기록 (선택한 모터로)</label>
+    <div class="fchips" id="fchips"></div>
+    <div class="msum" id="msum"></div>
+    <div id="recs" style="margin-top:2px"></div>
   </div>
 
   <p class="help">안드로이드 크롬에서 사용하세요. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
@@ -383,7 +401,7 @@ async function openGatt() {
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; stickSet = null; $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; $('btnSave').disabled = true; renderSettings(); renderHome();
   for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 1500));
     try { await openGatt(); return; } catch (e) {}
@@ -393,6 +411,7 @@ async function onDisconnected() {
 }
 async function send(kind, val) {
   if (!cmdChar) return;
+  if (lockedOut()) { notify('잠긴 스틱이라 바꿀 수 없습니다', false); return; }
   const ch = cmdChar;
   try { await gatt(() => ch.writeValue(new Uint8Array([kind.charCodeAt(0), val]))); } catch (e) {}
 }
@@ -409,6 +428,13 @@ let appSet = { vib: true, snd: true, hot: true, wake: false };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
 let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false, syncOnConnect = false, saving = false;
+let stickLock = null, unlockTried = false;          // {lck, unl} from the stick
+let myKey = 0;                                       // this phone's lock key
+try { myKey = +localStorage.getItem('panotrio-key') || 0; } catch (e) {}
+if (!myKey) { myKey = (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1; try { localStorage.setItem('panotrio-key', String(myKey)); } catch (e) {} }
+function keyBytes(cmd, k) { return new Uint8Array([cmd.charCodeAt(0), k & 255, (k >>> 8) & 255, (k >>> 16) & 255, (k >>> 24) & 255]); }
+async function sendKey(cmd, k) { const ch = cmdChar; if (!ch) return; try { await gatt(() => ch.writeValue(keyBytes(cmd, k))); } catch (e) {} refreshInfo(200); }
+function lockedOut() { return !!(stickLock && stickLock.lck && !stickLock.unl); }
 let mySet = null;                                   // null until the first stick values are known or the user changes something
 try { mySet = JSON.parse(localStorage.getItem(MYSET_KEY) || 'null'); } catch (e) {}
 function saveMySet() { try { localStorage.setItem(MYSET_KEY, JSON.stringify(mySet)); } catch (e) {} }
@@ -455,7 +481,15 @@ function renderSettings() {
   else if (!stickSet) { st.textContent = '스틱 펌웨어를 0.9 이상으로 업데이트하면 저장할 수 있습니다.'; st.style.color = 'var(--mute)'; }
   else if (d.length) { st.textContent = '저장 안 됨 · ' + d.map(k => SET_NAMES[k]).join(', '); st.style.color = '#ffa94d'; }
   else { st.textContent = '✓ 스틱에 저장됨'; st.style.color = '#69db7c'; }
-  btn.disabled = !has || saving;
+  btn.disabled = !has || saving || lockedOut();
+  if (lockedOut()) { st.textContent = '다른 휴대폰으로 잠긴 스틱입니다 · 스틱의 A+B 버튼을 함께 3초 누르면 풀립니다'; st.style.color = '#ff6b6b'; }
+  const lk = $('lockState'), hasLock = !!(stickLock && conn);
+  $('lockCard').classList.toggle('off', !hasLock);
+  $('cLock').checked = !!(stickLock && stickLock.lck && stickLock.unl);
+  $('cLock').disabled = !hasLock || lockedOut();
+  lk.textContent = !conn ? '스틱을 연결하면 바꿀 수 있습니다.' : !stickLock ? '스틱 펌웨어 1.4 이상에서 쓸 수 있습니다.'
+    : lockedOut() ? '🔒 다른 휴대폰으로 잠겨 있습니다' : stickLock.lck ? '🔒 이 휴대폰으로 잠겨 있습니다' : '잠금 꺼짐 · 누구나 바꿀 수 있음';
+  lk.style.color = lockedOut() ? '#ff6b6b' : 'var(--mute)';
   btn.classList.toggle('go', has && d.length > 0);
   $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake;
 }
@@ -487,6 +521,11 @@ async function saveToStick(auto) {                 // send every setting, then r
 }
 function afterStickInfo() {                        // called whenever fresh stick values arrive
   if (!stickSet) return;
+  if (stickLock && stickLock.lck && !stickLock.unl) {
+    if (!unlockTried) { unlockTried = true; sendKey('K', myKey); renderSettings(); return; }   // try this phone's key once
+    syncOnConnect = false;                           // another phone's lock: do not touch the stick
+    renderSettings(); return;
+  }
   if (!mySet) { mySet = Object.assign({}, DEFAULTS, stickSet); saveMySet(); }   // first time: adopt the stick's values
   if (syncOnConnect) { syncOnConnect = false; if (diffKeys().length) saveToStick(true); }
   renderSettings();
@@ -507,6 +546,7 @@ $('segOff').onclick = e => { const b = e.target.closest('button'); if (b) edit('
 $('cSave').onchange = () => edit('ps', $('cSave').checked ? 1 : 0);
 $('segSb').onclick = e => { const b = e.target.closest('button'); if (b) edit('sb', +b.dataset.v); };
 $('btnStickSave').onclick = () => saveToStick(false);
+$('cLock').onchange = () => { sendKey('L', $('cLock').checked ? myKey : 0); };
 $('btnDefaults').onclick = () => { if (confirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
 for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
   $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
@@ -570,6 +610,7 @@ function onInfo(dv, whole) {
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
   const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null, sb: kv.SB !== undefined ? +kv.SB : null } : null;
   stickSet = parsed;
+  stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo();
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}<br>ID ${esc(kv.ID || '-')} · 펌웨어 ${esc(kv.VER || '-')}`;
@@ -593,7 +634,7 @@ function onStat(dv) {
   autoRecord();
   render();
 }
-function isResult(s) { return /^(MATCH|CLOSE|MIC OK|VIB OK|VIB ONLY)/.test(s); }
+function isResult(s) { return /^(MATCH|CLOSE|MIC OK|MIC WEAK|VIB OK|VIB ONLY)/.test(s); }
 let lastAutoBig = 0;
 function autoRecord() {
   if (!cur || !$('autoRec').checked) return;
@@ -602,9 +643,40 @@ function autoRecord() {
   lastAutoBig = cur.big;
   addRecord('');
 }
+// ---------------------------------------------------------------- motors (records are kept per motor)
+let motors = [], curMotor = '', recFilter = '*';
+try { motors = JSON.parse(localStorage.getItem('panotrio-motors') || '[]'); curMotor = localStorage.getItem('panotrio-motor') || ''; } catch (e) {}
+function saveMotors() { try { localStorage.setItem('panotrio-motors', JSON.stringify(motors)); localStorage.setItem('panotrio-motor', curMotor); } catch (e) {} }
+function renderMotors() {
+  const sel = $('motorSel');
+  sel.innerHTML = '<option value="">(모터 선택 안 함)</option>' + motors.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') + '<option value="__new">＋ 새 모터 추가</option>';
+  sel.value = motors.includes(curMotor) ? curMotor : '';
+  $('btnMotorEdit').disabled = !curMotor;
+}
+$('motorSel').onchange = () => {
+  const v = $('motorSel').value;
+  if (v === '__new') {
+    const name = (prompt('새 모터 이름 (예: 하이퍼대시3 #1)', '') || '').trim();
+    if (name && !motors.includes(name)) motors.push(name);
+    if (name) curMotor = name;
+  } else curMotor = v;
+  saveMotors(); renderMotors(); renderRecs();
+};
+$('btnMotorEdit').onclick = () => {
+  if (!curMotor) return;
+  const name = prompt('모터 이름 바꾸기 (비우면 목록에서 지움, 기록은 남음)', curMotor);
+  if (name === null) return;
+  const n = name.trim(), i = motors.indexOf(curMotor);
+  if (!n) { if (i >= 0) motors.splice(i, 1); curMotor = ''; }
+  else if (n !== curMotor) {
+    recs.forEach(r => { if (r.motor === curMotor) r.motor = n; }); saveRecs(recs);
+    if (i >= 0) motors[i] = n; if (recFilter === curMotor) recFilter = n; curMotor = n;
+  }
+  saveMotors(); renderMotors(); renderRecs();
+};
 function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
-  recs.unshift({ t: Date.now(), memo, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText });
+  recs.unshift({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText });
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs();
 }
@@ -649,23 +721,33 @@ function drawChart() {
   }
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-function recColor(st) { return /^MATCH|^MIC OK|^VIB OK/.test(st) ? 'var(--green)' : /^CLOSE/.test(st) ? 'var(--yellow)' : /^VIB ONLY/.test(st) ? 'var(--orange)' : /정회전|역회전/.test(st) ? 'var(--cyan)' : 'var(--grey)'; }
+function recColor(st) { return /^MATCH\?/.test(st) ? 'var(--yellow)' : /^MATCH|^MIC OK|^VIB OK/.test(st) ? 'var(--green)' : /^CLOSE|^MIC WEAK/.test(st) ? 'var(--yellow)' : /^VIB ONLY/.test(st) ? 'var(--orange)' : /정회전|역회전/.test(st) ? 'var(--cyan)' : 'var(--grey)'; }
 function renderRecs() {
   const box = $('recs');
-  if (!recs.length) { box.innerHTML = '<div class="empty">기록이 없습니다</div>'; return; }
+  // filter chips: all + every motor that has records (or is selected)
+  const names = [...new Set(recs.map(r => r.motor).filter(Boolean).concat(curMotor ? [curMotor] : []))];
+  if (recFilter !== '*' && !names.includes(recFilter)) recFilter = '*';
+  $('fchips').innerHTML = names.length ? ['*'].concat(names).map(n => `<button data-f="${esc(n)}" class="${n === recFilter ? 'sel' : ''}">${n === '*' ? '전체' : esc(n)}</button>`).join('') : '';
+  const list = recs.map((r, i) => [r, i]).filter(([r]) => recFilter === '*' || r.motor === recFilter);
+  if (recFilter !== '*' && list.length) {
+    const v = list.map(([r]) => r.big), avg = v.reduce((a, b) => a + b, 0) / v.length;
+    $('msum').textContent = `${recFilter} · 기록 ${v.length}개 · 평균 ${avg.toFixed(1)} · 최고 ${Math.max(...v).toFixed(1)} · 최저 ${Math.min(...v).toFixed(1)} Hz`;
+  } else $('msum').textContent = '';
+  if (!list.length) { box.innerHTML = '<div class="empty">기록이 없습니다</div>'; return; }
   const p2 = n => String(n).padStart(2, '0');
-  box.innerHTML = recs.map((r, i) => {
+  box.innerHTML = list.map(([r, i]) => {
     const d = new Date(r.t), tm = `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
     const st = (r.status || '').split('  ')[0];
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
-      <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.memo ? esc(r.memo) : '+ 메모'}</a>
+      <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
       <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm</div></div>
       ${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('');
 }
+$('fchips').onclick = e => { const b = e.target.closest('button'); if (b) { recFilter = b.dataset.f; renderRecs(); } };
 $('recs').onclick = e => {
-  const m = e.target.dataset.memo, d = e.target.dataset.del;
+  const a = e.target.closest('[data-memo]'), m = a ? a.dataset.memo : undefined, d = e.target.dataset.del;
   if (m !== undefined) { e.preventDefault(); const v = prompt('메모 (예: 모터 이름, 전압)', recs[m].memo || ''); if (v !== null) { recs[m].memo = v; saveRecs(recs); renderRecs(); } }
   if (d !== undefined) { recs.splice(+d, 1); saveRecs(recs); renderRecs(); }
 };
@@ -678,14 +760,15 @@ $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send
 $('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
 $('btnClear').onclick = () => { if (confirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
 $('btnCsv').onclick = () => {
-  const rows = [['time', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status']].concat(
-    recs.map(r => [new Date(r.t).toISOString(), r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status]));
+  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status']].concat(
+    recs.map(r => [new Date(r.t).toISOString(), r.motor || '', r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status]));
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = 'panotrio-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'panocheck-' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
 };
+renderMotors();
 renderRecs();
 // start screen: 1.8 s or a tap
 (() => { const sp = $('splash'); const go = () => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); };
