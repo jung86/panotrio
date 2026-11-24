@@ -405,6 +405,15 @@
         <div class="seg" id="segSb" style="grid-template-columns:1fr 1fr"><button data-v="1">화면 끄기</button><button data-v="0">어둡게</button></div>
         <div class="set-help">화면 끄기가 배터리를 가장 많이 아낍니다. 화면이 꺼져 있어도 스틱은 켜져 있습니다.</div>
       </div>
+      <div class="set-row" id="rowClk">
+        <div class="set-top"><span class="set-name">🕒 대기 모드 시계</span><span class="set-val" id="vClk">-</span></div>
+        <div class="seg" id="segCk" style="grid-template-columns:1fr 1fr"><button data-v="1">켜기</button><button data-v="0">끄기</button></div>
+        <div class="seg" id="segC12" style="grid-template-columns:1fr 1fr;margin-top:6px"><button data-v="0">24시간 (14:30)</button><button data-v="1">12시간 (2:30 PM)</button></div>
+        <div class="seg" id="segCb" style="grid-template-columns:1fr 1fr;margin-top:6px"><button data-v="0">충전 중에만</button><button data-v="1">배터리일 때도</button></div>
+        <div class="set-top" style="margin-top:10px"><span class="set-name" style="font-size:14px">시계 밝기</span><span class="set-val" id="vCbr">-</span></div>
+        <div class="stepper"><button class="stp" data-for="sCbr" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sCbr" min="10" max="255" step="5"><button class="stp" data-for="sCbr" data-d="1" aria-label="늘리기">+</button></div>
+        <div class="set-help">대기 모드가 되면 측정 화면 대신 시계를 보여줍니다. 시각은 앱과 연결할 때 휴대폰 시간으로 맞춥니다. 배터리일 때도 켜면 배터리를 조금 더 씁니다.</div>
+      </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">자동 꺼짐</span><span class="set-val" id="vOff">-</span></div>
         <div class="seg" id="segOff" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="5">5분</button><button data-v="10">10분</button><button data-v="20">20분</button><button data-v="30">30분</button></div>
@@ -712,10 +721,17 @@ async function openGatt() {
   otaChar = null;
   try { otaChar = await svc.getCharacteristic(OTA); } catch (e) {}           // firmware 2.0 and newer
   connGen++;
+  sendTime();
   $('conn').textContent = shortName() + batText(); $('conn').className = 'conn on';
   notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
+}
+async function sendTime() {                          // the stick's standby clock uses the phone's local time
+  const ch = cmdChar; if (!ch) return;
+  const t = Math.floor(Date.now() / 1000) - new Date().getTimezoneOffset() * 60;
+  const b = new Uint8Array(5); b[0] = 84; new DataView(b.buffer).setUint32(1, t >>> 0, true);
+  try { await gatt(() => ch.writeValue(b)); } catch (e) {}
 }
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
@@ -751,9 +767,9 @@ async function send(kind, val) {
 // Changes stay in the app until [스틱에 저장], which sends them and reads them back to check.
 const VM_STEPS = [10, 15, 20, 30, 40, 60, 80, 120, 160, 200, 300];   // vibration threshold (mg)
 const APPSET_KEY = 'panotrio-appset', MYSET_KEY = 'panotrio-myset';
-const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1, sb: 1 };
-const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8, sb: 10 };
-const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '대기 모드 진입 시간', off: '자동 꺼짐', ps: '대기 중 절전', sb: '대기 모드 화면' };
+const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1, sb: 1, ck: 1, c12: 0, cb: 0, cbr: 40 };
+const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8, sb: 10, ck: 12, c12: 13, cb: 14, cbr: 15 };
+const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '대기 모드 진입 시간', off: '자동 꺼짐', ps: '대기 중 절전', sb: '대기 모드 화면', ck: '대기 시계', c12: '시계 표시 방식', cb: '시계 표시 조건', cbr: '시계 밝기' };
 let appSet = { vib: true, snd: true, hot: true, wake: false, relay: false };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
@@ -803,6 +819,14 @@ function renderSettings() {
   $('segSb').closest('.set-row').classList.toggle('off', !sbOk);
   for (const b of $('segSb').children) b.classList.toggle('sel', +b.dataset.v === sb);
   $('vSb').textContent = !sbOk ? '펌웨어 업데이트 필요' : sb ? '화면 끄기' : '어둡게';
+  const ckOk = supported('ck'), v0 = (k, d) => view[k] === undefined || view[k] === null ? d : +view[k];
+  const ck = v0('ck', 1), c12 = v0('c12', 0), cb = v0('cb', 0), cbr = v0('cbr', 40);
+  $('rowClk').classList.toggle('off', !ckOk);
+  for (const [id, v] of [['segCk', ck], ['segC12', c12], ['segCb', cb]]) for (const b of $(id).children) b.classList.toggle('sel', +b.dataset.v === v);
+  for (const id of ['segC12', 'segCb', 'sCbr']) $(id).style.opacity = ck ? '' : '.4';
+  if (document.activeElement !== $('sCbr')) $('sCbr').value = cbr;
+  $('vCbr').textContent = Math.round(cbr / 255 * 100) + '%';
+  $('vClk').textContent = !ckOk ? '펌웨어 2.3 필요' : ck ? (c12 ? '12시간' : '24시간') + ' · ' + (cb ? '항상' : '충전 중') : '끔';
   // save state
   const d = diffKeys();
   const st = $('saveState'), btn = $('btnStickSave');
@@ -906,6 +930,8 @@ $('segDim').onclick = e => { const b = e.target.closest('button'); if (b) edit('
 $('segOff').onclick = e => { const b = e.target.closest('button'); if (b) edit('off', +b.dataset.v); };
 $('cSave').onchange = () => edit('ps', $('cSave').checked ? 1 : 0);
 $('segSb').onclick = e => { const b = e.target.closest('button'); if (b) edit('sb', +b.dataset.v); };
+for (const [id, k] of [['segCk', 'ck'], ['segC12', 'c12'], ['segCb', 'cb']]) $(id).onclick = e => { const b = e.target.closest('button'); if (b) edit(k, +b.dataset.v); };
+bindRange('sCbr', v => $('vCbr').textContent = Math.round(v / 255 * 100) + '%', v => edit('cbr', v));
 $('btnStickSave').onclick = () => saveToStick(false);
 $('cLock').onchange = () => { sendKey('L', $('cLock').checked ? myKey : 0); };
 $('btnDefaults').onclick = () => { if (confirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
@@ -1272,7 +1298,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25e';
+const APP_BUILD = '2026-11-25f';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1292,7 +1318,7 @@ function onInfo(dv, whole) {
   const txt = new TextDecoder().decode(dv);
   if (txt.indexOf('RES=') < 0 || (txt.indexOf('BR=') >= 0 && txt.indexOf('MIC=') < 0)) { refreshInfo(); return; }   // cut-off notification
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
-  const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null, sb: kv.SB !== undefined ? +kv.SB : null } : null;
+  const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null, sb: kv.SB !== undefined ? +kv.SB : null, ck: kv.CK !== undefined ? +kv.CK : null, c12: kv.C12 !== undefined ? +kv.C12 : null, cb: kv.CB !== undefined ? +kv.CB : null, cbr: kv.CBR !== undefined ? +kv.CBR : null } : null;
   stickSet = parsed;
   stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
