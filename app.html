@@ -1328,7 +1328,7 @@ function fwRender(msg) {
       `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
     $('btnFw').onclick = fwStart;
   } else {
-    box.innerHTML = `<b>🔄 스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 USB로</b> 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.` +
+    box.innerHTML = `<b>🔄 스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 컴퓨터에서 USB로</b> 설치해야 합니다 (휴대폰으로는 안 됩니다). 그 다음부터는 블루투스로 업데이트됩니다.` +
       `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:12px;background:#1971c2;color:#fff;text-decoration:none;font-weight:800">설치 페이지 열기 (컴퓨터 + USB)</a>`;
   }
 }

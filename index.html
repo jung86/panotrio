@@ -39,6 +39,12 @@
   </div>
 
   <div class="card install">
+    <div id="mobileInstall" style="display:none;text-align:left;line-height:1.55">
+      <b style="color:#ff6b6b">📵 휴대폰으로는 USB 설치가 안 됩니다.</b><br>
+      <b>컴퓨터</b>(윈도우·맥의 크롬 또는 엣지)에 스틱을 USB 선으로 꽂고, 컴퓨터에서 이 주소를 열어 설치하세요.<br>
+      <span style="color:#2f9e44;font-weight:700">2.0을 한 번 설치하면, 그 다음부터는 휴대폰 앱에서 블루투스로 업데이트됩니다.</span>
+      <button id="btnCopyInst" style="display:block;margin-top:10px;width:100%;padding:12px;border-radius:10px;border:0;background:#495057;color:#fff;font-weight:700;font-size:15px">이 주소 복사 (컴퓨터로 보내기)</button>
+    </div>
     <esp-web-install-button manifest="manifest.json">
       <span slot="unsupported" class="warn">이 브라우저는 지원하지 않습니다.<br>PC의 크롬(Chrome) 또는 엣지(Edge)로 열어주세요.</span>
       <span slot="not-allowed" class="warn">https 주소에서만 설치할 수 있습니다.</span>
@@ -111,6 +117,15 @@
   </div>
 </main>
 <script>
+if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+  document.getElementById('mobileInstall').style.display = '';
+  document.querySelector('esp-web-install-button').style.display = 'none';
+  document.getElementById('btnCopyInst').onclick = async () => {
+    const u = location.origin + location.pathname;
+    try { await navigator.clipboard.writeText(u); document.getElementById('btnCopyInst').textContent = '복사했습니다 · 카톡 등으로 컴퓨터에 보내세요'; }
+    catch (e) { prompt('이 주소를 컴퓨터에서 여세요', u); }
+  };
+}
 (() => {                                           // Android, not Chrome (Samsung Internet, in-app browsers): open the app in Chrome
   const ua = navigator.userAgent;
   if (navigator.bluetooth) return;
