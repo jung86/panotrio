@@ -1,8 +1,8 @@
 {
- "ver": "2.1",
- "size": 1048256,
- "sha256": "4d8ecc2cfbb751b01bf6a1391e978ac18cf7fbe9f2114a1488403396c0d3589a",
- "sig": "qjBnUkq4FcYpOXLp4TUpo1AZDeaAgcCcjJ6yKr7rxsPRlw-9vk_mq4vflHXHF8giN7PVOqOrWqRJ7MxF5gz3bQ",
- "bin": "fw/PanoCheck-2.1.app.bin",
- "note": "블루투스 업데이트 시험 버전 (기능은 2.0과 같음)"
+ "ver": "2.2",
+ "size": 1048784,
+ "sha256": "a923d100233bd5f44ba50bdb5625b3c3e84e10aa2b2e275b93cba9f456b7f8d7",
+ "sig": "V2k8a0VgR8hDIYewo9MJDhL-4LLdVKBDmVS1Vmy6B-rmxOBvylPKQetCZGRBdND5gAbritwgLf1nHC4SR8Tc2Q",
+ "bin": "fw/PanoCheck-2.2.app.bin",
+ "note": "릴레이 전원 절약 · 업데이트가 끊겨도 이어서 받기"
 }
