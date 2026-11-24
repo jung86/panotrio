@@ -254,6 +254,10 @@
   </div>
   <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요.</p>
+  <div class="card" style="margin-top:10px;display:flex;align-items:center;gap:10px">
+    <div style="flex:1;font-size:14px;line-height:1.5">🍎 <b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요. (스틱 측정만 가능)</div>
+    <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
+  </div>
 </div></div>
 <div id="admin"><div class="inner">
   <header>
@@ -1197,7 +1201,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24n';
+const APP_BUILD = '2026-11-24o';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
