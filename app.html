@@ -1343,7 +1343,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25k';
+const APP_BUILD = '2026-11-25m';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2030,7 +2030,7 @@ async function cleanStop(msg, good) {
 }
 function cleanOnStickLost() { if ((cl.run || cl.busy) && (cl.needRelay || cl.mode === 'break')) cleanStop('스틱 연결이 끊겨 정지했습니다'); cleanRender(); }
 // ---- 모터길들이기 settings: the user's list of stages (voltage, direction, min/sec), then measure, then rest
-function breakDefault() { return { tgtOn: true, target: 360, chk: 3.0, rep: 20, amp: 1.0, stages: [{ v: 2.0, sec: 120, dir: 'fwd' }], rest: 15 }; }
+function breakDefault() { return { tgtOn: true, target: 360, chk: 3.0, rep: 20, amp: 1.0, stages: [{ v: 2.0, sec: 120, dir: 'fwd', cool: 0 }], rest: 15 }; }
 function breakStored() {
   let o = null; try { o = JSON.parse(localStorage.getItem(BREAK_KEY) || 'null'); } catch (e) {}
   return breakNorm(o);
@@ -2045,6 +2045,7 @@ function breakNorm(o) {                              // older saves (single volt
   }
   delete o.steps; delete o.v; delete o.sec; delete o.dir;
   if (!Array.isArray(o.stages) || !o.stages.length) o.stages = d.stages;
+  o.stages = o.stages.map(x => Object.assign({ cool: 0 }, x));
   for (const k in d) if (o[k] === undefined) o[k] = d[k];
   return o;
 }
@@ -2060,7 +2061,9 @@ function breakStagesRender() {
       <label>방향<select id="bD${i}"><option value="fwd"${x.dir === 'fwd' ? ' selected' : ''}>정방향</option><option value="rev"${x.dir === 'rev' ? ' selected' : ''}>역방향</option><option value="alt"${x.dir === 'alt' ? ' selected' : ''}>번갈아 (사이클마다)</option></select></label>
       <label>시간 (분)${st('bM' + i, 0, 60, 1, Math.floor(x.sec / 60), 'numeric')}</label>
       <label>시간 (초)${st('bS' + i, 0, 55, 5, x.sec % 60, 'numeric')}</label>
-    </div></div>`).join('');
+      <label>쿨링 (분)${st('bCm' + i, 0, 60, 1, Math.floor((x.cool || 0) / 60), 'numeric')}</label>
+      <label>쿨링 (초)${st('bCs' + i, 0, 55, 5, (x.cool || 0) % 60, 'numeric')}</label>
+    </div><div class="help" style="margin-top:4px">쿨링: 이 구간이 끝나면 전원을 끄고 식힌 뒤 다음으로 (0이면 바로)</div></div>`).join('');
   bindSteppers(box);
 }
 function breakStagesFromUi() {                       // read the stage boxes into bStages
@@ -2068,7 +2071,9 @@ function breakStagesFromUi() {                       // read the stage boxes int
     if (!$('bV' + i)) return x;
     let mm = Math.max(0, Math.round(+$('bM' + i).value || 0)), ss = Math.max(0, Math.round(+$('bS' + i).value || 0));
     if (ss > 59) { mm += Math.floor(ss / 60); ss %= 60; $('bM' + i).value = mm; $('bS' + i).value = ss; }
-    return { v: Math.round(+$('bV' + i).value * 100) / 100, sec: mm * 60 + ss, dir: $('bD' + i).value };
+    let cm = Math.max(0, Math.round(+$('bCm' + i).value || 0)), cs = Math.max(0, Math.round(+$('bCs' + i).value || 0));
+    if (cs > 59) { cm += Math.floor(cs / 60); cs %= 60; $('bCm' + i).value = cm; $('bCs' + i).value = cs; }
+    return { v: Math.round(+$('bV' + i).value * 100) / 100, sec: mm * 60 + ss, dir: $('bD' + i).value, cool: cm * 60 + cs };
   });
 }
 function breakFill(o) {
@@ -2095,6 +2100,7 @@ function breakRead() {
     const n = o.stages.length > 1 ? `구간 ${i + 1}: ` : '';
     if (!(x.v >= 0.3 && x.v <= 12)) return bad(n + '길들이기 전압은 0.3~12 V 사이로 넣어 주세요.');
     if (!(x.sec >= 1 && x.sec <= 3600)) return bad(n + '시간은 1초~60분입니다.');
+    if (!(x.cool >= 0 && x.cool <= 3600)) return bad(n + '쿨링은 0~60분입니다.');
   }
   if (!(o.rest >= 0 && o.rest <= 3600)) return bad('쉬는 시간은 0~60분입니다.');
   if (o.tgtOn && !(o.target >= 50 && o.target <= 2000)) return bad('목표 파노는 50~2000 Hz 사이로 넣어 주세요.');
@@ -2102,7 +2108,11 @@ function breakRead() {
   if (!(o.rep >= 1 && o.rep <= 999)) return bad((o.tgtOn ? '최대 사이클' : '반복') + '은 1~999회입니다.');
   if (!(o.amp >= 0.1 && o.amp <= 5)) return bad('전류 제한은 0.1~5 A 사이로 넣어 주세요.');
   try { localStorage.setItem(BREAK_KEY, JSON.stringify(o)); } catch (e) {}
-  o.steps = o.stages.map(x => ({ t: 'hold', v: x.v, s: x.sec, d: x.dir === 'rev' ? 1 : x.dir === 'alt' ? 'alt' : 0 }));   // for the run engine
+  o.steps = [];                                      // for the run engine: each stage, then its cooling (output off)
+  o.stages.forEach((x, i) => {
+    o.steps.push({ t: 'hold', v: x.v, s: x.sec, d: x.dir === 'rev' ? 1 : x.dir === 'alt' ? 'alt' : 0, g: i });
+    if (x.cool > 0) o.steps.push({ t: 'rest', s: x.cool, g: i });
+  });
   return o;
 }
 function breakEditable() { if (cl.run || cl.busy) { notify('실행 중에는 구간을 바꿀 수 없습니다', false); return false; } return true; }
@@ -2111,7 +2121,7 @@ $('bAddStage').onclick = () => {
   breakStagesFromUi();
   if (bStages.length >= 10) { notify('구간은 10개까지입니다', false); return; }
   const last = bStages[bStages.length - 1] || { v: 2.0, sec: 120, dir: 'fwd' };
-  bStages.push({ v: Math.min(12, Math.round((last.v + 0.5) * 10) / 10), sec: last.sec, dir: last.dir });
+  bStages.push({ v: Math.min(12, Math.round((last.v + 0.5) * 10) / 10), sec: last.sec, dir: last.dir, cool: last.cool || 0 });
   breakStagesRender(); breakRead();
   const el = $('bStages').lastElementChild; if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 };
@@ -2247,14 +2257,15 @@ function cleanRender() {
   if (stickRly !== null && document.activeElement !== $('cRly')) $('cRly').value = stickRly ? '1' : '0';
   if (typeof psuRender === 'function') psuRender();
   if (cl.run && cl.set && cl.mode === 'break') {
-    const s = cl.set, n = s.steps.length, x = s.steps[Math.max(0, cl.si)];
+    const s = cl.set, n = s.stages.length, x = s.steps[Math.max(0, cl.si)], g = x.g || 0;
     let ph, frac = 0;
     if (cl.phase === 'check') { ph = `파노 측정 중 · ${s.chk.toFixed(1)} V`; frac = 1; }
     else if (cl.phase === 'rest') { const l = Math.max(0, Math.ceil((cl.restEnd - Date.now()) / 1000)); ph = `쉬는 중 · 남은 ${Math.floor(l / 60)}:${String(l % 60).padStart(2, '0')}`; frac = 1; }
     else {
       const left = Math.max(0, Math.ceil((x.s * 1000 - (Date.now() - cl.stepT0)) / 1000));
-      frac = (cl.si + Math.min(1, (Date.now() - cl.stepT0) / (x.s * 1000 || 1))) / n;
-      ph = `${n > 1 ? '구간 ' + (cl.si + 1) + '/' + n + ' · ' : ''}${cl.lastV.toFixed(2)} V · ${cl.dir ? '역' : '정'} · 남은 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      frac = (cl.si + Math.min(1, (Date.now() - cl.stepT0) / (x.s * 1000 || 1))) / s.steps.length;
+      const tm = `남은 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      ph = `${n > 1 ? '구간 ' + (g + 1) + '/' + n + ' · ' : ''}` + (x.t === 'rest' ? `쿨링 중 · ${tm}` : `${cl.lastV.toFixed(2)} V · ${cl.dir ? '역' : '정'} · ${tm}`);
     }
     const after = cl.phase === 'check' || cl.phase === 'rest';
     $('cProg').textContent = `사이클 ${Math.min(cl.k + (after ? 0 : 1), s.rep)}/${s.rep} · ${ph}`;
