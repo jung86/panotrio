@@ -1137,7 +1137,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24i';
+const APP_BUILD = '2026-11-24j';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1389,8 +1389,9 @@ function dpsParse(reg, d) {
   dpsRender();
   if (st.prot && cl.run) cleanStop('전원공급기 보호 동작: ' + st.prot);
 }
-async function dpsOpenSerial() {
-  const port = await navigator.serial.requestPort();
+async function dpsOpenSerial(known) {
+  const port = known || await navigator.serial.requestPort();
+  if (port.readable) { try { await port.close(); } catch (e) {} }
   await port.open({ baudRate: 115200, bufferSize: 1024 });
   let reader = null, alive = true;
   (async () => {
@@ -1407,8 +1408,9 @@ async function dpsOpenSerial() {
     close: async () => { alive = false; try { await reader.cancel(); } catch (e) {} try { await port.close(); } catch (e) {} }
   };
 }
-async function dpsOpenUsb() {                       // minimal USB CDC-ACM driver (Android)
-  const dev = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x2e3c }, { classCode: 2 }, { classCode: 10 }] });   // 0x2e3c: Artery (DPS-150's chip)
+async function dpsOpenUsb(known) {                  // minimal USB CDC-ACM driver (Android)
+  const dev = known || await navigator.usb.requestDevice({ filters: [{ vendorId: 0x2e3c }, { classCode: 2 }, { classCode: 10 }] });   // 0x2e3c: Artery (DPS-150's chip)
+  if (dev.opened) { try { await dev.close(); } catch (e) {} }
   await dev.open();
   if (!dev.configuration) await dev.selectConfiguration(1);
   let ctrl = null, data = null;
@@ -1446,16 +1448,37 @@ function dpsMsg(html) {                              // connection messages show
   $('dpsInfo').innerHTML = html;
   if ($('psuMsg')) $('psuMsg').innerHTML = html;
 }
+// A power supply this browser was already allowed to use: reconnect without the device list.
+async function dpsKnown(useUsb) {
+  try {
+    if (useUsb) {
+      const d = (await navigator.usb.getDevices()).filter(x => x.vendorId === 0x2e3c);
+      return d.length === 1 ? { kind: 'usb', dev: d[0] } : null;
+    }
+    const ports = await navigator.serial.getPorts();
+    const p = ports.filter(x => { const i = x.getInfo ? x.getInfo() : {}; return i.usbVendorId === 0x2e3c; });
+    return p.length === 1 ? { kind: 'serial', dev: p[0] } : null;
+  } catch (e) { return null; }
+}
 const DPS_HELP = '<br>· 데이터선인지 (충전 전용 선은 안 됨)<br>· DPS-150 전원이 켜져 있는지<br>· 선을 뽑았다 다시 꽂고 [연결]';
-async function dpsConnect() {
-  if (dps.link) { await dpsDisconnect(); return; }
-  dpsMsg('연결 중… 장치 목록에서 DPS-150(또는 USB 장치)을 고르세요');
+let dpsConnecting = false;
+async function dpsConnect(opt) {
+  const silent = !!(opt && opt.silent);
+  if (dpsConnecting) return;
+  if (dps.link) { if (!silent) await dpsDisconnect(); return; }
   // Android: wired Web Serial is not there yet on most phones (its list stays empty), so talk USB directly.
   const android = /Android/i.test(navigator.userAgent);
   const useUsb = 'usb' in navigator && (android || !('serial' in navigator));
+  if (!('usb' in navigator) && !('serial' in navigator)) { if (!silent) dpsMsg('<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'); return; }
+  const known = await dpsKnown(useUsb);
+  if (silent && !known) return;
+  dpsConnecting = true;
+  dpsMsg(known ? '전에 허락한 DPS-150에 다시 연결하는 중…' : '연결 중… 장치 목록에서 DPS-150(또는 USB 장치)을 고르세요');
   try {
-    if (!('usb' in navigator) && !('serial' in navigator)) { dpsMsg('<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'); return; }
-    try { dps.link = useUsb ? await dpsOpenUsb() : await dpsOpenSerial(); }
+    try {
+      if (known) { try { dps.link = known.kind === 'usb' ? await dpsOpenUsb(known.dev) : await dpsOpenSerial(known.dev); } catch (e) { if (silent) throw e; dps.link = null; } }
+      if (!dps.link) dps.link = useUsb ? await dpsOpenUsb() : await dpsOpenSerial();
+    }
     catch (e) {                                       // nothing picked in the first list: offer the other kind of list
       if (e.name !== 'NotFoundError') throw e;
       if (useUsb && 'serial' in navigator && !android) dps.link = await dpsOpenSerial();
@@ -1469,11 +1492,14 @@ async function dpsConnect() {
     await dpsByte(DPS_METER, 1);                  // live V / A / W
     await dpsGet(DPS_ALL);
     clearInterval(dps.poll); dps.poll = setInterval(() => { if (dps.link) dpsGet(DPS_ALL).catch(() => {}); }, 1000);
+    dpsConnecting = false;
     setTimeout(() => { if (dps.link && !dps.st.t) dpsMsg('<b style="color:#ff6b6b">연결은 됐는데 응답이 없습니다.</b>' + DPS_HELP); }, 2500);
     if ($('psuMsg')) $('psuMsg').textContent = '';
     dpsRender();
   } catch (e) {
     const l = dps.link; dps.link = null; if (l) { try { await l.close(); } catch (e2) {} }
+    dpsConnecting = false;
+    if (silent) { dpsMsg(''); dpsRender(); return; }
     if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 DPS-150이 없습니다.</b>' + DPS_HELP);
     else dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP);
     dpsRender();
@@ -1495,6 +1521,10 @@ function dpsLost() {
 }
 if ('serial' in navigator) navigator.serial.addEventListener('disconnect', () => { if (dps.link && dps.link.kind === 'serial') dpsLost(); });
 if ('usb' in navigator) navigator.usb.addEventListener('disconnect', () => { if (dps.link && dps.link.kind === 'usb') dpsLost(); });
+// plugged in again (or the app opened) with a power supply that was allowed before: connect by itself
+if ('serial' in navigator) navigator.serial.addEventListener('connect', () => setTimeout(() => dpsConnect({ silent: true }), 600));
+if ('usb' in navigator) navigator.usb.addEventListener('connect', () => setTimeout(() => dpsConnect({ silent: true }), 600));
+setTimeout(() => dpsConnect({ silent: true }), 1500);
 function dpsRender() {
   const st = dps.st, on = !!dps.link, n = (x, d) => (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '-.' + '-'.repeat(d);
   $('btnDps').textContent = on ? '전원공급기 연결 끊기' : '전원공급기 연결 (USB)';
