@@ -96,6 +96,14 @@
   .prow select { min-height:48px; }
   #psuPreSave, #cPreSave { min-width:108px; padding:10px 16px; font-size:18px; font-weight:800; background:var(--acc); border-color:var(--acc); color:#fff; }
   #psuPreSave:active, #cPreSave:active { filter:brightness(1.15); }
+  .ppl { margin-top:8px; }
+  .ppl .row { display:grid; grid-template-columns:1fr auto; gap:6px; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line); }
+  .ppl .nm { font-weight:700; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ppl .meta { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums; }
+  .ppl .acts { display:flex; gap:4px; }
+  .ppl .acts button { padding:7px 9px; font-size:13px; }
+  .pst { font-size:12px; font-weight:800; border-radius:6px; padding:1px 6px; margin-left:6px; }
+  .pst.ok { background:#2b8a3e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#1971c2; color:#fff; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -266,6 +274,8 @@
   <div class="card" id="admMake" style="display:none">
     <div class="ttl">스틱 ID</div>
     <input id="aId" type="text" maxlength="9" placeholder="XXXX-XXXX" autocomplete="off">
+    <div class="ttl" style="margin-top:10px">받는 사람 (메모)</div>
+    <input id="aName" type="text" maxlength="30" placeholder="예: 홍길동 · 동호회" autocomplete="off">
     <div id="aLvInfo" class="help" style="margin-top:6px"></div>
     <div class="tools" style="margin-top:10px"><button id="btnAdmMake" class="primary">활성화 링크 만들기</button><button id="btnAdmRvk">🚫 허락 취소</button></div>
     <div id="aRes" style="display:none;margin-top:12px">
@@ -279,6 +289,14 @@
     </div>
     <div id="aMsg2" class="help" style="margin-top:8px;text-align:center"></div>
     <button id="btnAdmForget" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 잠그기 (기억 지우기)</button>
+  </div>
+  <div class="card" id="admPeople" style="display:none">
+    <div class="ttl" style="display:flex;align-items:center;gap:8px">👥 허락한 사람 <span id="pplCount" class="help" style="margin:0"></span></div>
+    <div class="prow" style="margin-top:4px"><input id="pplQ" type="search" placeholder="이름 또는 스틱 ID 검색" style="flex:1;min-width:0;font:600 15px system-ui;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:var(--ink)"><button id="btnPplAdd">＋ 직접 추가</button></div>
+    <div id="pplList" class="ppl"></div>
+    <div class="tools" style="margin-top:10px"><button id="btnPplExport">⬇ 내보내기</button><button id="btnPplImport">⬆ 가져오기</button><button id="btnPplSync">↻ 새로고침</button></div>
+    <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
+    <div class="help" style="margin-top:6px">링크를 만들 때마다 여기에 자동으로 기록됩니다. 목록은 이 휴대폰에만 저장되니 가끔 내보내기로 백업하세요.</div>
   </div>
   <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
 </div></div>
@@ -1010,6 +1028,8 @@ async function adminShow() {
   if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
   $('admOpen').style.display = admKey ? 'none' : '';
   $('admMake').style.display = admKey ? '' : 'none';
+  $('admPeople').style.display = admKey ? '' : 'none';
+  if (admKey) pplRender(true);
   if (admKey && actState && !actState.act && !$('aId').value) $('aId').value = actState.id.slice(0, 4) + '-' + actState.id.slice(4);
 }
 const ub64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
@@ -1087,6 +1107,7 @@ $('btnAdmRvk').onclick = async () => {
     $('aRvkRes').style.display = ''; $('aRes').style.display = 'none';
     $('btnRvkHere').disabled = !(cmdChar && actState && actState.id === id);
     $('aMsg2').textContent = '✓ 취소 줄을 만들었습니다 · 목록에 꼭 올려 주세요 (바로 보낸 경우도)';
+    pplRecord(id, { rvkMade: Date.now(), rvkLv: lv });
   } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
 };
 $('btnRvkGh').onclick = async () => {
@@ -1109,6 +1130,7 @@ $('btnAdmMake').onclick = async () => {
     admId = id; admLink = APP_URL + '#act=' + id + '.' + admCode;
     $('aLink').value = '파노체크 활성화 링크 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 전용)\n' + admLink + '\n\n스틱을 켜 두고 링크를 누른 뒤 [스틱 연결]만 누르면 활성화됩니다.';
     $('aRes').style.display = ''; $('aMsg2').textContent = '✓ 만들었습니다' + warn;
+    pplRecord(id, { name: $('aName').value.trim(), lv, code, made: Date.now() });
     $('btnAdmHere').disabled = !(cmdChar && actState && !actState.act && actState.id === id);
   } catch (e) { $('aMsg2').textContent = '만들지 못했습니다: ' + e.message; }
 };
@@ -1143,7 +1165,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24k';
+const APP_BUILD = '2026-11-24l';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1854,6 +1876,83 @@ presetBox('panocheck-clean-presets', 'cPre', '클리닝 프리셋',
   () => cleanRead(),
   v => { $('cMin').value = v.min; $('cMax').value = v.max; $('cAmp').value = v.amp; $('cPer').value = v.per; $('cRep').value = v.rep; $('cDir').value = v.dir; $('cMsg').textContent = ''; cleanRead(); },
   () => cl.run || cl.busy);
+
+// ---------------------------------------------------------------- 👥 people this phone gave permission to (kept on this phone)
+const PPL_KEY = 'panocheck-admin-people';
+function pplLoad() { try { return JSON.parse(localStorage.getItem(PPL_KEY) || 'null') || null; } catch (e) { return null; } }
+function pplStore(o) { try { localStorage.setItem(PPL_KEY, JSON.stringify(o)); } catch (e) {} }
+function pplAll() {
+  let o = pplLoad();
+  if (!o) { o = { '1DD625E0': { name: '제작자', lv: 1, made: Date.parse('2026-11-23T12:00:00+09:00') } }; pplStore(o); }
+  return o;
+}
+function pplRecord(id, patch) {
+  const o = pplAll(), cur = o[id] || {};
+  if (patch.name === '') delete patch.name;            // keep the old name when the box is empty
+  if (patch.lv !== undefined && cur.lv !== undefined && patch.lv < cur.lv) { delete patch.lv; delete patch.code; }
+  o[id] = Object.assign(cur, patch); pplStore(o); pplRender();
+}
+const fmtId = id => id.slice(0, 4) + '-' + id.slice(4);
+function pplStatus(e, id) {                          // from the GitHub removal list (if loaded) and what was made here
+  const r = rvkList && rvkList.get(id), lv = e.lv === undefined ? 0 : e.lv;
+  if (r && r.lv >= lv) return ['no', '취소됨'];
+  if (!r && e.rvkMade && (e.rvkLv === undefined || e.rvkLv >= lv)) return ['no', '취소 대기 (목록에 올려야 함)'];
+  if (lv > 0) return ['re', '다시 허락'];
+  return ['ok', '허락'];
+}
+async function pplRender(fetchList) {
+  if (!$('pplList')) return;
+  if (fetchList) { await loadRvkList(true); }
+  const o = pplAll(), q = ($('pplQ').value || '').trim().toUpperCase().replace(/-/g, '');
+  const ids = Object.keys(o).sort((a, b) => (o[b].made || 0) - (o[a].made || 0));
+  const shown = ids.filter(id => !q || id.includes(q) || (o[id].name || '').toUpperCase().includes(q));
+  const cnt = { ok: 0, no: 0 };
+  ids.forEach(id => { const st = pplStatus(o[id], id)[0]; if (st === 'no') cnt.no++; else cnt.ok++; });
+  $('pplCount').textContent = `${ids.length}명 · 허락 ${cnt.ok} · 취소 ${cnt.no}`;
+  $('pplList').innerHTML = shown.length ? shown.map(id => {
+    const e = o[id], [cls, txt] = pplStatus(e, id);
+    const d = e.made ? new Date(e.made) : null;
+    const when = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '';
+    return `<div class="row" data-id="${id}"><div style="min-width:0"><div class="nm">${esc(e.name || '(이름 없음)')}<span class="pst ${cls}">${txt}</span></div>
+      <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div></div>
+      <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">🗑</button></div></div>`;
+  }).join('') : '<div class="help" style="padding:10px 0">' + (ids.length ? '검색 결과가 없습니다' : '아직 기록이 없습니다') + '</div>';
+}
+$('pplQ').oninput = () => pplRender();
+$('pplList').onclick = e => {
+  const b = e.target.closest('button'), row = e.target.closest('.row'); if (!b || !row) return;
+  const id = row.dataset.id, o = pplAll(), ent = o[id]; if (!ent) return;
+  $('aId').value = fmtId(id); $('aName').value = ent.name || ''; $('aLvInfo').textContent = '';
+  if (b.dataset.a === 'link') { $('btnAdmMake').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); }
+  else if (b.dataset.a === 'rvk') { if (confirm(`${ent.name || fmtId(id)}의 허락을 취소하는 줄을 만들까요?`)) { $('btnAdmRvk').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); } }
+  else if (b.dataset.a === 'edit') { const n = prompt('이름 (메모)', ent.name || ''); if (n !== null) { ent.name = n.trim().slice(0, 30); pplStore(o); pplRender(); } }
+  else if (b.dataset.a === 'del') { if (confirm(`${ent.name || fmtId(id)}을(를) 목록에서 뺄까요?\n(허락이 취소되는 것은 아닙니다)`)) { delete o[id]; pplStore(o); pplRender(); } }
+};
+$('btnPplAdd').onclick = () => {
+  const raw = prompt('스틱 ID (8자리)', ''); if (raw === null) return;
+  const id = raw.toUpperCase().replace(/[^0-9A-F]/g, '');
+  if (id.length !== 8) { notify('스틱 ID는 8자리(0-9, A-F)입니다', false); return; }
+  const n = prompt('이름 (메모)', '') || '';
+  const o = pplAll(); o[id] = Object.assign(o[id] || { lv: 0, made: Date.now() }, n.trim() ? { name: n.trim().slice(0, 30) } : {}); pplStore(o); pplRender();
+  notify('추가했습니다', true);
+};
+$('btnPplExport').onclick = () => {
+  const blob = new Blob([JSON.stringify({ app: 'panocheck-admin-people', v: 1, saved: new Date().toISOString(), people: pplAll() }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  const d = new Date(); a.download = `파노체크-허락목록-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('btnPplImport').onclick = () => $('pplFile').click();
+$('pplFile').onchange = async () => {
+  const f = $('pplFile').files[0]; $('pplFile').value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()), add = j && j.people; if (!add || typeof add !== 'object') throw new Error('형식이 다릅니다');
+    const o = pplAll(); let n = 0;
+    for (const [id, e] of Object.entries(add)) { if (!/^[0-9A-F]{8}$/.test(id) || typeof e !== 'object') continue; o[id] = Object.assign({}, e, o[id] || {}); n++; }
+    pplStore(o); pplRender(); notify(`${n}명을 가져왔습니다`, true);
+  } catch (e) { notify('가져오지 못했습니다: ' + e.message, false); }
+};
+$('btnPplSync').onclick = async () => { await pplRender(true); notify(rvkList ? '취소 상태를 새로 확인했습니다' : '취소 목록을 읽지 못했습니다 (인터넷 확인)', !!rvkList); };
 </script>
 </body>
 </html>
