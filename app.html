@@ -575,7 +575,7 @@ let device = null, cmdChar = null, cur = null, statusText = '';
 var otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false;
 // 모터클리닝 / DPS-150 state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
-const cl = { run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
+const cl = { vSending: false, run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
 let stickDir = null, stickRly = null;               // from the stick's info text (firmware 1.9+)
 const hist = [];                       // {t, big, vib, mic}
 
@@ -1269,7 +1269,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25b';
+const APP_BUILD = '2026-11-25c';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1825,7 +1825,7 @@ async function sendDir(d) {
   for (let i = 0; i < 15; i++) { await sleep(100); if (stickDir === d) return; if (i === 4) refreshInfo(0); }
   throw new Error('스틱이 방향 전환에 응답하지 않습니다');
 }
-const tri = ph => ph < 0.5 ? ph * 2 : (1 - ph) * 2;    // 0 -> 1 -> 0
+const tri = ph => (1 - Math.cos(2 * Math.PI * ph)) / 2;   // 0 -> 1 -> 0, soft start and soft turn at the top
 async function waitMotorStop() {                    // output off: let the motor coast down before the relay switches
   const t = Date.now();
   await sleep(600);
@@ -1851,7 +1851,7 @@ async function cleanStart() {
   cl.set = s; cl.k = 0; cl.lastV = s.min; cl.t0 = cl.cycleT0 = Date.now(); cl.run = true; cl.busy = false;
   try { if ('wakeLock' in navigator) cl.wake = await navigator.wakeLock.request('screen'); } catch (e) {}
   $('cMsg').textContent = '';
-  clearInterval(cl.timer); cl.timer = setInterval(cleanTick, 200);
+  clearInterval(cl.timer); cl.timer = setInterval(cleanTick, 50);    // ~15-20 small steps a second (skips while the last one is still being sent)
   cleanRender();
 }
 async function cleanTick() {
@@ -1874,7 +1874,10 @@ async function cleanTick() {
     }
   }
   const v = Math.round((s.min + (s.max - s.min) * tri(Math.min(1, (Date.now() - cl.cycleT0) / per))) * 100) / 100;
-  if (Math.abs(v - cl.lastV) >= 0.01) { cl.lastV = v; dpsFloat(DPS_V, v).catch(() => {}); }
+  if (Math.abs(v - cl.lastV) >= 0.01 && !cl.vSending) {      // newest value only: no pile-up of old values
+    cl.lastV = v; cl.vSending = true;
+    dpsFloat(DPS_V, v).catch(() => {}).finally(() => { cl.vSending = false; });
+  }
   cleanRender();
 }
 async function cleanStop(msg, good) {
