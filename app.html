@@ -1137,7 +1137,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24g';
+const APP_BUILD = '2026-11-24h';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1408,7 +1408,7 @@ async function dpsOpenSerial() {
   };
 }
 async function dpsOpenUsb() {                       // minimal USB CDC-ACM driver (Android)
-  const dev = await navigator.usb.requestDevice({ filters: [{ classCode: 2 }, { classCode: 10 }] });
+  const dev = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x2e3c }, { classCode: 2 }, { classCode: 10 }] });   // 0x2e3c: Artery (DPS-150's chip)
   await dev.open();
   if (!dev.configuration) await dev.selectConfiguration(1);
   let ctrl = null, data = null;
@@ -1442,13 +1442,21 @@ async function dpsOpenUsb() {                       // minimal USB CDC-ACM drive
     close: async () => { alive = false; try { await dev.close(); } catch (e) {} }
   };
 }
+function dpsMsg(html) {                              // connection messages show on both screens
+  $('dpsInfo').innerHTML = html;
+  if ($('psuMsg')) $('psuMsg').innerHTML = html;
+}
+const DPS_HELP = '<br>· 데이터선인지 (충전 전용 선은 안 됨)<br>· DPS-150 전원이 켜져 있는지<br>· 선을 뽑았다 다시 꽂고 [연결]';
 async function dpsConnect() {
   if (dps.link) { await dpsDisconnect(); return; }
-  $('dpsInfo').textContent = '연결 중…';
+  dpsMsg('연결 중… 장치 목록에서 DPS-150(또는 USB 장치)을 고르세요');
+  // Android: wired Web Serial is not there yet on most phones (its list stays empty), so talk USB directly.
+  const android = /Android/i.test(navigator.userAgent);
+  const useUsb = 'usb' in navigator && (android || !('serial' in navigator));
   try {
-    if ('serial' in navigator) dps.link = await dpsOpenSerial();
-    else if ('usb' in navigator) dps.link = await dpsOpenUsb();
-    else { $('dpsInfo').innerHTML = '<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'; return; }
+    if (useUsb) dps.link = await dpsOpenUsb();
+    else if ('serial' in navigator) dps.link = await dpsOpenSerial();
+    else { dpsMsg('<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'); return; }
     dps.st = {};
     await dpsSend(0xC1, 0, [1]);                  // start session
     await dpsSend(0xB0, 0, [5]);                  // 115200 baud
@@ -1456,12 +1464,14 @@ async function dpsConnect() {
     await dpsByte(DPS_METER, 1);                  // live V / A / W
     await dpsGet(DPS_ALL);
     clearInterval(dps.poll); dps.poll = setInterval(() => { if (dps.link) dpsGet(DPS_ALL).catch(() => {}); }, 1000);
-    setTimeout(() => { if (dps.link && !dps.st.t) $('dpsInfo').innerHTML = '<b style="color:#ff6b6b">응답이 없습니다.</b> 데이터선인지, DPS-150이 켜져 있는지 확인하세요.'; }, 2500);
+    setTimeout(() => { if (dps.link && !dps.st.t) dpsMsg('<b style="color:#ff6b6b">연결은 됐는데 응답이 없습니다.</b>' + DPS_HELP); }, 2500);
+    if ($('psuMsg')) $('psuMsg').textContent = '';
     dpsRender();
   } catch (e) {
-    dps.link = null;
-    if (e.name !== 'NotFoundError') $('dpsInfo').textContent = '연결 실패: ' + e.message;
-    else dpsRender();
+    const l = dps.link; dps.link = null; if (l) { try { await l.close(); } catch (e2) {} }
+    if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 DPS-150이 없습니다.</b>' + DPS_HELP);
+    else dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP);
+    dpsRender();
   }
 }
 async function dpsDisconnect() {
