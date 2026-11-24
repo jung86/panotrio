@@ -1343,7 +1343,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25m';
+const APP_BUILD = '2026-11-25n';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2208,13 +2208,18 @@ async function breakCheck() {                       // end of a cycle: measure (
     if (stickDir === 1 || cl.dir === 1) { await dpsFloat(DPS_V, Math.min(s.chk, cl.lastV)); if (relayReady()) { await outOn(false); await waitMotorStop(); if (!cl.run) return; await sendDir(0); await sleep(150); } cl.dir = 0; }
     await dpsFloat(DPS_V, s.chk); cl.lastV = s.chk;
     await outOn(true);
-    const t0 = Date.now(), vals = [];
-    while (Date.now() - t0 < 8000 && cl.run) {
+    // wait until the reading settles (last 8 readings within 1.5 %), at least 2.5 s and at most 12 s
+    const t0 = Date.now(), vals = []; let lastT = 0, done = null;
+    while (Date.now() - t0 < 12000 && cl.run && done === null) {
       await sleep(200); cleanRender();
-      if (Date.now() - t0 > 4500 && cur && cur.big > 0 && Date.now() - (cur.t || 0) < 600 && !/^HOLD/.test(statusText)) vals.push(cur.big);
+      if (Date.now() - t0 > 2500 && cur && cur.big > 0 && cur.t !== lastT && Date.now() - (cur.t || 0) < 600 && !/^HOLD/.test(statusText)) {
+        lastT = cur.t; vals.push(cur.big);
+        const w = vals.slice(-8);
+        if (w.length >= 8 && Math.max(...w) - Math.min(...w) <= Math.max(2, median(w) * 0.015)) done = median(w);
+      }
     }
     if (!cl.run) return;
-    hz = vals.length >= 3 ? Math.round(median(vals) * 10) / 10 : 0;
+    hz = done !== null ? Math.round(done * 10) / 10 : vals.length >= 3 ? Math.round(median(vals.slice(-8)) * 10) / 10 : 0;
     cl.hist.push({ k: cl.k, hz, t: Date.now() }); cleanHistRender();
   }
   if (s.tgtOn && hz >= s.target) { cl.busy = false; await cleanStop(`🎯 목표 도달! ${cl.k}사이클 · ${hz.toFixed(1)} Hz (목표 ${s.target})`, true); return; }
