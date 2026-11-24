@@ -620,24 +620,38 @@ function refreshInfo(delay = 60) {                 // read the whole INFO text o
 
 // ---------------------------------------------------------------- bluetooth
 function chromeUrl() { return 'intent://' + location.host + location.pathname + location.hash + '#Intent;scheme=https;package=com.android.chrome;end'; }
-function noBtNotice() {                              // Samsung Internet etc. have no Web Bluetooth: say so where it is seen
-  const android = /Android/i.test(navigator.userAgent), samsung = /SamsungBrowser/i.test(navigator.userAgent);
-  const html = `<b style="color:#ff6b6b">${samsung ? '삼성 인터넷' : '이 브라우저'}에서는 블루투스 연결이 안 됩니다.</b> ` + (android ? '크롬에서 열어야 합니다.' : '안드로이드 휴대폰의 크롬에서 열어주세요.');
-  return { html, android };
+const BLUEFY_URL = 'https://apps.apple.com/kr/app/bluefy/id1492822055';
+const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+function noBtNotice() {                              // Samsung Internet, iPhone etc. have no Web Bluetooth: say so where it is seen
+  const android = /Android/i.test(navigator.userAgent), samsung = /SamsungBrowser/i.test(navigator.userAgent), ios = isIOS();
+  const html = ios
+    ? '<b style="color:#ff6b6b">아이폰은 사파리·크롬으로는 스틱 연결이 안 됩니다.</b> 무료 앱 <b>Bluefy</b>(블루투스 지원 브라우저)를 받아 그 안에서 이 주소를 여세요.'
+    : `<b style="color:#ff6b6b">${samsung ? '삼성 인터넷' : '이 브라우저'}에서는 블루투스 연결이 안 됩니다.</b> ` + (android ? '크롬에서 열어야 합니다.' : '안드로이드 휴대폰의 크롬에서 열어주세요.');
+  return { html, android, ios };
+}
+async function copyAppUrl() {
+  const u = location.origin + location.pathname + (/#(act|req)=/.test(location.hash) ? location.hash : '');
+  try { await navigator.clipboard.writeText(u); notify('주소를 복사했습니다 · Bluefy 주소창에 붙여넣으세요', true); }
+  catch (e) { prompt('이 주소를 복사해서 Bluefy에 붙여넣으세요', u); }
 }
 (() => {
   if (navigator.bluetooth) return;
   const n = noBtNotice(), bar = document.createElement('div');
   bar.id = 'noBt';
   bar.style.cssText = 'position:sticky;top:0;z-index:70;background:#3b1d1d;border-bottom:1px solid #c92a2a;padding:10px 14px;font-size:15px;line-height:1.45;display:flex;gap:10px;align-items:center';
-  bar.innerHTML = `<div style="flex:1">${n.html}</div>` + (n.android ? '<a id="btnToChrome" href="#" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">크롬으로 열기</a>' : '');
+  const btn = 'background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap;display:inline-block';
+  bar.innerHTML = `<div style="flex:1">${n.html}</div>` +
+    (n.android ? `<a id="btnToChrome" href="#" style="${btn}">크롬으로 열기</a>` : '') +
+    (n.ios ? `<div style="display:flex;flex-direction:column;gap:6px"><a href="${BLUEFY_URL}" target="_blank" rel="noopener" style="${btn}">Bluefy 받기</a><a id="btnCopyUrl" href="#" style="${btn};background:#495057">주소 복사</a></div>` : '');
   document.body.prepend(bar);
   if (n.android) $('btnToChrome').onclick = e => { e.preventDefault(); location.href = chromeUrl(); };
+  if (n.ios) $('btnCopyUrl').onclick = e => { e.preventDefault(); copyAppUrl(); };
 })();
 async function connect() {
   if (!navigator.bluetooth) {
     const n = noBtNotice();
     $('hint').innerHTML = n.html + (n.android ? ' <a href="#" onclick="location.href=chromeUrl();return false" style="color:#ffa94d;font-weight:800">크롬으로 열기</a>' : '');
+    if (n.ios) { notify('아이폰은 Bluefy 앱에서 열어야 연결됩니다', false); return; }
     notify((/SamsungBrowser/i.test(navigator.userAgent) ? '삼성 인터넷' : '이 브라우저') + '에서는 블루투스가 안 됩니다 · 크롬으로 여세요', false);
     if (n.android && confirm('이 브라우저에서는 스틱 연결이 안 됩니다.\n크롬으로 열까요?')) location.href = chromeUrl();
     return;
@@ -1183,7 +1197,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24m';
+const APP_BUILD = '2026-11-24n';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;

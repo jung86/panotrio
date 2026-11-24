@@ -51,7 +51,7 @@
     <p style="margin:4px 0 12px">설치 후 안드로이드 크롬에서 열면 측정값·그래프·기록을 보고, 스틱 설정(밝기·감도·대기 모드 등)을 바꿀 수 있습니다.</p>
     <a id="appLink" href="app.html" style="display:inline-block;background:#1098ad;color:#fff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px">파노체크 앱 열기</a>
     <p class="small" style="margin:10px 0 0">크롬 메뉴 ⋮ → <b>홈 화면에 추가</b>를 하면 앱처럼 쓸 수 있습니다.</p>
-    <p class="small" style="margin:8px 0 0;color:#ffa94d">⚠ 꼭 <b>크롬(Chrome)</b>으로 여세요. <b>삼성 인터넷</b>, 카카오톡·네이버 앱 안의 브라우저, <b>아이폰</b>에서는 스틱(블루투스)이 연결되지 않습니다.</p>
+    <p class="small" style="margin:8px 0 0;color:#ffa94d">⚠ 꼭 <b>크롬(Chrome)</b>으로 여세요. <b>삼성 인터넷</b>, 카카오톡·네이버 앱 안의 브라우저, <b>아이폰 사파리·크롬</b>에서는 스틱(블루투스)이 연결되지 않습니다. 아이폰은 <b>Bluefy</b> 앱으로 여세요.</p>
     <p id="appWarn" class="small" style="display:none;margin:8px 0 0;color:#ff6b6b;font-weight:700"></p>
   </div>
 
@@ -111,7 +111,14 @@
 <script>
 (() => {                                           // Android, not Chrome (Samsung Internet, in-app browsers): open the app in Chrome
   const ua = navigator.userAgent;
-  if (!/Android/i.test(ua) || navigator.bluetooth) return;
+  if (navigator.bluetooth) return;
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
+    const w = document.getElementById('appWarn');
+    w.innerHTML = '아이폰은 무료 앱 <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" style="color:#4dabf7">Bluefy</a>를 받아, 그 안에서 <b>jung86.github.io/panotrio/app.html</b> 을 여세요. (스틱 측정만 되고 전원공급기 연결은 안 됩니다)';
+    w.style.display = '';
+    return;
+  }
+  if (!/Android/i.test(ua)) return;
   const url = 'intent://' + location.host + location.pathname.replace(/[^/]*$/, '') + 'app.html#Intent;scheme=https;package=com.android.chrome;end';
   const a = document.getElementById('appLink'), w = document.getElementById('appWarn');
   a.href = url; a.textContent = '크롬으로 파노체크 앱 열기';
