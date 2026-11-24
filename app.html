@@ -160,6 +160,34 @@
   #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
   #splash .name { font-size:34px; font-weight:800; letter-spacing:2px; }
   #splash.hide { opacity:0; pointer-events:none; }
+  /* 파노측정: key info fits one phone screen */
+  main { padding-top:10px; }
+  main header { margin-bottom:6px; }
+  main .card { margin:8px 0; padding:10px 12px; }
+  main .big { padding:10px 10px 10px; }
+  main .big .hz { font-size:62px; }
+  main .big .rpm { font-size:18px; margin-top:2px; }
+  main .status { margin-top:8px; padding:6px; }
+  .mini { margin-top:8px; gap:8px; }
+  .mini .val { display:flex; align-items:baseline; gap:6px; padding:6px 10px; text-align:left; min-width:0; }
+  .mini .k { font-size:12px; color:var(--mute); white-space:nowrap; }
+  .mini .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .mini .s { font-size:11px; color:var(--mute); margin-left:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  main .dpsLive { margin-top:8px; }
+  main .dpsLive div { padding:5px 2px; }
+  main .dpsLive span { font-size:21px; }
+  main .psuRow { margin-top:6px; gap:6px; }
+  main .nstep .stp, main .psuRow input { min-height:38px; }
+  main .psuRow input { padding:4px; }
+  .psuAct { display:grid; grid-template-columns:1fr 1.6fr; gap:6px; margin-top:6px; }
+  .psuAct #psuOut { padding:8px 4px; font-size:16px; }
+  .psuAct #psuDir { margin-top:0; }
+  .psuAct #psuDir button { min-height:42px; }
+  main #psuMsg:empty, main #condNote:empty { display:none; }
+  main .condTop { gap:10px; }
+  main .condScore { font-size:34px; min-width:68px; }
+  main .condRows { font-size:13px; gap:1px 10px; margin-top:6px; line-height:1.35; }
+  #conn { cursor:pointer; }
 </style>
 </head>
 <body>
@@ -391,13 +419,9 @@
 <main>
   <header>
     <div class="hdr-l"><button id="btnHome" class="back" aria-label="메뉴로">‹</button><h1>파노측정</h1></div>
-    <div class="hdr-r"><span id="conn" class="conn">연결 안 됨</span></div>
+    <div class="hdr-r"><span id="conn" class="conn" role="button">연결 안 됨</span></div>
   </header>
 
-  <div id="connectBox" class="card">
-    <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
-    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다.</p>
-  </div>
 
   <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
     <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
@@ -417,6 +441,10 @@
   <div class="card big" id="bigCard">
     <div><span id="hz" class="hz">---.-</span> <span class="unit">Hz</span></div>
     <div class="rpm"><span id="rpm">-----</span> rpm</div>
+    <div class="row2 mini">
+      <div class="val"><span class="k">진동</span><span id="vHz" class="v">---.-</span><span id="vMg" class="s"></span></div>
+      <div class="val"><span class="k">소리</span><span id="mHz" class="v">---.-</span><span id="mDb" class="s"></span></div>
+    </div>
     <div id="status" class="status">대기</div>
   </div>
 
@@ -431,28 +459,22 @@
       <div class="psuRow">
         <label>전압 (V) · 0~12<span class="nstep"><button class="stp" data-for="psuV" data-d="-1" aria-label="줄이기">−</button><input id="psuV" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="psuV" data-d="1" aria-label="늘리기">+</button></span></label>
         <label>전류 제한 (A) · 0.1~5<span class="nstep"><button class="stp" data-for="psuA" data-d="-1" aria-label="줄이기">−</button><input id="psuA" type="number" inputmode="decimal" min="0.1" max="5" step="0.1"><button class="stp" data-for="psuA" data-d="1" aria-label="늘리기">+</button></span></label>
-        <button id="psuOut">출력 켜기</button>
       </div>
-      <div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div>
+      <div class="psuAct"><button id="psuOut">출력 켜기</button><div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div></div>
       <div id="psuMsg" class="help" style="margin-top:6px;text-align:center"></div>
     </div>
   </div>
 
   <div class="card" id="condCard">
-    <div class="ttl">🩺 모터 컨디션</div>
     <div class="condTop">
       <div id="condScore" class="condScore">--</div>
-      <div style="flex:1;min-width:0"><span id="condGrade" class="condGrade" style="background:var(--grey)">대기</span><div id="condNote" class="help" style="margin-top:4px">전원공급기 출력을 켜고 모터를 돌리면 표시됩니다.</div></div>
+      <div style="flex:1;min-width:0"><span class="ttl" style="margin:0 6px 0 0">🩺 모터 컨디션</span><span id="condGrade" class="condGrade" style="background:var(--grey)">대기</span><div id="condNote" class="help" style="margin-top:4px">전원공급기 출력을 켜고 모터를 돌리면 표시됩니다.</div></div>
     </div>
     <div id="condRows" class="condRows"></div>
   </div>
 
   <div class="card">
-    <div class="row2">
-      <div class="val"><div class="k">진동 (V)</div><div id="vHz" class="v">---.-</div><div id="vMg" class="s">&nbsp;</div></div>
-      <div class="val"><div class="k">소리 (M)</div><div id="mHz" class="v">---.-</div><div id="mDb" class="s">&nbsp;</div></div>
-    </div>
-    <button id="btnReset" class="reset">↺ 측정 초기화 <small style="color:var(--mute)">지난 결과 지우고 다시 대기</small></button>
+    <button id="btnReset" style="margin-top:0" class="reset">↺ 측정 초기화 <small style="color:var(--mute)">지난 결과 지우고 다시 대기</small></button>
     <div class="lbl">모드</div>
     <div class="seg" id="segMode">
       <button data-v="0">진동</button><button data-v="1">소리</button><button data-v="2">진동+소리</button>
@@ -481,6 +503,11 @@
     <div class="fchips" id="fchips"></div>
     <div class="msum" id="msum"></div>
     <div id="recs" style="margin-top:2px"></div>
+  </div>
+
+  <div id="connectBox" class="card">
+    <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
+    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다.</p>
   </div>
 
   <p class="help">안드로이드 크롬에서 사용하세요. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
@@ -1277,6 +1304,7 @@ $('recs').onclick = e => {
 
 // ---------------------------------------------------------------- buttons
 $('btnConnect').onclick = () => { unlockAudio(); connect(); };
+$('conn').onclick = () => { if ($('connectBox').style.display !== 'none') { unlockAudio(); connect(); } };
 $('btnReset').onclick = () => { send('X', 0); lastAutoBig = 0; hist.length = 0; drawChart(); };
 $('segMode').onclick = e => { const b = e.target.closest('button'); if (b) send('M', +b.dataset.v); };
 $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send('R', +b.dataset.v); };
