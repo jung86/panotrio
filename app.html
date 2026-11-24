@@ -92,7 +92,10 @@
   .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
   .prow { display:flex; gap:6px; align-items:center; margin:8px 0 2px; }
   .prow select { flex:1; min-width:0; font:600 15px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
-  .prow button { padding:8px 11px; font-size:15px; white-space:nowrap; }
+  .prow button { padding:8px 11px; font-size:15px; white-space:nowrap; min-height:48px; }
+  .prow select { min-height:48px; }
+  #psuPreSave, #cPreSave { min-width:108px; padding:10px 16px; font-size:18px; font-weight:800; background:var(--acc); border-color:var(--acc); color:#fff; }
+  #psuPreSave:active, #cPreSave:active { filter:brightness(1.15); }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -1134,7 +1137,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24f';
+const APP_BUILD = '2026-11-24g';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
