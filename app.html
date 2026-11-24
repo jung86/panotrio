@@ -81,6 +81,7 @@
   .bstep .h .sp { flex:1; }
   .bstep .h button { padding:4px 9px; font-size:14px; }
   .bstep .f { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .bstep .f.f5 { grid-template-columns:repeat(5, 1fr); }
   .bstep .f label { font-size:11px; color:var(--mute); display:flex; flex-direction:column; gap:2px; }
   .bstep .f input, .bstep .f select { width:100%; font:700 16px system-ui; padding:7px 6px; border-radius:8px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
   .cstat { display:grid; grid-template-columns:1fr 2fr; gap:10px; align-items:end; }
@@ -1333,7 +1334,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25h';
+const APP_BUILD = '2026-11-25i';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2045,12 +2046,14 @@ function breakStepsRender() {
   const box = $('bSteps'); if (!box) return;
   const STEP_NAMES = { hold: '전압 유지', ramp: '전압 바꾸기', rest: '쉬기 (출력 끔)' };
   const num = (k, i, v, min, max, st, lbl) => `<label>${lbl}<input type="number" inputmode="decimal" data-i="${i}" data-k="${k}" min="${min}" max="${max}" step="${st}" value="${v}"></label>`;
+  const tm = (i, sec) => `<label>분<input type="number" inputmode="numeric" data-i="${i}" data-k="mm" min="0" max="60" step="1" value="${Math.floor(sec / 60)}"></label>` +
+    `<label>초<input type="number" inputmode="numeric" data-i="${i}" data-k="ss" min="0" max="59" step="5" value="${sec % 60}"></label>`;
   const dir = (i, d) => `<label>방향<select data-i="${i}" data-k="d"><option value="0"${d ? '' : ' selected'}>정</option><option value="1"${d ? ' selected' : ''}>역</option></select></label>`;
   box.innerHTML = bSteps.map((x, i) => `<div class="bstep"><div class="h"><span class="n">${i + 1}</span><span class="sp">${STEP_NAMES[x.t]}</span>` +
-    `<button data-mv="-1" data-i="${i}" aria-label="위로"${i ? '' : ' disabled'}>↑</button><button data-mv="1" data-i="${i}" aria-label="아래로"${i < bSteps.length - 1 ? '' : ' disabled'}>↓</button><button data-del="${i}" aria-label="단계 삭제">🗑</button></div><div class="f">` +
-    (x.t === 'hold' ? num('v', i, x.v, 0, 12, 0.1, '전압 V') + num('s', i, x.s, 1, 3600, 5, '시간 초') + dir(i, x.d) + '<span></span>'
-      : x.t === 'ramp' ? num('v', i, x.v, 0, 12, 0.1, '시작 V') + num('v2', i, x.v2, 0, 12, 0.1, '끝 V') + num('s', i, x.s, 1, 3600, 5, '시간 초') + dir(i, x.d)
-      : num('s', i, x.s, 0, 3600, 5, '시간 초') + '<span></span><span></span><span></span>') + '</div></div>').join('') ||
+    `<button data-mv="-1" data-i="${i}" aria-label="위로"${i ? '' : ' disabled'}>↑</button><button data-mv="1" data-i="${i}" aria-label="아래로"${i < bSteps.length - 1 ? '' : ' disabled'}>↓</button><button data-del="${i}" aria-label="단계 삭제">🗑</button></div><div class="f${x.t === 'ramp' ? ' f5' : ''}">` +
+    (x.t === 'hold' ? num('v', i, x.v, 0, 12, 0.1, '전압 V') + tm(i, x.s) + dir(i, x.d)
+      : x.t === 'ramp' ? num('v', i, x.v, 0, 12, 0.1, '시작 V') + num('v2', i, x.v2, 0, 12, 0.1, '끝 V') + tm(i, x.s) + dir(i, x.d)
+      : tm(i, x.s) + '<span></span><span></span>') + '</div></div>').join('') ||
     '<div class="help">단계를 추가하세요.</div>';
 }
 function breakRead() {
@@ -2068,7 +2071,7 @@ function breakRead() {
     const n = i + 1 + '번 단계: ';
     if (x.t !== 'rest' && !(x.v >= 0 && x.v <= 12)) return bad(n + '전압은 0~12 V입니다.');
     if (x.t === 'ramp' && !(x.v2 >= 0 && x.v2 <= 12)) return bad(n + '끝 전압은 0~12 V입니다.');
-    if (!(x.s >= (x.t === 'rest' ? 0 : 1) && x.s <= 3600)) return bad(n + '시간은 ' + (x.t === 'rest' ? 0 : 1) + '~3600초입니다.');
+    if (!(x.s >= (x.t === 'rest' ? 0 : 1) && x.s <= 3600)) return bad(n + '시간은 ' + (x.t === 'rest' ? '0초' : '1초') + '~60분입니다.');
   }
   try { localStorage.setItem(BREAK_KEY, JSON.stringify(o)); } catch (e) {}
   return o;
@@ -2077,7 +2080,11 @@ function breakEditable() { if (cl.run || cl.busy) { notify('실행 중에는 단
 $('bSteps').addEventListener('change', e => {
   const el = e.target, i = +el.dataset.i, k = el.dataset.k; if (!k || !bSteps[i]) return;
   if (!breakEditable()) { breakStepsRender(); return; }
-  bSteps[i][k] = k === 'd' ? +el.value : (k === 's' ? Math.round(+el.value) : Math.round(+el.value * 100) / 100);
+  if (k === 'mm' || k === 'ss') {                   // time as minutes + seconds, kept in seconds
+    const row = el.closest('.f'), mm = Math.max(0, Math.round(+row.querySelector('[data-k="mm"]').value || 0)), ss = Math.max(0, Math.round(+row.querySelector('[data-k="ss"]').value || 0));
+    bSteps[i].s = mm * 60 + ss;
+    if (ss > 59) breakStepsRender();                // 90 s -> 1 min 30 s
+  } else bSteps[i][k] = k === 'd' ? +el.value : Math.round(+el.value * 100) / 100;
   $('cMsg').textContent = ''; breakRead();
 });
 $('bSteps').addEventListener('click', e => {
