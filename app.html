@@ -336,6 +336,7 @@
     <div class="help" style="margin-top:6px">최소 → 최대 → 최소로 천천히 오르내리기를 반복합니다. 전압 범위 0~12 V.</div>
     <details style="margin-top:8px"><summary class="help">릴레이 보드 (역방향용)</summary>
       <div class="help" style="margin:6px 0">스틱 Grove 포트(G9·G10)에 2채널 릴레이를 연결해 극성을 바꿉니다. 보드의 트리거 방식을 고르세요.</div>
+      <label class="sw" style="margin:6px 0"><span><b>릴레이 연결됨</b></span><input type="checkbox" id="cRelayOn"></label>
       <select id="cRly"><option value="1">HIGH 트리거 (권장)</option><option value="0">LOW 트리거</option></select>
       <button id="btnRlyTest" style="width:100%;margin-top:8px">릴레이 시험 (출력 꺼진 상태에서 딸깍 2번)</button>
     </details>
@@ -434,6 +435,7 @@
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span></span><input type="checkbox" id="aSnd"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span></span><input type="checkbox" id="aHot"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-help">스틱 Grove 포트에 릴레이 보드를 달았을 때만 켜세요. 꺼져 있으면 역방향을 쓰지 않습니다.</div></span><input type="checkbox" id="aRelay"></label></div>
   </div>
 
   <div class="card">
@@ -572,7 +574,7 @@ const HOT_HZ = 550;                    // above this the big value turns red and
 const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
-var otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false;
+var connGen = 0, otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false;
 // 모터클리닝 / DPS-150 state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
 const cl = { vSending: false, run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
@@ -709,6 +711,7 @@ async function openGatt() {
   } catch (e) {}
   otaChar = null;
   try { otaChar = await svc.getCharacteristic(OTA); } catch (e) {}           // firmware 2.0 and newer
+  connGen++;
   $('conn').textContent = shortName() + batText(); $('conn').className = 'conn on';
   notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
@@ -722,7 +725,7 @@ async function onDisconnected() {
   reconnect();
 }
 // Try again for about 20 s; when the phone was in the background (iPhone cuts Bluetooth there), try again on return.
-let reconnecting = false;
+var reconnecting = false;
 async function reconnect() {
   if (reconnecting || !device || cmdChar) return;
   reconnecting = true;
@@ -751,7 +754,7 @@ const APPSET_KEY = 'panotrio-appset', MYSET_KEY = 'panotrio-myset';
 const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1, sb: 1 };
 const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8, sb: 10 };
 const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '대기 모드 진입 시간', off: '자동 꺼짐', ps: '대기 중 절전', sb: '대기 모드 화면' };
-let appSet = { vib: true, snd: true, hot: true, wake: false };
+let appSet = { vib: true, snd: true, hot: true, wake: false, relay: false };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
 let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false, syncOnConnect = false, saving = false;
@@ -818,7 +821,7 @@ function renderSettings() {
     : lockedOut() ? '🔒 다른 휴대폰으로 잠겨 있습니다' : stickLock.lck ? '🔒 이 휴대폰으로 잠겨 있습니다' : '잠금 꺼짐 · 누구나 바꿀 수 있음';
   lk.style.color = lockedOut() ? '#ff6b6b' : 'var(--mute)';
   btn.classList.toggle('go', has && d.length > 0);
-  $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake;
+  $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake; $('aRelay').checked = !!appSet.relay; if ($('cRelayOn')) $('cRelayOn').checked = !!appSet.relay;
 }
 async function readInfoNow() {                     // read the stick's settings and wait for the answer
   const ch = infoChar; if (!ch) return null;
@@ -906,8 +909,8 @@ $('segSb').onclick = e => { const b = e.target.closest('button'); if (b) edit('s
 $('btnStickSave').onclick = () => saveToStick(false);
 $('cLock').onchange = () => { sendKey('L', $('cLock').checked ? myKey : 0); };
 $('btnDefaults').onclick = () => { if (confirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
-for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake']])
-  $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'hot' && cur) render(); };
+for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake'], ['aRelay', 'relay']])
+  $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'relay') relaySetChanged(); if (key === 'hot' && cur) render(); };
 let wakeLock = null;
 async function applyWake() {
   try {
@@ -1269,14 +1272,14 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25d';
+const APP_BUILD = '2026-11-25e';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
-  const doReload = () => { if (reloading) return; if (cl.run || cl.busy || dps.link || cmdChar) { pendingReload = true; return; } reloading = true; location.reload(); };   // never drop a live USB / Bluetooth link
+  const doReload = () => { if (reloading) return; if (cl.run || cl.busy || dps.link || cmdChar || fwBusy || reconnecting) { pendingReload = true; return; } reloading = true; location.reload(); };   // never drop a live USB / Bluetooth link
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl) doReload(); });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
-    const check = () => { reg.update().catch(() => {}); if (pendingReload) doReload(); };
+    const check = () => { if (reg && reg.update) reg.update().catch(() => {}); if (pendingReload) doReload(); };
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
     setInterval(check, 30 * 60 * 1000);
   }).catch(() => {});
@@ -1363,10 +1366,10 @@ function fwClose() { const ov = $('fwOv'); if (ov) ov.remove(); }
 let fwCancel = false;
 async function fwStart() {
   if (fwBusy || !otaChar || !cmdChar) return;
-  if (cl.run) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
+  if (cl.run || cl.busy) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
+  if (dps.link && dps.st.on) { notify('전원공급기 출력을 끈 뒤 업데이트하세요', false); return; }
   if (!confirm(`스틱을 ${fwLatest.ver} 버전으로 업데이트할까요?\n\n· 2~5분 걸립니다. 그동안 측정은 멈춥니다.\n· 휴대폰을 스틱 가까이 두고 이 화면을 켜 두세요.\n· 중간에 끊겨도 스틱은 지금 버전으로 그대로 켜집니다.`)) return;
   fwBusy = true; fwCancel = false; $('fwBox').style.display = 'none';
-  const ch = otaChar;
   let wake = null; try { if ('wakeLock' in navigator) wake = await navigator.wakeLock.request('screen'); } catch (e) {}
   stayAwake();
   fwShow(0, '펌웨어 받는 중…');
@@ -1383,43 +1386,60 @@ async function fwStart() {
     const data = new Uint8Array(await r.arrayBuffer());
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data))).map(b => b.toString(16).padStart(2, '0')).join('');
     if (data.length !== fwLatest.size || hash !== fwLatest.sha256) throw new Error('받은 파일이 맞지 않습니다 · 다시 시도하세요');
-    // 2. listen, ask the stick
-    if (!ch.__fw) { ch.__fw = 1; ch.addEventListener('characteristicvaluechanged', e => fwOnNote(e.target.value)); }
-    await gatt(() => ch.startNotifications());
-    const wr = v => gatt(() => (ch.writeValueWithoutResponse ? ch.writeValueWithoutResponse(v) : ch.writeValue(v)));
-    const wrR = v => gatt(() => ch.writeValue(v));
-    let p = fwNext(3000); await wrR(new Uint8Array([81])); let st = await p;     // 'Q'
-    if (!st) throw new Error('스틱이 답하지 않습니다');
-    const chunk = Math.max(15, Math.min(495, (st.mtu || 23) - 3 - 5));
-    // 3. header: size, version, SHA-256, signature
+    // 2. listen, ask the stick. If Bluetooth drops, wait for the automatic reconnection and continue:
+    //    the stick keeps what it already saved for 90 s (firmware 2.2+; older ones start again from 0).
+    let ch = null, gen = -1, chunk = 20, st = null, p = null;
+    const wr = v => { const c = ch; return gatt(() => (c.writeValueWithoutResponse ? c.writeValueWithoutResponse(v) : c.writeValue(v))); };
+    const wrR = v => { const c = ch; return gatt(() => c.writeValue(v)); };
     const h = new Uint8Array(112), dvh = new DataView(h.buffer);
     dvh.setUint32(0, data.length, true);
     h.set(new TextEncoder().encode(fwLatest.ver).slice(0, 8), 4);
     h.set(hexBytes(fwLatest.sha256), 12); h.set(b64u(fwLatest.sig), 44);
-    for (let i = 0; i < 7; i++) { const v = new Uint8Array(18); v[0] = 72; v[1] = i; v.set(h.slice(i * 16, i * 16 + 16), 2); await wrR(v); }
-    p = fwNext(5000); await wrR(new Uint8Array([66])); st = await p;              // 'B'
-    if (!st || st.state !== 1) throw new Error(st ? (FW_ERR[st.err] || '시작 실패 ' + st.err) : '스틱이 답하지 않습니다');
-    // 4. send window by window; the stick says how far it has saved
-    const WIN = 8192; let off = 0, misses = 0; const t0 = Date.now();
+    const begin = async () => {                                   // returns where to continue
+      ch = otaChar; gen = connGen;
+      if (!ch.__fw) { ch.__fw = 1; ch.addEventListener('characteristicvaluechanged', e => fwOnNote(e.target.value)); }
+      await gatt(() => ch.startNotifications());
+      p = fwNext(4000); await wrR(new Uint8Array([81])); st = await p;            // 'Q'
+      if (!st) throw new Error('스틱이 답하지 않습니다');
+      chunk = Math.max(15, Math.min(495, (st.mtu || 23) - 3 - 5));
+      for (let i = 0; i < 7; i++) { const v = new Uint8Array(18); v[0] = 72; v[1] = i; v.set(h.slice(i * 16, i * 16 + 16), 2); await wrR(v); }
+      p = fwNext(6000); await wrR(new Uint8Array([66])); st = await p;            // 'B'
+      if (!st || st.state !== 1) throw new Error(st ? (FW_ERR[st.err] || '시작 실패 ' + st.err) : '스틱이 답하지 않습니다');
+      return st.written;
+    };
+    const relink = async () => {                                  // Bluetooth dropped: wait for the app's reconnection
+      for (const t = Date.now(); Date.now() - t < 75000;) {
+        if (fwCancel) throw new Error('취소했습니다 · 스틱은 지금 버전 그대로입니다');
+        if (cmdChar && otaChar && connGen !== gen) { await sleep(800); return await begin(); }
+        fwShow(null, '블루투스가 끊겼습니다 · 다시 연결되면 <b>이어서</b> 보냅니다…<br><span style="color:#8a94a6">스틱 가까이 오세요</span>');
+        await sleep(600);
+      }
+      throw new Error('다시 연결되지 않았습니다 · 스틱은 지금 버전 그대로입니다. 연결 후 [업데이트]를 누르면 이어서 보냅니다');
+    };
+    let off = await begin();
+    // 3. send window by window; the stick says how far it has saved
+    const WIN = 8192; let misses = 0, relinks = 0; const t0 = Date.now(), off0 = off;
     while (off < data.length) {
       if (fwCancel) { await wrR(new Uint8Array([67])).catch(() => {}); throw new Error('취소했습니다 · 스틱은 지금 버전 그대로입니다'); }
-      if (!cmdChar) throw new Error('블루투스가 끊겼습니다 · 스틱은 지금 버전 그대로입니다. 다시 연결 후 시도하세요');
+      if (!cmdChar || connGen !== gen) { if (++relinks > 5) throw new Error('연결이 자꾸 끊깁니다 · 스틱 가까이에서 다시 해 보세요'); off = await relink(); continue; }
       const stop = Math.min(data.length, (Math.floor(off / WIN) + 1) * WIN);   // the stick answers at each 8 KB mark
-      p = fwNext(5000);
-      for (let o = off; o < stop; o += chunk) {
-        const n = Math.min(chunk, stop - o), v = new Uint8Array(5 + n);
-        v[0] = 68; new DataView(v.buffer).setUint32(1, o, true); v.set(data.subarray(o, o + n), 5);
-        await wr(v);
-      }
-      st = await p;
-      while (st && st.state === 1 && st.written < stop && st.rx >= stop) st = await fwNext(3000);   // still saving
-      if (!st) { if (++misses > 8) throw new Error('스틱이 답하지 않습니다'); p = fwNext(3000); await wrR(new Uint8Array([81])).catch(() => {}); st = await p; if (!st) continue; }
+      try {
+        p = fwNext(8000);
+        for (let o = off; o < stop; o += chunk) {
+          const n = Math.min(chunk, stop - o), v = new Uint8Array(5 + n);
+          v[0] = 68; new DataView(v.buffer).setUint32(1, o, true); v.set(data.subarray(o, o + n), 5);
+          await wr(v);
+        }
+        st = await p;
+        while (st && st.state === 1 && st.written < stop && st.rx >= stop) st = await fwNext(4000);   // still saving
+        if (!st) { if (++misses > 8) throw new Error('스틱이 답하지 않습니다'); p = fwNext(4000); await wrR(new Uint8Array([81])).catch(() => {}); st = await p; if (!st) continue; }
+      } catch (e) { if (!cmdChar || connGen !== gen) continue; throw e; }         // dropped in the middle: relink above
       if (st.state !== 1) throw new Error(FW_ERR[st.err] || '실패 ' + st.err);
-      off = st.written;
-      const pc = Math.floor(off * 100 / data.length), sec = (Date.now() - t0) / 1000, left = off ? Math.round(sec * (data.length - off) / off) : 0;
+      off = st.written; misses = 0;
+      const pc = Math.floor(off * 100 / data.length), sec = (Date.now() - t0) / 1000, done = off - off0, left = done > 0 ? Math.round(sec * (data.length - off) / done) : 0;
       fwShow(pc, `스틱에 보내는 중… ${(off / 1024) | 0} / ${(data.length / 1024) | 0} KB` + (left ? `<br>남은 시간 약 ${left >= 60 ? Math.ceil(left / 60) + '분' : left + '초'}` : '') + '<br><span style="color:#8a94a6">휴대폰을 가까이 두고 화면을 켜 두세요</span>');
     }
-    // 5. finish: the stick checks the hash and signature, then restarts
+    // 4. finish: the stick checks the hash and signature, then restarts
     fwShow(100, '스틱이 확인하는 중…');
     p = fwNext(15000); await wrR(new Uint8Array([69])); st = await p;              // 'E'
     while (st && st.state === 2) st = await fwNext(15000);
@@ -1600,6 +1620,7 @@ setInterval(() => { if (cur) drawChart(); }, 1000);
 //   to device:   F1 <cmd> <reg> <len> <data...> <sum>     from device: F0 A1 <reg> <len> <data...> <sum>
 //   sum = (reg + len + data bytes) & 255, floats are little-endian float32.
 // PC Chrome uses Web Serial; Android Chrome (no wired Web Serial yet) talks to the USB CDC interface with WebUSB.
+const DPS_OVP = 209, DPS_OCP = 210;
 const DPS_V = 193, DPS_I = 194, DPS_METER = 216, DPS_OUT = 219, DPS_MODEL = 222, DPS_ALL = 255;
 function dpsFrame(cmd, reg, data) {
   const f = new Uint8Array(data.length + 5);
@@ -1643,6 +1664,7 @@ function dpsParse(reg, d) {
   else if (reg === DPS_MODEL) st.model = String.fromCharCode(...d).replace(/\0/g, '').trim();
   else if (reg === DPS_ALL && d.length >= 110) {
     st.vin = f(0); st.vset = f(4); st.iset = f(8); st.v = f(12); st.i = f(16); st.p = f(20); st.temp = f(24);
+    st.ovp = f(76); st.ocp = f(80);
     st.on = d[107] === 1; st.prot = PROT[d[108]] || ''; st.cc = d[109] === 0;
   }
   st.t = Date.now();
@@ -1704,6 +1726,24 @@ async function dpsOpenUsb(known, any) {             // minimal USB CDC-ACM drive
     close: async () => { alive = false; try { await dev.close(); } catch (e) {} }
   };
 }
+
+// The supply's own over-voltage / over-current limits (OVP / OCP) are set just above what this app uses while
+// the output is on, so the motor stays safe even if the phone or the app stops in the middle.
+// The user's own limits are kept (also across a crash) and put back when the output goes off.
+var dpsGuardV = 0, dpsGuardA = 0;
+async function dpsGuard(v, a) {
+  if (!dps.link) return;
+  try { if (!localStorage.getItem('dpsProt') && dps.st.ovp > 0) localStorage.setItem('dpsProt', JSON.stringify({ ovp: dps.st.ovp, ocp: dps.st.ocp })); } catch (e) {}
+  const gv = Math.round(Math.min(Math.max(dpsGuardV, v + 0.6), 12.6) * 100) / 100, ga = Math.round(Math.min(Math.max(dpsGuardA, a + 0.5), 5.2) * 100) / 100;
+  if (gv !== dpsGuardV) { await dpsFloat(DPS_OVP, gv); dpsGuardV = gv; }     // only ever raised while on: a lower setting
+  if (ga !== dpsGuardA) { await dpsFloat(DPS_OCP, ga); dpsGuardA = ga; }     // must not trip on the motor's coasting voltage
+}
+async function dpsUnguard() {
+  dpsGuardV = 0; dpsGuardA = 0;
+  let o = null; try { o = JSON.parse(localStorage.getItem('dpsProt') || 'null'); } catch (e) {}
+  if (!o || !dps.link) return;
+  try { await dpsFloat(DPS_OVP, o.ovp); await dpsFloat(DPS_OCP, o.ocp); localStorage.removeItem('dpsProt'); } catch (e) {}
+}
 function dpsMsg(html) {                              // connection messages show on both screens
   $('dpsInfo').innerHTML = html;
   if ($('psuMsg')) $('psuMsg').innerHTML = html;
@@ -1756,6 +1796,7 @@ async function dpsConnect(opt) {
     await dpsGet(DPS_ALL);
     clearInterval(dps.poll); dps.poll = setInterval(() => { if (dps.link) dpsGet(DPS_ALL).catch(() => {}); }, 1000);
     dpsConnecting = false;
+    setTimeout(() => { if (dps.link && dps.st.t && !dps.st.on && !cl.run && !cl.busy) dpsUnguard(); }, 1500);   // limits left over from a stopped app
     setTimeout(() => { if (dps.link && !dps.st.t) dpsMsg('<b style="color:#ff6b6b">연결은 됐는데 응답이 없습니다.</b>' + DPS_HELP); }, 2500);
     if ($('psuMsg')) $('psuMsg').textContent = '';
     dpsRender();
@@ -1772,7 +1813,7 @@ async function dpsDisconnect() {
   if (cl.run) await cleanStop('연결을 끊었습니다');
   clearInterval(dps.poll);
   const l = dps.link; if (!l) return;
-  try { await dpsOutput(false); await dpsSend(0xC1, 0, [0]); } catch (e) {}
+  try { await dpsOutput(false); await dpsUnguard(); await dpsSend(0xC1, 0, [0]); } catch (e) {}
   dps.link = null; await l.close(); dps.st = {}; dpsRender();
 }
 function dpsLost() {
@@ -1822,7 +1863,13 @@ function cleanRead() {
   try { localStorage.setItem(CLEAN_KEY, JSON.stringify(s)); } catch (e) {}
   return s;
 }
-function relayReady() { return !!(cmdChar && actState && actState.act && stickDir !== null && !lockedOut()); }
+function relayReady() { return !!(appSet.relay && cmdChar && actState && actState.act && stickDir !== null && !lockedOut()); }
+const RELAY_OFF_MSG = '역방향은 릴레이 보드가 필요합니다. 달았다면 <b>설정 → 릴레이 연결됨</b>을 켜세요.';
+function relaySetChanged() {
+  if ($('cRelayOn')) $('cRelayOn').checked = !!appSet.relay;
+  if ($('aRelay')) $('aRelay').checked = !!appSet.relay;
+  if (typeof cleanRender === 'function') cleanRender();
+}
 async function sendDir(d) {
   const ch = cmdChar; if (!ch) throw new Error('스틱 연결 안 됨');
   await gatt(() => ch.writeValue(new Uint8Array([68, d])));       // 'D', 0 forward / 1 reverse
@@ -1841,13 +1888,14 @@ async function cleanStart() {
   if (!dps.link || !dps.st.t) { $('cMsg').innerHTML = '<b style="color:#ff6b6b">먼저 전원공급기를 연결하세요.</b>'; return; }
   cl.needRelay = s.dir !== 'fwd';
   if (cl.needRelay && !relayReady()) {
-    $('cMsg').innerHTML = '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 연결돼 있어야 합니다.</b>'; return;
+    $('cMsg').innerHTML = !appSet.relay ? RELAY_OFF_MSG : '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 연결돼 있어야 합니다.</b>'; return;
   }
   cl.busy = true; cleanRenderBtns(); $('cMsg').textContent = '준비 중…';
   try {
     await dpsOutput(false);
     await dpsFloat(DPS_I, s.amp);
     await dpsFloat(DPS_V, s.min);
+    await dpsGuard(s.max, s.amp);
     cl.dir = s.dir === 'rev' ? 1 : 0;
     if (relayReady() && (cl.needRelay || stickDir !== 0)) { if (stickDir !== cl.dir) await waitMotorStop(); await sendDir(cl.dir); await sleep(150); }
     await dpsOutput(true);
@@ -1887,7 +1935,7 @@ async function cleanTick() {
 async function cleanStop(msg, good) {
   const was = cl.run || cl.busy;
   cl.run = false; clearInterval(cl.timer);
-  if (dps.link) { try { await dpsOutput(false); if (cl.set) await dpsFloat(DPS_V, cl.set.min); } catch (e) {} }
+  if (dps.link) { try { await dpsOutput(false); if (cl.set) await dpsFloat(DPS_V, cl.set.min); await dpsUnguard(); } catch (e) {} }
   if (was && cl.needRelay && relayReady() && stickDir !== 0) { try { await waitMotorStop(); await sendDir(0); } catch (e) {} }   // relays back off
   cl.busy = false;
   try { if (cl.wake) { await cl.wake.release(); cl.wake = null; } } catch (e) {}
@@ -1930,6 +1978,7 @@ $('cRly').onchange = async () => {
 };
 $('btnRlyTest').onclick = async () => {
   if (cl.run || cl.busy) return;
+  if (!appSet.relay) { notify('위의 [릴레이 연결됨]을 먼저 켜세요', false); return; }
   if (!relayReady()) { notify('펌웨어 1.9 이상, 활성화된 스틱을 연결하세요', false); return; }
   if (dps.st && dps.st.on) { notify('전원공급기 출력을 먼저 끄세요', false); return; }
   try { await sendDir(1); await sleep(700); await sendDir(0); notify('딸깍 소리가 2번 났으면 정상입니다', true); } catch (e) { notify(e.message, false); }
@@ -1952,21 +2001,21 @@ function psuRead() {
 function psuFree() { return !!dps.link && !cl.run && !cl.busy && !psuBusy; }
 async function psuApply() {                          // new voltage / current: sent right away (also while running)
   const s = psuRead(); if (!s || !psuFree()) return;
-  try { await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); } catch (e) { $('psuMsg').textContent = '보내지 못했습니다: ' + e.message; }
+  try { if (dps.st.on) await dpsGuard(s.v, s.a); await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); } catch (e) { $('psuMsg').textContent = '보내지 못했습니다: ' + e.message; }
 }
 async function psuToggle() {
   if (!dps.link) { $('psuMsg').textContent = '먼저 위의 [연결]로 전원공급기를 연결하세요 (휴대폰 ↔ DPS-150 데이터선)'; return; }
   if (!psuFree()) return;
-  if (dps.st.on) { try { await dpsOutput(false); dps.st.on = false; } catch (e) {} psuRender(); return; }
+  if (dps.st.on) { try { await dpsOutput(false); dps.st.on = false; await dpsUnguard(); } catch (e) {} psuRender(); return; }
   const s = psuRead(); if (!s) return;
   psuBusy = true; psuRender();
-  try { await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); await dpsOutput(true); dps.st.on = true; }
+  try { await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); await dpsGuard(s.v, s.a); await dpsOutput(true); dps.st.on = true; }
   catch (e) { $('psuMsg').textContent = '켜지 못했습니다: ' + e.message; }
   psuBusy = false; psuRender();
 }
 async function psuDir(d) {
   if (cl.run || cl.busy || psuBusy || stickDir === d) return;
-  if (!relayReady()) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 필요합니다.</b>'; return; }
+  if (!relayReady()) { $('psuMsg').innerHTML = !appSet.relay ? RELAY_OFF_MSG : '<b style="color:#ff6b6b">역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 필요합니다.</b>'; return; }
   const wasOn = !!(dps.link && dps.st.on);
   psuBusy = true; $('psuMsg').textContent = '방향 바꾸는 중…'; psuRender();
   try {
@@ -1988,12 +2037,14 @@ function psuRender() {
   $('psuOut').disabled = on && !free;
   const dirFree = !cl.run && !cl.busy && !psuBusy;
   [...$('psuDir').children].forEach(b => { b.classList.toggle('sel2', stickDir !== null && +b.dataset.d === stickDir); b.disabled = !dirFree; });
+  $('psuDir').style.opacity = appSet.relay ? '' : '.45';
   if (cl.run || cl.busy) $('psuMsg').textContent = '모터클리닝 실행 중에는 여기서 바꿀 수 없습니다';
 }
 $('btnPsu').onclick = () => { unlockAudio(); dpsConnect(); };
 $('psuOut').onclick = psuToggle;
 $('psuV').addEventListener('change', psuApply);
 $('psuA').addEventListener('change', psuApply);
+if ($('cRelayOn')) $('cRelayOn').onchange = () => { appSet.relay = $('cRelayOn').checked; saveAppSet(); relaySetChanged(); };
 $('psuDir').onclick = e => { const b = e.target.closest('button'); if (b) psuDir(+b.dataset.d); };
 function psuSnapshot() {                             // power-supply values that go with a record
   const st = dps.st || {};
