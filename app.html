@@ -74,6 +74,11 @@
   .bhist .bar { height:10px; background:#0f1217; border-radius:6px; overflow:hidden; position:relative; }
   .bhist .bar i { display:block; height:100%; background:#1c7ed6; }
   .bhist .r.ok .bar i { background:#2f9e44; }
+  .bstages { display:flex; flex-direction:column; gap:10px; }
+  .bstage { border:1px solid var(--line); border-radius:14px; padding:10px; background:#12161d; }
+  .bstage .h { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-weight:800; }
+  .bstage .h .sp { flex:1; }
+  .bstage .h button { padding:4px 10px; font-size:14px; }
   .bsteps { display:flex; flex-direction:column; gap:8px; }
   .bstep { border:1px solid var(--line); border-radius:12px; padding:8px; background:#12161d; }
   .bstep .h { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-weight:800; font-size:14px; }
@@ -343,12 +348,11 @@
     <div class="prow only-clean" style="margin-top:0;margin-bottom:10px"><select id="cPre" aria-label="클리닝 프리셋"></select><button id="cPreSave">💾 저장</button><button id="cPreDel" aria-label="프리셋 삭제">🗑</button></div>
     <div class="prow only-break" style="margin-top:0;margin-bottom:10px"><select id="bPre" aria-label="길들이기 프리셋"></select><button id="bPreSave">💾 저장</button><button id="bPreDel" aria-label="프리셋 삭제">🗑</button></div>
     <div class="only-break" style="margin-bottom:10px">
+      <div id="bStages" class="bstages"></div>
+      <button id="bAddStage" style="width:100%;margin:8px 0 12px;font-weight:800">+ 구간 추가</button>
       <div class="cgrid" style="margin-bottom:12px">
-        <label>길들이기 전압 (V)<span class="nstep"><button class="stp" data-for="bV" data-d="-1" aria-label="줄이기">−</button><input id="bV" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="bV" data-d="1" aria-label="늘리기">+</button></span></label>
-        <label>방향<select id="bDir"><option value="fwd">정방향</option><option value="rev">역방향</option><option value="alt">번갈아 (사이클마다)</option></select></label>
-        <label>시간 (분)<span class="nstep"><button class="stp" data-for="bMin" data-d="-1" aria-label="줄이기">−</button><input id="bMin" type="number" inputmode="numeric" min="0" max="60" step="1"><button class="stp" data-for="bMin" data-d="1" aria-label="늘리기">+</button></span></label>
-        <label>시간 (초)<span class="nstep"><button class="stp" data-for="bSec" data-d="-1" aria-label="줄이기">−</button><input id="bSec" type="number" inputmode="numeric" min="0" max="55" step="5"><button class="stp" data-for="bSec" data-d="1" aria-label="늘리기">+</button></span></label>
-        <label>사이클 뒤 쉬기 (초)<span class="nstep"><button class="stp" data-for="bRest" data-d="-1" aria-label="줄이기">−</button><input id="bRest" type="number" inputmode="numeric" min="0" max="600" step="5"><button class="stp" data-for="bRest" data-d="1" aria-label="늘리기">+</button></span></label>
+        <label>사이클 뒤 쉬기 (분)<span class="nstep"><button class="stp" data-for="bRestM" data-d="-1" aria-label="줄이기">−</button><input id="bRestM" type="number" inputmode="numeric" min="0" max="60" step="1"><button class="stp" data-for="bRestM" data-d="1" aria-label="늘리기">+</button></span></label>
+        <label>쉬기 (초)<span class="nstep"><button class="stp" data-for="bRestS" data-d="-1" aria-label="줄이기">−</button><input id="bRestS" type="number" inputmode="numeric" min="0" max="55" step="5"><button class="stp" data-for="bRestS" data-d="1" aria-label="늘리기">+</button></span></label>
       </div>
       <label class="sw" style="margin:2px 0 8px"><span><b>🎯 목표 파노</b> <span class="help">닿으면 자동으로 끝냄</span></span><input type="checkbox" id="bTgtOn"></label>
       <div class="cgrid">
@@ -368,7 +372,7 @@
       <label>방향<select id="cDir"><option value="fwd">정방향</option><option value="rev">역방향</option><option value="alt">번갈아 (1회마다)</option></select></label>
     </div>
     <div class="help only-clean" style="margin-top:6px">최소 → 최대 → 최소로 천천히 오르내리기를 반복합니다. 전압 범위 0~12 V.</div>
-    <div class="help only-break" style="margin-top:6px">1 사이클 = <b>길들이기 전압</b>으로 정한 시간 돌리기 → <b>측정 전압</b>에서 정방향 파노 측정 (스틱 연결 시) → 쉬기. 목표 파노가 켜져 있으면 <b>닿는 순간 끝나고</b>, 꺼져 있으면 정한 횟수만큼 반복합니다.</div>
+    <div class="help only-break" style="margin-top:6px">1 사이클 = <b>구간 1 → 구간 2 → …</b> 차례로 돌리기 → <b>측정 전압</b>에서 정방향 파노 측정 (스틱 연결 시) → 쉬기. 목표 파노가 켜져 있으면 <b>닿는 순간 끝나고</b>, 꺼져 있으면 정한 횟수만큼 반복합니다.</div>
     <details style="margin-top:8px"><summary class="help">릴레이 보드 (역방향용)</summary>
       <div class="help" style="margin:6px 0">스틱 Grove 포트(G9·G10)에 2채널 릴레이를 연결해 극성을 바꿉니다. 보드의 트리거 방식을 고르세요.</div>
       <label class="sw" style="margin:6px 0"><span><b>릴레이 연결됨</b></span><input type="checkbox" id="cRelayOn"></label>
@@ -949,7 +953,8 @@ function bindRange(id, show, commit) {
     clearTimeout(timer); clearInterval(timer); timer = 0;
     if (held) { const el = $(held.dataset.for); held = null; if (el) el.dispatchEvent(new Event('change')); }
   };
-  document.querySelectorAll('.stp').forEach(b => {
+  window.bindSteppers = root => root.querySelectorAll('.stp').forEach(b => {
+    if (b.__stp) return; b.__stp = 1;
     b.addEventListener('pointerdown', e => {
       e.preventDefault(); stop(); held = b;
       stepOnce(b);
@@ -958,6 +963,7 @@ function bindRange(id, show, commit) {
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, stop);
     b.addEventListener('contextmenu', e => e.preventDefault());
   });
+  window.bindSteppers(document);
 })();
 bindRange('sBr', v => $('vBr').textContent = Math.round(v / 255 * 100) + '%', v => edit('br', v));
 bindRange('sVm', i => $('vVm').textContent = vmLabel(VM_STEPS[i]), i => edit('vm', VM_STEPS[i]));
@@ -1337,7 +1343,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25j';
+const APP_BUILD = '2026-11-25k';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2023,27 +2029,53 @@ async function cleanStop(msg, good) {
   cleanRender();
 }
 function cleanOnStickLost() { if ((cl.run || cl.busy) && (cl.needRelay || cl.mode === 'break')) cleanStop('스틱 연결이 끊겨 정지했습니다'); cleanRender(); }
-// ---- 모터길들이기 settings: voltage + time (min/sec) + direction + rest, measured at the check voltage
-function breakDefault() { return { tgtOn: true, target: 360, chk: 3.0, rep: 20, amp: 1.0, v: 2.0, sec: 120, dir: 'fwd', rest: 15 }; }
+// ---- 모터길들이기 settings: the user's list of stages (voltage, direction, min/sec), then measure, then rest
+function breakDefault() { return { tgtOn: true, target: 360, chk: 3.0, rep: 20, amp: 1.0, stages: [{ v: 2.0, sec: 120, dir: 'fwd' }], rest: 15 }; }
 function breakStored() {
   let o = null; try { o = JSON.parse(localStorage.getItem(BREAK_KEY) || 'null'); } catch (e) {}
   return breakNorm(o);
 }
-function breakNorm(o) {                              // older saves (step lists) become voltage + time
+function breakNorm(o) {                              // older saves (single voltage, step lists) become stages
   const d = breakDefault(); o = Object.assign({}, o || {});
-  if (Array.isArray(o.steps)) {
-    const h = o.steps.find(x => x.t === 'hold') || o.steps.find(x => x.t === 'ramp'), r = o.steps.find(x => x.t === 'rest');
-    if (h) { o.v = h.t === 'ramp' ? h.v2 : h.v; o.sec = h.s; o.dir = h.d ? 'rev' : 'fwd'; }
-    if (r) o.rest = r.s;
-    delete o.steps;
+  if (!Array.isArray(o.stages)) {
+    if (Array.isArray(o.steps)) {
+      o.stages = o.steps.filter(x => x.t !== 'rest').map(x => ({ v: x.t === 'ramp' ? x.v2 : x.v, sec: x.s, dir: x.d ? 'rev' : 'fwd' }));
+      const r = o.steps.find(x => x.t === 'rest'); if (r) o.rest = r.s;
+    } else if (o.v !== undefined) o.stages = [{ v: o.v, sec: o.sec || 120, dir: o.dir || 'fwd' }];
   }
+  delete o.steps; delete o.v; delete o.sec; delete o.dir;
+  if (!Array.isArray(o.stages) || !o.stages.length) o.stages = d.stages;
   for (const k in d) if (o[k] === undefined) o[k] = d[k];
   return o;
+}
+var bStages = bStages || [];
+function breakStagesRender() {
+  const box = $('bStages'); if (!box) return;
+  const st = (id, mn, mx, stp, v, im) => `<span class="nstep"><button class="stp" data-for="${id}" data-d="-1" aria-label="줄이기">−</button><input id="${id}" type="number" inputmode="${im || 'decimal'}" min="${mn}" max="${mx}" step="${stp}" value="${v}"><button class="stp" data-for="${id}" data-d="1" aria-label="늘리기">+</button></span>`;
+  const n = bStages.length;
+  box.innerHTML = bStages.map((x, i) => `<div class="bstage" data-i="${i}"><div class="h"><span class="sp">구간 ${i + 1}</span>` +
+    (n > 1 ? `<button data-mv="-1" data-i="${i}" aria-label="위로"${i ? '' : ' disabled'}>↑</button><button data-mv="1" data-i="${i}" aria-label="아래로"${i < n - 1 ? '' : ' disabled'}>↓</button><button data-del="${i}" aria-label="구간 삭제">🗑</button>` : '') + `</div>
+    <div class="cgrid">
+      <label>길들이기 전압 (V)${st('bV' + i, 0, 12, 0.1, x.v)}</label>
+      <label>방향<select id="bD${i}"><option value="fwd"${x.dir === 'fwd' ? ' selected' : ''}>정방향</option><option value="rev"${x.dir === 'rev' ? ' selected' : ''}>역방향</option><option value="alt"${x.dir === 'alt' ? ' selected' : ''}>번갈아 (사이클마다)</option></select></label>
+      <label>시간 (분)${st('bM' + i, 0, 60, 1, Math.floor(x.sec / 60), 'numeric')}</label>
+      <label>시간 (초)${st('bS' + i, 0, 55, 5, x.sec % 60, 'numeric')}</label>
+    </div></div>`).join('');
+  bindSteppers(box);
+}
+function breakStagesFromUi() {                       // read the stage boxes into bStages
+  bStages = bStages.map((x, i) => {
+    if (!$('bV' + i)) return x;
+    let mm = Math.max(0, Math.round(+$('bM' + i).value || 0)), ss = Math.max(0, Math.round(+$('bS' + i).value || 0));
+    if (ss > 59) { mm += Math.floor(ss / 60); ss %= 60; $('bM' + i).value = mm; $('bS' + i).value = ss; }
+    return { v: Math.round(+$('bV' + i).value * 100) / 100, sec: mm * 60 + ss, dir: $('bD' + i).value };
+  });
 }
 function breakFill(o) {
   o = breakNorm(o);
   $('bTgtOn').checked = !!o.tgtOn; $('bTarget').value = o.target; $('bChk').value = o.chk; $('bRep').value = o.rep; $('bAmp').value = o.amp;
-  $('bV').value = o.v; $('bMin').value = Math.floor(o.sec / 60); $('bSec').value = o.sec % 60; $('bDir').value = o.dir; $('bRest').value = o.rest;
+  $('bRestM').value = Math.floor(o.rest / 60); $('bRestS').value = o.rest % 60;
+  bStages = o.stages.map(x => Object.assign({}, x)); breakStagesRender();
   breakTgtUi();
 }
 function breakTgtUi() {
@@ -2053,24 +2085,48 @@ function breakTgtUi() {
 }
 function breakRead() {
   const bad = m => { $('cMsg').innerHTML = '<b style="color:#ff6b6b">' + m + '</b>'; return null; };
-  let mm = Math.max(0, Math.round(+$('bMin').value || 0)), ss = Math.max(0, Math.round(+$('bSec').value || 0));
-  if (ss > 59) { mm += Math.floor(ss / 60); ss %= 60; $('bMin').value = mm; $('bSec').value = ss; }
+  breakStagesFromUi();
+  let rm = Math.max(0, Math.round(+$('bRestM').value || 0)), rs = Math.max(0, Math.round(+$('bRestS').value || 0));
+  if (rs > 59) { rm += Math.floor(rs / 60); rs %= 60; $('bRestM').value = rm; $('bRestS').value = rs; }
   const o = { tgtOn: $('bTgtOn').checked, target: Math.round(+$('bTarget').value * 10) / 10, chk: +$('bChk').value, rep: Math.round(+$('bRep').value), amp: +$('bAmp').value,
-    v: Math.round(+$('bV').value * 100) / 100, sec: mm * 60 + ss, dir: $('bDir').value, rest: Math.round(+$('bRest').value) };
-  if (!(o.v >= 0.3 && o.v <= 12)) return bad('길들이기 전압은 0.3~12 V 사이로 넣어 주세요.');
-  if (!(o.sec >= 1 && o.sec <= 3600)) return bad('시간은 1초~60분입니다.');
-  if (!(o.rest >= 0 && o.rest <= 600)) return bad('쉬는 시간은 0~600초입니다.');
+    stages: bStages.map(x => Object.assign({}, x)), rest: rm * 60 + rs };
+  if (!o.stages.length) return bad('구간을 하나 이상 넣어 주세요.');
+  for (const [i, x] of o.stages.entries()) {
+    const n = o.stages.length > 1 ? `구간 ${i + 1}: ` : '';
+    if (!(x.v >= 0.3 && x.v <= 12)) return bad(n + '길들이기 전압은 0.3~12 V 사이로 넣어 주세요.');
+    if (!(x.sec >= 1 && x.sec <= 3600)) return bad(n + '시간은 1초~60분입니다.');
+  }
+  if (!(o.rest >= 0 && o.rest <= 3600)) return bad('쉬는 시간은 0~60분입니다.');
   if (o.tgtOn && !(o.target >= 50 && o.target <= 2000)) return bad('목표 파노는 50~2000 Hz 사이로 넣어 주세요.');
   if (!(o.chk >= 0.5 && o.chk <= 12)) return bad('측정 전압은 0.5~12 V 사이로 넣어 주세요.');
   if (!(o.rep >= 1 && o.rep <= 999)) return bad((o.tgtOn ? '최대 사이클' : '반복') + '은 1~999회입니다.');
   if (!(o.amp >= 0.1 && o.amp <= 5)) return bad('전류 제한은 0.1~5 A 사이로 넣어 주세요.');
   try { localStorage.setItem(BREAK_KEY, JSON.stringify(o)); } catch (e) {}
-  // the run engine works on steps: one run step; the rest comes after the measurement
-  o.steps = [{ t: 'hold', v: o.v, s: o.sec, d: o.dir === 'rev' ? 1 : o.dir === 'alt' ? 'alt' : 0 }];
+  o.steps = o.stages.map(x => ({ t: 'hold', v: x.v, s: x.sec, d: x.dir === 'rev' ? 1 : x.dir === 'alt' ? 'alt' : 0 }));   // for the run engine
   return o;
 }
+function breakEditable() { if (cl.run || cl.busy) { notify('실행 중에는 구간을 바꿀 수 없습니다', false); return false; } return true; }
+$('bAddStage').onclick = () => {
+  if (!breakEditable()) return;
+  breakStagesFromUi();
+  if (bStages.length >= 10) { notify('구간은 10개까지입니다', false); return; }
+  const last = bStages[bStages.length - 1] || { v: 2.0, sec: 120, dir: 'fwd' };
+  bStages.push({ v: Math.min(12, Math.round((last.v + 0.5) * 10) / 10), sec: last.sec, dir: last.dir });
+  breakStagesRender(); breakRead();
+  const el = $('bStages').lastElementChild; if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+};
+$('bStages').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.classList.contains('stp')) return;
+  if (b.dataset.del === undefined && !b.dataset.mv) return;
+  if (!breakEditable()) return;
+  breakStagesFromUi();
+  if (b.dataset.del !== undefined) bStages.splice(+b.dataset.del, 1);
+  else { const i = +b.dataset.i, j = i + +b.dataset.mv; if (j < 0 || j >= bStages.length) return; [bStages[i], bStages[j]] = [bStages[j], bStages[i]]; }
+  breakStagesRender(); breakRead();
+});
+$('bStages').addEventListener('change', () => { if (!cl.run) { $('cMsg').textContent = ''; breakRead(); } });
 $('bTgtOn').onchange = () => { breakTgtUi(); breakRead(); };
-for (const id of ['bTarget', 'bChk', 'bRep', 'bAmp', 'bV', 'bMin', 'bSec', 'bDir', 'bRest']) $(id).addEventListener('change', () => { if (!cl.run) { $('cMsg').textContent = ''; breakRead(); } });
+for (const id of ['bTarget', 'bChk', 'bRep', 'bAmp', 'bRestM', 'bRestS']) $(id).addEventListener('change', () => { if (!cl.run) { $('cMsg').textContent = ''; breakRead(); } });
 // ---- 모터길들이기 run: steps, then the pano at the check voltage (forward); stop at the target or after the count
 async function outOn(on) { if (!!dps.st.on !== on) { await dpsOutput(on); dps.st.on = on; } }
 async function breakStart() {
@@ -2078,7 +2134,7 @@ async function breakStart() {
   const bad = m => { $('cMsg').innerHTML = '<b style="color:#ff6b6b">' + m + '</b>'; };
   if (!dps.link || !dps.st.t) return bad('먼저 전원공급기를 연결하세요.');
   if (s.tgtOn && !(cmdChar && actState && actState.act)) return bad('목표 파노를 쓰려면 파노를 재야 해서, 활성화된 스틱이 연결돼 있어야 합니다.');
-  const needRev = s.dir !== 'fwd';
+  const needRev = s.stages.some(x => x.dir !== 'fwd');
   if (needRev && !relayReady()) return bad(!appSet.relay ? RELAY_OFF_MSG : '역방향은 릴레이가 달린 스틱(펌웨어 1.9 이상, 활성화)이 필요합니다.');
   cl.mode = 'break'; cl.needRelay = needRev; cl.hist = []; cl.set = s; cl.k = 0; cl.si = -1; cl.phase = 'run'; cleanHistRender();
   cl.busy = true; cleanRenderBtns(); $('cMsg').textContent = '준비 중…';
@@ -2103,7 +2159,8 @@ async function breakEnter(i) {                      // start step i of the cycle
     const d = x.d === 'alt' ? cl.k % 2 : x.d ? 1 : 0;
     if (relayReady() && stickDir !== d) { await outOn(false); await waitMotorStop(); if (!cl.run) return; await sendDir(d); await sleep(150); }
     cl.dir = d;
-    await dpsFloat(DPS_V, x.v); cl.lastV = x.v;
+    cl.softFrom = dps.st.on && cl.dir === d ? cl.lastV : null;      // already turning: glide to the new voltage in 1 s
+    if (cl.softFrom === null) { await dpsFloat(DPS_V, x.v); cl.lastV = x.v; }
     if (!cl.run) return;
     await outOn(true);
   }
@@ -2117,6 +2174,12 @@ async function breakTick() {
     try { if (cl.si + 1 < s.steps.length) await breakEnter(cl.si + 1); else { cl.k++; await breakCheck(); } }
     catch (err) { cl.busy = false; await cleanStop('길들이기 중 오류: ' + err.message); }
     return;
+  }
+  if (x.t === 'hold' && cl.softFrom !== null && cl.softFrom !== undefined) {
+    const f = Math.min(1, e / 1000), v = Math.round((cl.softFrom + (x.v - cl.softFrom) * (1 - Math.cos(Math.PI * f)) / 2) * 100) / 100;
+    if (f >= 1) cl.softFrom = null;
+    if (Math.abs(v - cl.lastV) >= 0.01 && !cl.vSending) { cl.lastV = v; cl.vSending = true; dpsFloat(DPS_V, v).catch(() => {}).finally(() => { cl.vSending = false; }); }
+    else if (f >= 1 && Math.abs(x.v - cl.lastV) >= 0.01) { cl.lastV = x.v; dpsFloat(DPS_V, x.v).catch(() => {}); }
   }
   if (x.t === 'ramp') {
     const v = Math.round((x.v + (x.v2 - x.v) * (1 - Math.cos(Math.PI * Math.min(1, e / dur))) / 2) * 100) / 100;
@@ -2191,7 +2254,7 @@ function cleanRender() {
     else {
       const left = Math.max(0, Math.ceil((x.s * 1000 - (Date.now() - cl.stepT0)) / 1000));
       frac = (cl.si + Math.min(1, (Date.now() - cl.stepT0) / (x.s * 1000 || 1))) / n;
-      ph = `${x.t === 'rest' ? '쉬는 중' : '길들이는 중 ' + cl.lastV.toFixed(2) + ' V · ' + (cl.dir ? '역' : '정')} · 남은 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      ph = `${n > 1 ? '구간 ' + (cl.si + 1) + '/' + n + ' · ' : ''}${cl.lastV.toFixed(2)} V · ${cl.dir ? '역' : '정'} · 남은 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     }
     const after = cl.phase === 'check' || cl.phase === 'rest';
     $('cProg').textContent = `사이클 ${Math.min(cl.k + (after ? 0 : 1), s.rep)}/${s.rep} · ${ph}`;
