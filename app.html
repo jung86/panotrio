@@ -338,7 +338,7 @@
   <div class="card" id="stickSet">
     <div class="ttl">스틱 설정</div>
     <div id="stickRows">
-      <div class="set-help" style="margin-bottom:4px">값을 바꾼 뒤 아래 <b>스틱에 저장</b>을 누르세요. 스틱이 연결될 때도 이 설정이 자동으로 들어갑니다.</div>
+      <div class="set-help" style="margin-bottom:4px">스틱을 연결하면 <b>스틱에 저장된 설정을 불러옵니다</b>. 값을 바꾼 뒤 아래 <b>스틱에 저장</b>을 눌러야 스틱에 들어갑니다.</div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">화면 밝기</span><span class="set-val" id="vBr">-</span></div>
         <div class="stepper"><button class="stp" data-for="sBr" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sBr" min="10" max="255" step="5"><button class="stp" data-for="sBr" data-d="1" aria-label="늘리기">+</button></div>
@@ -657,8 +657,8 @@ async function send(kind, val) {
 }
 
 // ---------------------------------------------------------------- settings
-// The app keeps "my settings" (mySet). [스틱에 저장] sends all of them to the stick and reads them back
-// to check. When the stick connects and its values differ, mySet is copied to the stick automatically.
+// The app keeps "my settings" (mySet). When a stick connects, the screen loads that stick's own values.
+// Changes stay in the app until [스틱에 저장], which sends them and reads them back to check.
 const VM_STEPS = [10, 15, 20, 30, 40, 60, 80, 120, 160, 200, 300];   // vibration threshold (mg)
 const APPSET_KEY = 'panotrio-appset', MYSET_KEY = 'panotrio-myset';
 const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1, sb: 1 };
@@ -717,7 +717,7 @@ function renderSettings() {
   const d = diffKeys();
   const st = $('saveState'), btn = $('btnStickSave');
   if (saving) { st.textContent = '스틱에 저장하는 중…'; st.style.color = '#ffd8a8'; }
-  else if (!conn) { st.textContent = mySet ? '스틱을 연결하면 이 설정이 자동으로 스틱에 들어갑니다.' : '스틱을 연결하면 스틱의 설정을 불러옵니다.'; st.style.color = 'var(--mute)'; }
+  else if (!conn) { st.textContent = '스틱을 연결하면 스틱에 저장된 설정을 불러옵니다.'; st.style.color = 'var(--mute)'; }
   else if (!stickSet) { st.textContent = '스틱 펌웨어를 0.9 이상으로 업데이트하면 저장할 수 있습니다.'; st.style.color = 'var(--mute)'; }
   else if (d.length) { st.textContent = '저장 안 됨 · ' + d.map(k => SET_NAMES[k]).join(', '); st.style.color = '#ffa94d'; }
   else { st.textContent = '✓ 스틱에 저장됨'; st.style.color = '#69db7c'; }
@@ -766,8 +766,14 @@ function afterStickInfo() {                        // called whenever fresh stic
     syncOnConnect = false;                           // another phone's lock: do not touch the stick
     renderSettings(); return;
   }
-  if (!mySet) { mySet = Object.assign({}, DEFAULTS, stickSet); saveMySet(); }   // first time: adopt the stick's values
-  if (syncOnConnect) { syncOnConnect = false; if (diffKeys().length) saveToStick(true); }
+  if (!mySet || syncOnConnect) {                     // just connected: show what is stored on this stick
+    const fromStick = {};
+    for (const k of Object.keys(SET_IDS)) if (stickSet[k] !== null && stickSet[k] !== undefined) fromStick[k] = +stickSet[k];
+    const changed = mySet && Object.keys(fromStick).some(k => mySet[k] !== undefined && +mySet[k] !== fromStick[k]);
+    mySet = Object.assign({}, DEFAULTS, mySet || {}, fromStick); saveMySet();
+    if (syncOnConnect && changed) notify('스틱에 저장된 설정을 불러왔습니다', true);
+    syncOnConnect = false;
+  }
   renderSettings();
 }
 function bindRange(id, show, commit) {
@@ -1137,7 +1143,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24j';
+const APP_BUILD = '2026-11-24k';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
