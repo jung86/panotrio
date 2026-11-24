@@ -1137,11 +1137,11 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24h';
+const APP_BUILD = '2026-11-24i';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
-  const doReload = () => { if (reloading) return; if (cl.run || cl.busy || (dps.st && dps.st.on)) { pendingReload = true; return; } reloading = true; location.reload(); };
+  const doReload = () => { if (reloading) return; if (cl.run || cl.busy || dps.link || cmdChar) { pendingReload = true; return; } reloading = true; location.reload(); };   // never drop a live USB / Bluetooth link
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl) doReload(); });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
     const check = () => { reg.update().catch(() => {}); if (pendingReload) doReload(); };
@@ -1454,9 +1454,14 @@ async function dpsConnect() {
   const android = /Android/i.test(navigator.userAgent);
   const useUsb = 'usb' in navigator && (android || !('serial' in navigator));
   try {
-    if (useUsb) dps.link = await dpsOpenUsb();
-    else if ('serial' in navigator) dps.link = await dpsOpenSerial();
-    else { dpsMsg('<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'); return; }
+    if (!('usb' in navigator) && !('serial' in navigator)) { dpsMsg('<b style="color:#ff6b6b">이 브라우저는 USB 장치를 지원하지 않습니다.</b> 안드로이드 크롬이나 PC 크롬을 쓰세요.'); return; }
+    try { dps.link = useUsb ? await dpsOpenUsb() : await dpsOpenSerial(); }
+    catch (e) {                                       // nothing picked in the first list: offer the other kind of list
+      if (e.name !== 'NotFoundError') throw e;
+      if (useUsb && 'serial' in navigator && !android) dps.link = await dpsOpenSerial();
+      else if (!useUsb && 'usb' in navigator) { dpsMsg('DPS-150이 목록에 없으면 다음 목록(USB 기기)에서 고르세요'); dps.link = await dpsOpenUsb(); }
+      else throw e;
+    }
     dps.st = {};
     await dpsSend(0xC1, 0, [1]);                  // start session
     await dpsSend(0xB0, 0, [5]);                  // 115200 baud
