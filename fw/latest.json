@@ -1,8 +1,8 @@
 {
- "ver": "2.2",
- "size": 1048784,
- "sha256": "a923d100233bd5f44ba50bdb5625b3c3e84e10aa2b2e275b93cba9f456b7f8d7",
- "sig": "V2k8a0VgR8hDIYewo9MJDhL-4LLdVKBDmVS1Vmy6B-rmxOBvylPKQetCZGRBdND5gAbritwgLf1nHC4SR8Tc2Q",
- "bin": "fw/PanoCheck-2.2.app.bin",
- "note": "릴레이 전원 절약 · 업데이트가 끊겨도 이어서 받기"
+ "ver": "2.3",
+ "size": 1049968,
+ "sha256": "b64e5eb07a8aebf64140415c8d1eb86fd3503585cb137604acb80eb62c5b33d1",
+ "sig": "XaglIkHG4f4TkZGUyVn3pq95oDzcNd4Y-SnRhqBCY5-K8aAsFpT-wP5U_hjarLqSq8UTLRkSozhJg4WdLmDDEw",
+ "bin": "fw/PanoCheck-2.3.app.bin",
+ "note": "대기 모드 시계 · 릴레이 전원 절약 · 업데이트 이어받기"
 }
