@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>파노체크 다운로드 · 사용 설명서</title>
+<meta name="description" content="파노체크 안드로이드·아이폰 앱 열기와 사용 설명서">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --mute:#5d6678; --line:#e2e6ee; --acc:#e8590c; --ok:#2b8a3e; --blue:#1971c2; --tip:#fff4e6; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12151b; --card:#1b2029; --ink:#e8ebf1; --mute:#9aa3b5; --line:#2b3240; --tip:#2b2016; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:24px 18px 60px; }
+  h1 { font-size:26px; margin:0; }
+  h2 { font-size:21px; margin:0 0 6px; }
+  h3 { font-size:17px; margin:18px 0 6px; }
+  .sub { color:var(--mute); margin:2px 0 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin:14px 0; }
+  .pick { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:18px 0 6px; }
+  .pick a { display:block; text-align:center; text-decoration:none; color:#fff; font-weight:800; font-size:18px; padding:18px 8px; border-radius:14px; }
+  .pick a small { display:block; font-weight:600; font-size:13px; opacity:.9; margin-top:2px; }
+  .and { background:#2b8a3e; } .ios { background:#343a40; }
+  .btn { display:inline-block; text-decoration:none; color:#fff; background:var(--acc); font-weight:800; padding:13px 20px; border-radius:11px; border:0; font-size:16px; cursor:pointer; }
+  .btn.gray { background:#495057; } .btn.blue { background:var(--blue); }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+  ol.steps { list-style:none; counter-reset:s; padding:0; margin:8px 0 0; }
+  ol.steps > li { counter-increment:s; position:relative; padding:0 0 14px 44px; margin:0; }
+  ol.steps > li::before { content:counter(s); position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%; background:var(--acc); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  ol.steps > li b.t { display:block; font-size:17px; }
+  .tip { background:var(--tip); border-radius:10px; padding:10px 12px; font-size:14px; margin:6px 0; }
+  .warn { color:#e03131; font-weight:700; }
+  .small { font-size:14px; color:var(--mute); }
+  code { background:rgba(127,127,127,.15); padding:1px 6px; border-radius:4px; word-break:break-all; }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  td, th { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; }
+  details { border-bottom:1px solid var(--line); padding:8px 0; }
+  summary { font-weight:700; cursor:pointer; }
+  details p, details ul { margin:6px 0 2px; font-size:15px; }
+  .hl { outline:3px solid var(--acc); outline-offset:3px; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#1971c2; color:#fff; padding:10px 16px; border-radius:10px; font-weight:700; display:none; }
+</style>
+</head>
+<body>
+<main>
+  <div style="display:flex;align-items:center;gap:14px">
+    <img src="icon-192.png" alt="" style="width:64px;height:64px;border-radius:14px">
+    <div><h1>파노체크 다운로드</h1><p class="sub">모터 파노(회전수) 측정 · 휴대폰 앱 사용 설명서</p></div>
+  </div>
+
+  <div class="pick">
+    <a class="and" href="#android">🤖 안드로이드용<small>측정 · 전원공급기 · 클리닝</small></a>
+    <a class="ios" href="#iphone">🍎 아이폰용<small>측정 (Bluefy 앱)</small></a>
+  </div>
+  <p id="detected" class="small" style="text-align:center;margin:4px 0 0"></p>
+
+  <!-- ======================= ANDROID ======================= -->
+  <section class="card" id="android">
+    <h2>🤖 안드로이드</h2>
+    <p class="small" style="margin:0">준비물: 안드로이드 휴대폰 · <b>크롬(Chrome)</b> · 파노체크 스틱</p>
+    <div class="btns">
+      <a class="btn" id="openAndroid" href="app.html">크롬으로 파노체크 열기</a>
+      <button class="btn gray" data-copy="app">주소 복사</button>
+    </div>
+    <p id="andWarn" class="warn" style="display:none;margin:4px 0"></p>
+
+    <ol class="steps">
+      <li><b class="t">크롬으로 열기</b>
+        위 <b>[크롬으로 파노체크 열기]</b>를 누르세요. 주소: <code>jung86.github.io/panotrio/app.html</code>
+        <div class="tip">⚠ <b>삼성 인터넷</b>, 카카오톡·네이버 앱 안의 브라우저에서는 스틱이 연결되지 않습니다. 꼭 크롬으로 여세요. (잘못 열면 화면 위에 [크롬으로 열기] 버튼이 뜹니다)</div></li>
+      <li><b class="t">홈 화면에 설치</b>
+        앱 첫 화면의 <b>[📲 홈 화면에 앱 설치]</b>, 또는 크롬 메뉴 <b>⋮ → 홈 화면에 추가</b>. 다음부터 아이콘으로 바로 열립니다.</li>
+      <li><b class="t">블루투스 · 위치 켜기</b>
+        휴대폰의 <b>블루투스</b>와 <b>위치(GPS)</b>를 둘 다 켭니다. 안드로이드는 위치가 꺼져 있으면 스틱을 못 찾습니다.</li>
+      <li><b class="t">스틱 연결</b>
+        스틱을 켜고 <b>[스틱 연결 (블루투스)]</b> → 목록에서 <b>파노체크-XXXXXXXX</b> 선택 → 연결.
+        <div class="tip">목록에 안 나오면: 스틱이 다른 휴대폰에 연결돼 있지 않은지 확인하고, 스틱을 껐다 켜 보세요. 스틱은 휴대폰 한 대하고만 연결됩니다.</div></li>
+      <li><b class="t">처음 한 번: 활성화</b>
+        새 스틱은 잠겨 있습니다. 앱의 <b>[📨 활성화 요청 보내기]</b>를 눌러 제작자에게 카톡으로 보내고, 답장으로 온 <b>활성화 링크</b>를 누른 뒤 <b>[스틱 연결]</b>만 하면 끝납니다.</li>
+      <li><b class="t">측정</b>
+        메뉴 <b>파노측정</b> → 스틱을 모터에 대거나(진동) 가까이 둡니다(소리). <b>진동+소리</b> 모드에서 두 값이 맞으면 <b>MATCH</b>로 표시됩니다.</li>
+      <li><b class="t">(선택) 전원공급기 DPS-150</b>
+        휴대폰 USB-C ↔ DPS-150 <b>Micro USB(데이터선)</b>을 연결하고, 파노측정의 <b>⚡ 전원공급기 [연결]</b> → 목록에서 DPS-150 선택. 한 번 허락하면 다음부터는 저절로 연결됩니다.
+        전압·전류 설정, 정/역(릴레이), <b>🩺 모터 컨디션</b>, <b>모터클리닝</b> 자동 운전을 쓸 수 있습니다.
+        <div class="tip">DPS-150 전원은 <b>PD 충전기(65W 이상, 20V 지원)</b>로 넣어야 12V까지 나옵니다.</div></li>
+    </ol>
+  </section>
+
+  <!-- ======================= iPHONE ======================= -->
+  <section class="card" id="iphone">
+    <h2>🍎 아이폰</h2>
+    <p class="small" style="margin:0">아이폰의 사파리·크롬은 블루투스 웹앱을 지원하지 않아서, 무료 앱 <b>Bluefy</b>(블루투스 지원 브라우저) 안에서 엽니다.</p>
+    <div class="btns">
+      <a class="btn blue" href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener">Bluefy 받기 (앱스토어)</a>
+      <button class="btn gray" data-copy="app">파노체크 주소 복사</button>
+    </div>
+
+    <ol class="steps">
+      <li><b class="t">Bluefy 설치</b>
+        위 <b>[Bluefy 받기]</b> → 앱스토어에서 무료로 설치합니다.</li>
+      <li><b class="t">Bluefy에서 파노체크 열기</b>
+        <b>[파노체크 주소 복사]</b>를 누르고, Bluefy 주소창에 붙여넣습니다. 주소: <code>jung86.github.io/panotrio/app.html</code>
+        <div class="tip">Bluefy의 즐겨찾기(☆)에 넣어 두면 다음부터 바로 열립니다.</div></li>
+      <li><b class="t">블루투스 허용</b>
+        처음에 Bluefy가 블루투스 사용을 물어보면 <b>허용</b>을 누릅니다.</li>
+      <li><b class="t">스틱 연결</b>
+        <b>[스틱 연결 (블루투스)]</b> → 목록에서 <b>파노체크-XXXXXXXX</b> 선택.</li>
+      <li><b class="t">처음 한 번: 활성화</b>
+        <b>[📨 활성화 요청 보내기]</b>로 제작자에게 보내고, 답장으로 온 <b>활성화 링크</b>를 받습니다.
+        <div class="tip">⚠ 아이폰에서 카톡 링크를 누르면 사파리로 열립니다. 링크를 <b>길게 눌러 복사</b>한 뒤 <b>Bluefy 주소창에 붙여넣으세요</b>. (사파리로 열렸다면 위쪽 [주소 복사]를 눌러 Bluefy에 붙여넣어도 됩니다)</div></li>
+      <li><b class="t">측정</b>
+        안드로이드와 같습니다. 메뉴 <b>파노측정</b>에서 진동·소리로 잽니다.</li>
+    </ol>
+    <p class="warn" style="margin:4px 0 0">아이폰에서 안 되는 것: 전원공급기(DPS-150) 연결, 모터클리닝 (아이폰이 웹의 USB 연결을 막습니다)</p>
+  </section>
+
+  <!-- ======================= PC / FIRMWARE ======================= -->
+  <section class="card" id="pc">
+    <h2>💻 스틱 펌웨어 설치·업데이트 (PC)</h2>
+    <p style="margin:4px 0">스틱을 USB-C로 PC에 꽂고, PC의 <b>크롬 또는 엣지</b>로 설치 페이지를 엽니다. 활성화는 업데이트해도 유지됩니다.</p>
+    <div class="btns"><a class="btn" href="./">펌웨어 설치 페이지</a></div>
+  </section>
+
+  <!-- ======================= COMPARE ======================= -->
+  <section class="card">
+    <h2>무엇이 되나요?</h2>
+    <table>
+      <tr><th></th><th>안드로이드 크롬</th><th>아이폰 Bluefy</th><th>PC 크롬</th></tr>
+      <tr><td>파노측정·기록</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>스틱 설정·활성화</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>전원공급기 DPS-150</td><td>✅</td><td>❌</td><td>✅</td></tr>
+      <tr><td>모터클리닝 · 정/역</td><td>✅</td><td>❌</td><td>✅</td></tr>
+      <tr><td>펌웨어 설치</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    </table>
+    <p class="small" style="margin:8px 0 0">아이폰 Bluefy는 아직 직접 시험 중입니다. 안 되는 부분이 있으면 화면을 캡처해서 제작자에게 보내주세요.</p>
+  </section>
+
+  <!-- ======================= FAQ ======================= -->
+  <section class="card">
+    <h2>자주 묻는 문제</h2>
+    <details><summary>스틱이 목록에 안 나와요</summary>
+      <ul><li>블루투스와 <b>위치(GPS)</b>가 켜져 있는지 확인하세요.</li>
+      <li>다른 휴대폰에 이미 연결돼 있으면 안 보입니다. 그 휴대폰의 앱을 닫거나 스틱을 껐다 켜세요.</li>
+      <li>삼성 인터넷·카톡 브라우저가 아니라 <b>크롬</b>(아이폰은 Bluefy)인지 확인하세요.</li></ul></details>
+    <details><summary>"활성화가 필요한 스틱입니다"가 떠요</summary>
+      <p>앱의 [📨 활성화 요청 보내기]로 제작자에게 스틱 ID를 보내고, 받은 링크를 크롬(아이폰은 Bluefy)으로 연 뒤 스틱을 연결하세요.</p></details>
+    <details><summary>새 기능이 안 보여요</summary>
+      <p>앱을 완전히 닫았다가 다시 여세요. 설정 → 정보 맨 아래에서 앱 버전을 확인할 수 있습니다.</p></details>
+    <details><summary>DPS-150이 목록에 안 나와요</summary>
+      <ul><li>충전 전용 선이 아닌 <b>데이터선</b>인지 확인하세요.</li><li>DPS-150 전원이 켜져 있어야 합니다.</li><li>선을 뽑았다 다시 꽂고 [연결]을 누르세요.</li></ul></details>
+  </section>
+
+  <p class="small" style="text-align:center">이 페이지 주소: <code>jung86.github.io/panotrio/download.html</code>
+    <br><button class="btn gray" data-copy="page" style="margin-top:8px;padding:9px 14px;font-size:14px">이 설명서 주소 복사</button>
+    <button class="btn blue" id="sharePage" style="margin-top:8px;padding:9px 14px;font-size:14px">📨 카톡으로 보내기</button></p>
+</main>
+<div id="toast"></div>
+<script>
+(() => {
+  const ua = navigator.userAgent, base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const android = /Android/i.test(ua), ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const toast = t => { const el = document.getElementById('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 2200); };
+  const urls = { app: base + 'app.html', page: base + 'download.html' };
+  document.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
+    const u = urls[b.dataset.copy];
+    try { await navigator.clipboard.writeText(u); toast('복사했습니다'); } catch (e) { prompt('이 주소를 복사하세요', u); }
+  });
+  document.getElementById('sharePage').onclick = async () => {
+    const text = '파노체크 다운로드·사용 설명서\n' + urls.page + '\n\n안드로이드는 크롬, 아이폰은 Bluefy 앱으로 여세요.';
+    if (navigator.share) { try { await navigator.share({ title: '파노체크 설명서', text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+    try { await navigator.clipboard.writeText(text); toast('복사했습니다 · 카톡에 붙여넣으세요'); } catch (e) { prompt('복사하세요', text); }
+  };
+  const det = document.getElementById('detected');
+  if (android) {
+    det.textContent = '지금 안드로이드 휴대폰입니다 → 안드로이드용을 보세요';
+    document.getElementById('android').classList.add('hl');
+    if (!navigator.bluetooth) {                     // Samsung Internet / in-app browsers: the button opens Chrome
+      document.getElementById('openAndroid').href = 'intent://' + location.host + location.pathname.replace(/[^/]*$/, '') + 'app.html#Intent;scheme=https;package=com.android.chrome;end';
+      const w = document.getElementById('andWarn');
+      w.textContent = (/SamsungBrowser/i.test(ua) ? '지금 삼성 인터넷입니다.' : '지금 브라우저에서는 블루투스가 안 됩니다.') + ' 위 버튼을 누르면 크롬으로 열립니다.';
+      w.style.display = '';
+    }
+  } else if (ios) {
+    det.textContent = navigator.bluetooth ? '지금 Bluefy입니다 → 아래 [파노체크 주소 복사] 후 주소창에 붙여넣거나 바로 여세요' : '지금 아이폰입니다 → 아이폰용(Bluefy)을 보세요';
+    document.getElementById('iphone').classList.add('hl');
+    if (!location.hash) setTimeout(() => document.getElementById('iphone').scrollIntoView({ behavior: 'smooth' }), 400);
+  } else det.textContent = 'PC에서는 펌웨어 설치와 앱(크롬)을 쓸 수 있습니다';
+})();
+</script>
+</body>
+</html>
