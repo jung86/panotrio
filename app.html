@@ -607,6 +607,7 @@ function notify(text, good) {
 // Android Chrome refuses a read / write while another is still running ("GATT operation already in
 // progress") - and the refused setting was silently lost. Every operation goes through this queue
 // and is retried a few times.
+var IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let gattQ = Promise.resolve();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function gatt(op, tries = 4) {
@@ -667,6 +668,7 @@ async function copyAppUrl() {
   }
 })();
 async function connect() {
+  if (navigator.bluetooth) stayAwake();                 // started from the tap, before any await
   if (!navigator.bluetooth) {
     const n = noBtNotice();
     $('hint').innerHTML = n.html + (n.android ? ' <a href="#" onclick="location.href=chromeUrl();return false" style="color:#ffa94d;font-weight:800">크롬으로 열기</a>' : '');
@@ -711,13 +713,24 @@ async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
   cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
-  for (let i = 0; i < 5; i++) {
-    await new Promise(r => setTimeout(r, 1500));
-    try { await openGatt(); return; } catch (e) {}
-  }
-  $('conn').textContent = '연결 안 됨';
-  $('connectBox').style.display = ''; renderHome();
+  if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
+  reconnect();
 }
+// Try again for about 20 s; when the phone was in the background (iPhone cuts Bluetooth there), try again on return.
+let reconnecting = false;
+async function reconnect() {
+  if (reconnecting || !device || cmdChar) return;
+  reconnecting = true;
+  try {
+    for (let i = 0; i < 12 && !cmdChar; i++) {
+      await new Promise(r => setTimeout(r, i < 3 ? 800 : 1800));
+      if (document.visibilityState !== 'visible') break;          // continue when the app comes back
+      try { await openGatt(); return; } catch (e) {}
+    }
+    if (!cmdChar) { $('conn').textContent = '연결 안 됨 · 눌러서 다시 연결'; $('connectBox').style.display = ''; renderHome(); }
+  } finally { reconnecting = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && device && !cmdChar) { $('conn').textContent = '다시 연결 중…'; reconnect(); } });
 async function send(kind, val) {
   if (!cmdChar) return;
   if (lockedOut()) { notify('잠긴 스틱이라 바꿀 수 없습니다', false); return; }
@@ -898,6 +911,28 @@ async function applyWake() {
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') applyWake(); });
+// iPhone: the screen lock puts Bluefy to sleep and Bluetooth drops. While a stick is connected the screen stays on:
+// the wake lock where the browser has one, otherwise a tiny silent looping video (needs a tap to start).
+var stayVid = null, stayLock = null, stayNoLock = false;
+function stayAwake() {
+  if (!IOS || stayLock) return;
+  if ('wakeLock' in navigator && !stayNoLock) {
+    navigator.wakeLock.request('screen').then(l => { stayLock = l; l.addEventListener('release', () => stayLock = null); }, () => { stayNoLock = true; });
+    return;                                             // if refused, the next tap starts the video instead
+  }
+  try {
+    if (!stayVid) {
+      stayVid = document.createElement('video');
+      stayVid.setAttribute('playsinline', ''); stayVid.setAttribute('title', '화면 켜짐 유지'); stayVid.loop = true;
+      stayVid.src = 'data:video/mp4;base64,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X3JhbmdlPTI0IGNocm9tYV9tZT0xIHRyZWxsaXM9MiA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tNCB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz04IGJfcHlyYW1pZD0yIGJfYWRhcHQ9MiBiX2JpYXM9MCBkaXJlY3Q9MyB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTEgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD02MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjIwAIAAAAARZYiBAAL5z/731LfMsu4HI4EBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwAAAApBmggtiC+c//7wARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAc=';
+      stayVid.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0.01;pointer-events:none';
+      document.body.appendChild(stayVid);
+    }
+    if (stayVid.paused) { const pr = stayVid.play(); if (pr) pr.catch(() => {}); }
+  } catch (e) {}
+}
+document.addEventListener('touchend', () => { if (IOS && (cmdChar || device)) stayAwake(); }, { passive: true });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && IOS && device) stayAwake(); });
 // ---------------------------------------------------------------- navigation: menu / 파노측정 / 설정 (phone back button works)
 function showView() {
   const v = (location.hash || '#home').slice(1);
@@ -1229,7 +1264,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24q';
+const APP_BUILD = '2026-11-25a';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
