@@ -1,6 +1,6 @@
 {
   "name": "파노체크",
-  "version": "1.9",
+  "version": "2.0",
   "new_install_prompt_erase": false,
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -8,7 +8,7 @@
       "chipFamily": "ESP32-S3",
       "parts": [
         {
-          "path": "PanoCheck-1.9-M5StickS3.bin",
+          "path": "PanoCheck-2.0-M5StickS3.bin",
           "offset": 0
         }
       ]

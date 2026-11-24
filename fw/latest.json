@@ -1,0 +1,8 @@
+{
+ "ver": "2.0",
+ "size": 1048256,
+ "sha256": "12a6706a7f65cf0200302c7932c580427138d4dab66f1a5bb4576a2dc51219e8",
+ "sig": "IDqmlVsaKMR72dPFWcOXxCgLmm0Db5TsDRmUipZ9ZV3QjK88b1uZmMONB0PgpGSrxDeZcgcEuB3hx6CWfkCaww",
+ "bin": "fw/PanoCheck-2.0.app.bin",
+ "note": "블루투스 업데이트 기능 추가"
+}

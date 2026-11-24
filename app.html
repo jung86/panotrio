@@ -212,6 +212,7 @@
   <h1>파노체크</h1>
   <span id="homeConn" class="pill">스틱 연결 안 됨</span>
   <button id="btnConnect2" class="primary" style="margin-top:18px">스틱 연결 (블루투스)</button>
+  <div id="fwBox" style="display:none;margin-top:14px;background:#13284a;border:1px solid #1971c2;border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
   <div class="tiles">
     <div class="tile" id="tileMeasure" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -564,12 +565,14 @@ const STAT = '7a1e0002-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const TEXT = '7a1e0003-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const CMD  = '7a1e0004-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const INFO = '7a1e0005-5c1b-4f2e-9d3a-50a0b0c0d0e1';
+const OTA  = '7a1e0006-5c1b-4f2e-9d3a-50a0b0c0d0e1';
 const COLORS = ['var(--grey)','var(--green)','var(--yellow)','var(--orange)','var(--red)','var(--cyan)'];
 const MODES = ['진동','소리','진동+소리'];
 const HOT_HZ = 550;                    // above this the big value turns red and shakes
 const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
+var otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false;
 // 모터클리닝 / DPS-150 state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
 const cl = { run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
@@ -704,6 +707,8 @@ async function openGatt() {
     await gatt(() => inf.startNotifications());
     onInfo(await gatt(() => inf.readValue()), true);
   } catch (e) {}
+  otaChar = null;
+  try { otaChar = await svc.getCharacteristic(OTA); } catch (e) {}           // firmware 2.0 and newer
   $('conn').textContent = shortName() + batText(); $('conn').className = 'conn on';
   notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
@@ -712,7 +717,7 @@ async function openGatt() {
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
 }
@@ -1264,7 +1269,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25a';
+const APP_BUILD = '2026-11-25b';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1298,6 +1303,134 @@ function onInfo(dv, whole) {
   stickDir = kv.DIR !== undefined ? +kv.DIR : null; stickRly = kv.RLY !== undefined ? +kv.RLY : null;
   if ($('clean').classList.contains('open')) cleanRender(); else psuRender();
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
+  stickVer = kv.VER || ''; stickOta = kv.OTA === '1'; fwCheck();
+}
+
+// ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)
+// fw/latest.json names the newest firmware. When the connected stick is older, the home screen offers it.
+// The file is signed; the stick checks the signature itself, so a wrong file is never started.
+function verNum(v) { const m = /^(\d+)\.(\d+)/.exec(v || ''); return m ? +m[1] * 1000 + +m[2] : 0; }
+async function fwCheck() {
+  if (!stickVer) return fwRender();
+  if (!fwLatest) {
+    try { const r = await fetch('fw/latest.json', { cache: 'no-cache' }); if (r.ok) fwLatest = await r.json(); } catch (e) {}
+  }
+  fwRender();
+}
+function fwNewer() { return fwLatest && stickVer && verNum(fwLatest.ver) > verNum(stickVer); }
+function fwRender(msg) {
+  const box = $('fwBox'); if (!box) return;
+  if (fwBusy) return;
+  if (!cmdChar || !fwNewer()) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  if (stickOta && otaChar) {
+    box.innerHTML = `<b>🔄 스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:#a5d8ff">' + esc(fwLatest.note) + '</span>' : ''}` +
+      `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
+    $('btnFw').onclick = fwStart;
+  } else {
+    box.innerHTML = `<b>🔄 스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 USB로</b> 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.` +
+      `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:12px;background:#1971c2;color:#fff;text-decoration:none;font-weight:800">설치 페이지 열기 (컴퓨터 + USB)</a>`;
+  }
+}
+const FW_ERR = { 1: '준비 정보가 빠졌습니다', 2: '스틱 배터리가 부족합니다 (25% 이상 또는 USB 연결)', 3: '잠긴 스틱입니다 (잠금 해제 후)', 4: '스틱이 준비하지 못했습니다',
+  5: '파일 크기가 맞지 않습니다', 6: '파일이 손상됐습니다 (다시 시도)', 7: '정품 펌웨어가 아닙니다', 8: '스틱이 마무리하지 못했습니다', 9: '스틱 저장 실패', 10: '중간에 끊겼습니다', 11: '파일이 덜 왔습니다' };
+let fwWait = null, fwSt = null;
+function fwOnNote(dv) {
+  if (dv.byteLength < 11 || dv.getUint8(0) !== 83) return;
+  fwSt = { state: dv.getUint8(1), err: dv.getUint8(2), written: dv.getUint32(3, true), rx: dv.getUint32(7, true), mtu: dv.byteLength >= 13 ? dv.getUint16(11, true) : 23 };
+  if (fwWait) { const w = fwWait; fwWait = null; w(fwSt); }
+}
+function fwNext(ms) { return new Promise(res => { fwWait = res; setTimeout(() => { if (fwWait === res) { fwWait = null; res(null); } }, ms); }); }
+function b64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+function hexBytes(h) { const o = new Uint8Array(h.length / 2); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(i * 2, 2), 16); return o; }
+function fwShow(pc, text, btn) {
+  let ov = $('fwOv');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'fwOv';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(10,12,16,.92);display:flex;align-items:center;justify-content:center;padding:24px';
+    ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #2c3340;border-radius:18px;padding:22px;text-align:center">' +
+      '<div style="font-size:20px;font-weight:800">스틱 업데이트</div><div id="fwPc" style="font-size:44px;font-weight:900;margin:10px 0">0%</div>' +
+      '<div style="height:14px;background:#0f1218;border-radius:8px;overflow:hidden"><div id="fwBar" style="height:100%;width:0;background:#1c7ed6"></div></div>' +
+      '<div id="fwTxt" style="margin-top:12px;line-height:1.5;color:#c9d1dc"></div><button id="fwBtn" style="margin-top:14px;width:100%"></button></div>';
+    document.body.appendChild(ov);
+  }
+  if (pc !== null) { $('fwPc').textContent = pc + '%'; $('fwBar').style.width = pc + '%'; }
+  $('fwTxt').innerHTML = text;
+  $('fwBtn').textContent = btn || '취소'; $('fwBtn').style.display = '';
+  return ov;
+}
+function fwClose() { const ov = $('fwOv'); if (ov) ov.remove(); }
+let fwCancel = false;
+async function fwStart() {
+  if (fwBusy || !otaChar || !cmdChar) return;
+  if (cl.run) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
+  if (!confirm(`스틱을 ${fwLatest.ver} 버전으로 업데이트할까요?\n\n· 2~5분 걸립니다. 그동안 측정은 멈춥니다.\n· 휴대폰을 스틱 가까이 두고 이 화면을 켜 두세요.\n· 중간에 끊겨도 스틱은 지금 버전으로 그대로 켜집니다.`)) return;
+  fwBusy = true; fwCancel = false; $('fwBox').style.display = 'none';
+  const ch = otaChar;
+  let wake = null; try { if ('wakeLock' in navigator) wake = await navigator.wakeLock.request('screen'); } catch (e) {}
+  stayAwake();
+  fwShow(0, '펌웨어 받는 중…');
+  $('fwBtn').onclick = () => { fwCancel = true; };
+  const end = (msg, ok) => {
+    fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); };
+    if (ok) $('fwBar').style.background = '#2f9e44';
+    fwBusy = false; try { wake && wake.release(); } catch (e) {}
+  };
+  try {
+    // 1. download and check the file
+    const r = await fetch(fwLatest.bin + '?v=' + encodeURIComponent(fwLatest.ver), { cache: 'no-cache' });
+    if (!r.ok) throw new Error('펌웨어 파일을 받지 못했습니다 (인터넷 확인)');
+    const data = new Uint8Array(await r.arrayBuffer());
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data))).map(b => b.toString(16).padStart(2, '0')).join('');
+    if (data.length !== fwLatest.size || hash !== fwLatest.sha256) throw new Error('받은 파일이 맞지 않습니다 · 다시 시도하세요');
+    // 2. listen, ask the stick
+    if (!ch.__fw) { ch.__fw = 1; ch.addEventListener('characteristicvaluechanged', e => fwOnNote(e.target.value)); }
+    await gatt(() => ch.startNotifications());
+    const wr = v => gatt(() => (ch.writeValueWithoutResponse ? ch.writeValueWithoutResponse(v) : ch.writeValue(v)));
+    const wrR = v => gatt(() => ch.writeValue(v));
+    let p = fwNext(3000); await wrR(new Uint8Array([81])); let st = await p;     // 'Q'
+    if (!st) throw new Error('스틱이 답하지 않습니다');
+    const chunk = Math.max(15, Math.min(495, (st.mtu || 23) - 3 - 5));
+    // 3. header: size, version, SHA-256, signature
+    const h = new Uint8Array(112), dvh = new DataView(h.buffer);
+    dvh.setUint32(0, data.length, true);
+    h.set(new TextEncoder().encode(fwLatest.ver).slice(0, 8), 4);
+    h.set(hexBytes(fwLatest.sha256), 12); h.set(b64u(fwLatest.sig), 44);
+    for (let i = 0; i < 7; i++) { const v = new Uint8Array(18); v[0] = 72; v[1] = i; v.set(h.slice(i * 16, i * 16 + 16), 2); await wrR(v); }
+    p = fwNext(5000); await wrR(new Uint8Array([66])); st = await p;              // 'B'
+    if (!st || st.state !== 1) throw new Error(st ? (FW_ERR[st.err] || '시작 실패 ' + st.err) : '스틱이 답하지 않습니다');
+    // 4. send window by window; the stick says how far it has saved
+    const WIN = 8192; let off = 0, misses = 0; const t0 = Date.now();
+    while (off < data.length) {
+      if (fwCancel) { await wrR(new Uint8Array([67])).catch(() => {}); throw new Error('취소했습니다 · 스틱은 지금 버전 그대로입니다'); }
+      if (!cmdChar) throw new Error('블루투스가 끊겼습니다 · 스틱은 지금 버전 그대로입니다. 다시 연결 후 시도하세요');
+      const stop = Math.min(data.length, (Math.floor(off / WIN) + 1) * WIN);   // the stick answers at each 8 KB mark
+      p = fwNext(5000);
+      for (let o = off; o < stop; o += chunk) {
+        const n = Math.min(chunk, stop - o), v = new Uint8Array(5 + n);
+        v[0] = 68; new DataView(v.buffer).setUint32(1, o, true); v.set(data.subarray(o, o + n), 5);
+        await wr(v);
+      }
+      st = await p;
+      while (st && st.state === 1 && st.written < stop && st.rx >= stop) st = await fwNext(3000);   // still saving
+      if (!st) { if (++misses > 8) throw new Error('스틱이 답하지 않습니다'); p = fwNext(3000); await wrR(new Uint8Array([81])).catch(() => {}); st = await p; if (!st) continue; }
+      if (st.state !== 1) throw new Error(FW_ERR[st.err] || '실패 ' + st.err);
+      off = st.written;
+      const pc = Math.floor(off * 100 / data.length), sec = (Date.now() - t0) / 1000, left = off ? Math.round(sec * (data.length - off) / off) : 0;
+      fwShow(pc, `스틱에 보내는 중… ${(off / 1024) | 0} / ${(data.length / 1024) | 0} KB` + (left ? `<br>남은 시간 약 ${left >= 60 ? Math.ceil(left / 60) + '분' : left + '초'}` : '') + '<br><span style="color:#8a94a6">휴대폰을 가까이 두고 화면을 켜 두세요</span>');
+    }
+    // 5. finish: the stick checks the hash and signature, then restarts
+    fwShow(100, '스틱이 확인하는 중…');
+    p = fwNext(15000); await wrR(new Uint8Array([69])); st = await p;              // 'E'
+    while (st && st.state === 2) st = await fwNext(15000);
+    if (!st) {                                                                       // restarted before the answer arrived
+      end(`업데이트를 보냈습니다. 스틱이 다시 켜지면 버전을 확인하세요.`, true); return;
+    }
+    if (st.state !== 3) throw new Error(FW_ERR[st.err] || '실패 ' + st.err);
+    end(`✅ 업데이트 완료 (${esc(fwLatest.ver)})<br>스틱이 다시 켜지고 자동으로 다시 연결됩니다.`, true);
+  } catch (e) {
+    end('❌ ' + esc(e.message || String(e)), false);
+  }
 }
 
 // ---------------------------------------------------------------- data
