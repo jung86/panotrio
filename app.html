@@ -90,6 +90,9 @@
   .condRows { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:14px; margin-top:10px; font-variant-numeric:tabular-nums; }
   .condRows .k { color:var(--mute); }
   .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
+  .prow { display:flex; gap:6px; align-items:center; margin:8px 0 2px; }
+  .prow select { flex:1; min-width:0; font:600 15px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  .prow button { padding:8px 11px; font-size:15px; white-space:nowrap; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -294,6 +297,7 @@
   </div>
   <div class="card">
     <div class="ttl">클리닝 설정</div>
+    <div class="prow" style="margin-top:0;margin-bottom:10px"><select id="cPre" aria-label="클리닝 프리셋"></select><button id="cPreSave">💾 저장</button><button id="cPreDel" aria-label="프리셋 삭제">🗑</button></div>
     <div class="cgrid">
       <label>최소 전압 (V)<span class="nstep"><button class="stp" data-for="cMin" data-d="-1" aria-label="줄이기">−</button><input id="cMin" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMin" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>최대 전압 (V)<span class="nstep"><button class="stp" data-for="cMax" data-d="-1" aria-label="줄이기">−</button><input id="cMax" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMax" data-d="1" aria-label="늘리기">+</button></span></label>
@@ -451,6 +455,7 @@
   <div class="card" id="psuCard">
     <div class="psuHead"><div class="ttl">⚡ 전원공급기 · 정역</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
     <div id="psuBody">
+      <div class="prow"><select id="psuPre" aria-label="전원 프리셋"></select><button id="psuPreSave">💾 저장</button><button id="psuPreDel" aria-label="프리셋 삭제">🗑</button></div>
       <div class="dpsLive" style="margin-top:8px">
         <div><span id="pV">-.--</span><small>V</small></div>
         <div><span id="pA">-.---</span><small>A</small></div>
@@ -1129,7 +1134,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-24e';
+const APP_BUILD = '2026-11-24f';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1756,6 +1761,45 @@ function condRender(force) {
 }
 function condSnapshot() { const c = condLast; return c && c.hasBase ? { cond: c.score } : {}; }
 condRender(true);
+
+// ---------------------------------------------------------------- presets (named settings, kept on this phone)
+function presetBox(key, sel, label, read, apply, busy) {
+  const load = () => { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } };
+  const store = o => { try { localStorage.setItem(key, JSON.stringify(o)); } catch (e) {} };
+  const fill = pick => {
+    const o = load(), names = Object.keys(o).sort((a, b) => a.localeCompare(b, 'ko'));
+    $(sel).innerHTML = `<option value="">${label} (${names.length})</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    $(sel).value = pick && o[pick] ? pick : '';
+  };
+  $(sel).onchange = () => {
+    const n = $(sel).value; if (!n) return;
+    if (busy()) { notify('실행 중에는 프리셋을 바꿀 수 없습니다', false); fill(''); return; }
+    const v = load()[n]; if (v) { apply(v); notify('불러옴: ' + n, true); }
+  };
+  $(sel + 'Save').onclick = () => {
+    const v = read(); if (!v) return;
+    const n = (prompt('프리셋 이름 (같은 이름이면 덮어씁니다)', $(sel).value || '') || '').trim().slice(0, 30);
+    if (!n) return;
+    const o = load(); o[n] = v; store(o); fill(n); notify('✓ 저장했습니다: ' + n, true);
+  };
+  $(sel + 'Del').onclick = () => {
+    const n = $(sel).value; if (!n) { notify('지울 프리셋을 먼저 고르세요', false); return; }
+    if (!confirm(`프리셋 "${n}"을(를) 지울까요?`)) return;
+    const o = load(); delete o[n]; store(o); fill(''); notify('지웠습니다', true);
+  };
+  fill('');
+}
+presetBox('panocheck-psu-presets', 'psuPre', '전원 프리셋',
+  () => { const s = psuRead(); if (!s) return null; if (stickDir !== null) s.dir = stickDir; return s; },
+  v => {
+    $('psuV').value = v.v; $('psuA').value = v.a; psuApply();
+    if (v.dir !== undefined && relayReady() && stickDir !== v.dir) psuDir(v.dir);
+  },
+  () => cl.run || cl.busy || psuBusy);
+presetBox('panocheck-clean-presets', 'cPre', '클리닝 프리셋',
+  () => cleanRead(),
+  v => { $('cMin').value = v.min; $('cMax').value = v.max; $('cAmp').value = v.amp; $('cPer').value = v.per; $('cRep').value = v.rep; $('cDir').value = v.dir; $('cMsg').textContent = ''; cleanRead(); },
+  () => cl.run || cl.busy);
 </script>
 </body>
 </html>
