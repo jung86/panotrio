@@ -1387,7 +1387,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26a';
+const APP_BUILD = '2026-11-26b';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1999,7 +1999,7 @@ function setCleanMode(m) {                          // one page, two jobs: 모�
 function cleanLoad() {
   if (pageMode === 'break') { breakFill(breakStored()); return; }
   let s = {}; try { s = JSON.parse(localStorage.getItem(CLEAN_KEY) || '{}'); } catch (e) {}
-  const d = { min: 1.5, max: 3.0, amp: 1.0, per: 20, rep: 5, dir: 'fwd' };
+  const d = { min: 1.5, max: 3.0, amp: 3.0, per: 20, rep: 5, dir: 'fwd' };
   for (const k in d) if (s[k] === undefined) s[k] = d[k];
   $('cMin').value = s.min; $('cMax').value = s.max; $('cAmp').value = s.amp; $('cPer').value = s.per; $('cRep').value = s.rep; $('cDir').value = s.dir;
 }
@@ -2098,7 +2098,7 @@ async function cleanStop(msg, good) {
 }
 function cleanOnStickLost() { if ((cl.run || cl.busy) && (cl.needRelay || cl.mode === 'break')) cleanStop('스틱 연결이 끊겨 정지했습니다'); cleanRender(); }
 // ---- 모터길들이기 settings: the user's list of stages (voltage, direction, min/sec), then measure, then rest
-function breakDefault() { return { tgtOn: true, target: 360, chk: 3.0, rep: 20, amp: 1.0, stages: [{ v: 2.0, sec: 120, dir: 'fwd', cool: 0 }], rest: 15 }; }
+function breakDefault() { return { tgtOn: true, target: 360, chk: 3.0, rep: 20, amp: 3.0, stages: [{ v: 2.0, sec: 120, dir: 'fwd', cool: 0 }], rest: 15 }; }
 function breakStored() {
   let o = null; try { o = JSON.parse(localStorage.getItem(BREAK_KEY) || 'null'); } catch (e) {}
   return breakNorm(o);
@@ -2377,7 +2377,7 @@ cleanLoad(); dpsRender(); cleanRender();
 // ---------------------------------------------------------------- 파노측정: power supply card (fixed voltage, current limit, direction)
 const PSU_KEY = 'panocheck-psu';
 var psuBusy = false;                                 // var: psuRender can run before this line (clean module init)
-(() => { let s = {}; try { s = JSON.parse(localStorage.getItem(PSU_KEY) || '{}'); } catch (e) {} $('psuV').value = s.v !== undefined ? s.v : 3.0; $('psuA').value = s.a !== undefined ? s.a : 1.0; })();
+(() => { let s = {}; try { s = JSON.parse(localStorage.getItem(PSU_KEY) || '{}'); } catch (e) {} $('psuV').value = s.v !== undefined ? s.v : 3.0; $('psuA').value = s.a !== undefined ? s.a : 3.0; })();
 function psuRead() {
   const v = +$('psuV').value, a = +$('psuA').value;
   if (!(v >= 0 && v <= 12)) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">전압은 0~12 V 사이로 넣어 주세요.</b>'; return null; }
