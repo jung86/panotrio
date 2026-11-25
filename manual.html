@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>파노체크 설명서</title>
+<meta name="description" content="파노체크 앱과 스틱 사용 설명서 (그림)">
+<meta name="theme-color" content="#12151b">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --bg:#12151b; --card:#1b2029; --ink:#e8ebf1; --mute:#9aa3b5; --line:#2b3240; --acc:#e8590c; --ok:#40c057; --mid:#fcc419; --bad:#ff6b6b; --blue:#74c0fc; --tip:#2b2016; }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif; }
+  .top { position:sticky; top:0; z-index:5; background:rgba(18,21,27,.94); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); }
+  .top .in { max-width:640px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+  .back { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:10px; font-size:22px; width:42px; height:42px; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+  .top h1 { font-size:20px; margin:0; flex:1; }
+  main { max-width:640px; margin:0 auto; padding:14px 14px 60px; }
+  .toc { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 8px; }
+  .toc a { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 11px; color:var(--ink); text-decoration:none; font-size:14px; font-weight:700; }
+  .toc a.key { background:var(--acc); border-color:var(--acc); color:#fff; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 16px; margin:14px 0; scroll-margin-top:70px; }
+  section.key { border:2px solid var(--acc); }
+  h2 { font-size:20px; margin:0 0 8px; }
+  h3 { font-size:16px; margin:16px 0 4px; }
+  p { margin:6px 0; }
+  ul, ol { margin:6px 0; padding-left:20px; }
+  li { margin:3px 0; }
+  .shot { display:block; margin:12px auto 4px; max-width:100%; border-radius:12px; border:1px solid var(--line); }
+  .shot.half { max-width:min(100%, 330px); }
+  .cap { text-align:center; color:var(--mute); font-size:13px; margin:0 0 8px; }
+  .tip { background:var(--tip); border-radius:10px; padding:10px 12px; font-size:14px; margin:10px 0 4px; }
+  .warn { color:var(--bad); font-weight:700; }
+  .mute { color:var(--mute); font-size:14px; }
+  svg.dia { display:block; width:100%; height:auto; margin:10px 0 4px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:6px; }
+  td, th { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; }
+  .chip { display:inline-block; padding:1px 8px; border-radius:6px; font-weight:800; font-size:13px; color:#111; }
+  .g { background:var(--ok); } .y { background:var(--mid); } .r { background:var(--bad); } .o { background:#ff922b; } .c { background:#3bc9db; }
+  .steps { list-style:none; counter-reset:s; padding:0; }
+  .steps > li { counter-increment:s; position:relative; padding:0 0 10px 38px; }
+  .steps > li::before { content:counter(s); position:absolute; left:0; top:1px; width:26px; height:26px; border-radius:50%; background:var(--acc); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .flow { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin:6px 0; }
+  .flow div { border-radius:10px; padding:8px 6px; text-align:center; font-weight:800; font-size:14px; color:#fff; line-height:1.3; position:relative; }
+  .flow small { display:block; font-weight:600; font-size:11px; opacity:.85; }
+  .foot { text-align:center; color:var(--mute); font-size:13px; }
+  .foot a { color:var(--blue); }
+</style>
+</head>
+<body>
+<div class="top"><div class="in">
+  <a class="back" id="back" href="app.html#home" aria-label="앱으로">‹</a>
+  <h1>📖 파노체크 설명서</h1>
+</div></div>
+<main>
+  <div class="toc">
+    <a href="#s-setup">준비·연결</a><a class="key" href="#s-rule">★ 작동 기준</a><a href="#s-home">홈 화면</a><a href="#s-measure">파노측정</a>
+    <a href="#s-psu">전원공급기</a><a href="#s-cond">컨디션 점수</a><a href="#s-rec">기록</a><a href="#s-clean">모터클리닝</a>
+    <a href="#s-break">모터길들이기</a><a href="#s-set">설정</a><a href="#s-up">업데이트·활성화</a><a href="#s-ios">아이폰</a><a href="#s-faq">문제 해결</a>
+  </div>
+
+  <!-- ===================================================== setup -->
+  <section id="s-setup">
+    <h2>1. 준비와 연결</h2>
+    <svg class="dia" viewBox="0 0 360 400" role="img" aria-label="연결 구성도" style="max-width:420px;margin:10px auto 4px">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#9aa3b5"/></marker></defs>
+      <rect x="10" y="10" width="140" height="64" rx="12" fill="#232a36" stroke="#3a4352"/>
+      <text x="80" y="38" fill="#e8ebf1" font-size="17" font-weight="700" text-anchor="middle">PD 충전기</text>
+      <text x="80" y="60" fill="#9aa3b5" font-size="14" text-anchor="middle">65W · 20V</text>
+      <line x1="150" y1="42" x2="198" y2="42" stroke="#9aa3b5" stroke-width="3" marker-end="url(#ar)"/>
+      <rect x="200" y="6" width="150" height="76" rx="12" fill="#232a36" stroke="#e8590c" stroke-width="2"/>
+      <text x="275" y="36" fill="#e8ebf1" font-size="18" font-weight="800" text-anchor="middle">DPS-150</text>
+      <text x="275" y="62" fill="#ffd8a8" font-size="15" text-anchor="middle">전원공급기</text>
+      <path d="M275 84 L275 170" stroke="#ff6b6b" stroke-width="3"/>
+      <text x="282" y="130" fill="#ff8787" font-size="14">모터 전선</text>
+      <rect x="180" y="170" width="120" height="56" rx="10" fill="#495057" stroke="#868e96"/>
+      <text x="240" y="205" fill="#fff" font-size="17" font-weight="800" text-anchor="middle">모터</text>
+      <rect x="304" y="150" width="46" height="84" rx="8" fill="#e8590c"/>
+      <rect x="311" y="160" width="32" height="34" rx="4" fill="#111"/>
+      <text x="327" y="182" fill="#51cf66" font-size="12" font-weight="800" text-anchor="middle">338</text>
+      <text x="327" y="220" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">스틱</text>
+      <rect x="160" y="226" width="196" height="40" rx="8" fill="#343a46"/>
+      <text x="258" y="252" fill="#e8ebf1" font-size="15" font-weight="700" text-anchor="middle">메인터넌스 (스틱 물림)</text>
+      <rect x="20" y="250" width="96" height="130" rx="16" fill="#232a36" stroke="#74c0fc" stroke-width="2"/>
+      <text x="68" y="310" fill="#e8ebf1" font-size="17" font-weight="800" text-anchor="middle">휴대폰</text>
+      <text x="68" y="334" fill="#9aa3b5" font-size="13" text-anchor="middle">파노체크 앱</text>
+      <path d="M68 248 L68 120 Q68 100 100 96 L198 70" fill="none" stroke="#9aa3b5" stroke-width="3" marker-end="url(#ar)"/>
+      <text x="76" y="150" fill="#9aa3b5" font-size="14">USB 데이터선</text>
+      <text x="76" y="170" fill="#9aa3b5" font-size="13">(C ↔ Micro)</text>
+      <path d="M118 330 C 220 340, 320 320, 327 238" fill="none" stroke="#74c0fc" stroke-width="3" stroke-dasharray="7 6"/>
+      <text x="230" y="356" fill="#74c0fc" font-size="15" font-weight="700" text-anchor="middle">블루투스</text>
+    </svg>
+    <p class="cap">스틱은 블루투스로, 전원공급기는 USB 데이터선으로 휴대폰에 연결합니다.</p>
+    <ol class="steps">
+      <li>휴대폰 <b>블루투스</b>와 <b>위치(GPS)</b>를 켭니다. 안드로이드는 위치가 꺼져 있으면 스틱을 못 찾습니다.</li>
+      <li>안드로이드는 <b>크롬</b>으로 엽니다. 삼성 인터넷·카톡 안 브라우저는 안 됩니다. 아이폰은 <a href="#s-ios" style="color:var(--blue)">Bluefy</a>.</li>
+      <li>스틱을 켜고 앱의 <b>[스틱 연결 (블루투스)]</b> → <b>파노체크-XXXXXXXX</b>를 고릅니다.</li>
+      <li>(선택) 전원공급기는 휴대폰 USB-C ↔ DPS-150 <b>Micro USB</b> 데이터선으로 잇고, 파노측정 화면의 <b>⚡ [연결]</b>을 누릅니다.</li>
+    </ol>
+  </section>
+
+  <!-- ===================================================== rule -->
+  <section id="s-rule" class="key">
+    <h2>2. ★ 작동 기준 (언제 측정되나요?)</h2>
+    <ol class="steps">
+      <li><b>스틱을 메인터넌스에 물립니다.</b> 모터 가까이, 흔들리지 않게 단단히 고정해야 진동이 정확히 전해집니다.</li>
+      <li><b>모터를 돌립니다.</b> 스틱이 <b>진동 감도</b>(기본 40 mg)보다 센 진동을 연속으로 느끼면 "모터가 돈다"고 인식합니다.</li>
+      <li><b>측정 대기 시간</b>(기본 2.5초) 동안 진동이 <b>계속</b> 충분히 있어야 측정을 시작합니다. 스틱 화면에 <b>MEASURING 2.5 s</b>처럼 남은 시간이 줄어듭니다.</li>
+      <li>대기 중 진동이 끊기면(약 1.5초) <b>처음으로 돌아가</b> 다시 기다립니다. 모터가 켜질 때의 흔들림은 재지 않으려는 것입니다.</li>
+      <li>측정이 끝나면 파노(Hz)가 나오고, 모터가 같은 속도로 도는 동안 계속 새로 잽니다.</li>
+      <li>모터가 멈추거나 속도가 바뀌면 <b>HOLD</b>: 마지막 값이 화면에 남습니다.</li>
+    </ol>
+    <svg class="dia" viewBox="0 0 640 110" role="img" aria-label="진동 그림" style="margin-bottom:0">
+      <line x1="0" y1="70" x2="640" y2="70" stroke="#3a4352"/>
+      <line x1="0" y1="40" x2="640" y2="40" stroke="#ff922b" stroke-dasharray="6 5" stroke-width="2"/>
+      <path d="M0 70 L100 68 L120 66 L130 70" stroke="#9aa3b5" fill="none" stroke-width="3"/>
+      <path id="vib" d="" stroke="#ff922b" fill="none" stroke-width="2.4"/>
+      <path d="M520 70 L640 70" stroke="#9aa3b5" fill="none" stroke-width="3"/>
+    </svg>
+    <div class="flow">
+      <div style="background:#343a46">대기<small>WAIT FOR MOTOR</small></div>
+      <div style="background:#3bc9db;color:#111">진동 인식<small>진동 감도 넘음</small></div>
+      <div style="background:#fcc419;color:#111">측정 대기 시간<small>MEASURING 2.5 s</small></div>
+      <div style="background:#e8590c">측정</div>
+      <div style="background:#2b8a3e">결과 · 계속 갱신<small>338.2 Hz</small></div>
+      <div style="background:#495057">HOLD<small>모터 멈춤 · 마지막 값</small></div>
+    </div>
+    <p class="cap">주황 점선 = 진동 감도. 노란 칸(대기 시간) 동안 진동이 끊기면 다시 "대기"로 돌아갑니다.</p>
+    <div class="tip">
+      <b>측정 대기 시간</b>은 설정에서 <b>0~5초</b>로 바꿀 수 있습니다. <b>0초</b>는 진동을 인식하자마자 바로 잽니다(스틱 펌웨어 2.6 이상). 모터가 처음 켜질 때 값이 튀면 대기 시간을 늘리세요.<br>
+      약한 진동에도 시작되면 <b>진동 감도</b> 숫자를 올리고(둔감), 모터가 돌아도 시작이 안 되면 내리세요(민감).
+    </div>
+  </section>
+
+  <!-- ===================================================== home -->
+  <section id="s-home">
+    <h2>3. 홈 화면</h2>
+    <img class="shot half" src="manual/home.jpg" alt="홈 화면" loading="lazy">
+    <ul>
+      <li><b>스틱 연결</b>: 맨 위 상태 표시가 "연결됨"으로 바뀝니다.</li>
+      <li><b>파노측정</b>: 파노·전원공급기·컨디션 점수·기록을 한 화면에서.</li>
+      <li><b>모터클리닝 / 모터길들이기</b>: 전원공급기로 자동 운전.</li>
+      <li><b>설정</b>: 스틱 밝기·감도·대기 시간·시계 등.</li>
+      <li><b>설명서</b>: 지금 이 페이지.</li>
+    </ul>
+    <p class="mute">새 펌웨어가 있으면 연결 버튼 아래에 파란 알림 상자가 나옵니다 (→ <a href="#s-up" style="color:var(--blue)">업데이트</a>).</p>
+  </section>
+
+  <!-- ===================================================== measure -->
+  <section id="s-measure">
+    <h2>4. 파노측정</h2>
+    <img class="shot" src="manual/m-big.jpg" alt="파노 큰 숫자" loading="lazy">
+    <p class="cap">큰 숫자 = 파노(Hz), 아래 = rpm, 진동·소리 값, 맨 아래 상태</p>
+    <table>
+      <tr><th>상태</th><th>뜻</th></tr>
+      <tr><td><span class="chip g">MATCH</span></td><td>진동과 소리 값이 맞음. 가장 믿을 만한 값</td></tr>
+      <tr><td><span class="chip g">VIB OK</span> <span class="chip g">MIC OK</span></td><td>진동만 / 소리만 모드에서 잘 잡힘</td></tr>
+      <tr><td><span class="chip y">CLOSE</span> <span class="chip y">MATCH?</span></td><td>비슷하지만 조금 다름. 한 번 더 확인</td></tr>
+      <tr><td><span class="chip y">MIC WEAK</span></td><td>소리가 약함. 스틱을 모터 가까이</td></tr>
+      <tr><td><span class="chip o">VIB ONLY</span></td><td>소리는 못 잡고 진동만으로 낸 값</td></tr>
+    </table>
+    <img class="shot" src="manual/m-mode.jpg" alt="모드와 범위" loading="lazy">
+    <ul>
+      <li><b>모드</b>: 진동 / 소리 / <b>진동+소리</b>(추천).</li>
+      <li><b>범위</b>: <b>AUTO</b> 250~700 Hz(보통 모터), <b>LOW</b> 40~260 Hz(느린 모터), <b>WIDE</b> 40~700 Hz.</li>
+      <li><b>↺ 측정 초기화</b>: 지난 결과를 지우고 다시 대기.</li>
+    </ul>
+    <img class="shot" src="manual/m-chart.jpg" alt="최근 60초 그래프" loading="lazy">
+    <p class="cap">최근 60초 그래프: 흰색 파노, 주황 진동, 하늘색 소리. 선이 평평할수록 모터가 고르게 돕니다.</p>
+  </section>
+
+  <!-- ===================================================== psu -->
+  <section id="s-psu">
+    <h2>5. ⚡ 전원공급기 · 정역</h2>
+    <img class="shot half" src="manual/m-psu.jpg" alt="전원공급기 카드" loading="lazy">
+    <ul>
+      <li><b>[연결]</b> → DPS-150을 고릅니다. 한 번 허락하면 다음부터 저절로 연결됩니다.</li>
+      <li>위 숫자는 지금 실제 전압·전류·전력입니다.</li>
+      <li><b>전압</b>(0~12 V)과 <b>전류 제한</b>(0.1~5 A)을 −/+로 정합니다.</li>
+      <li>큰 <b>[정방향] [역방향]</b> 버튼으로 방향을 고르고 <b>[출력 켜기]</b>.</li>
+      <li><b>💾 저장</b>: 자주 쓰는 전압·전류를 프리셋으로.</li>
+    </ul>
+    <div class="tip">역방향은 스틱 Grove 단자에 <b>릴레이 보드</b>를 달고, 설정에서 <b>"릴레이 연결됨"</b>을 켜야 쓸 수 있습니다. 모터가 안 돌면 전류 제한을 올리세요(작은 모터도 1 A 넘게 필요할 수 있음).</div>
+  </section>
+
+  <!-- ===================================================== condition -->
+  <section id="s-cond">
+    <h2>6. 🩺 모터 컨디션 점수</h2>
+    <img class="shot" src="manual/m-cond.jpg" alt="모터 컨디션 카드" loading="lazy">
+    <ul>
+      <li>모터가 돌면 앱이 바로 <b>100점 만점</b> 점수를 냅니다.
+        <span class="chip g">85↑ 좋음</span> <span class="chip y">65↑ 보통</span> <span class="chip r">그 아래 점검 필요</span></li>
+      <li>전원공급기가 켜져 있으면 <b>전류·전압당 회전</b>까지, 없으면 <b>파노 흔들림</b>만으로 봅니다.</li>
+      <li><b>⏱ 컨디션 측정</b>: <b>일반 / 청소 전 / 청소 후</b>를 고르고, 시간(15·30·60초·2분)을 정해 <b>[▶ 측정 시작]</b>. 같은 전압으로 돌려 정확한 점수를 냅니다.</li>
+      <li>청소 전·후를 둘 다 재면 <b>🧽 비교 표</b>가 나옵니다 (점수, 전류, 회전, 흔들림).</li>
+      <li><span class="chip o">전원 불안정</span> 전압 흔들림·전류 제한(CC)·보호 동작이 있으면 점수를 내지 않습니다. <span class="chip o">측정 불안정</span> 파노가 튀면 스틱을 다시 단단히 물리세요.</li>
+    </ul>
+    <h3>스틱 화면 (펌웨어 2.6)</h3>
+    <svg class="dia" viewBox="0 0 380 150" role="img" aria-label="스틱 화면에 점수와 파노가 번갈아 표시" style="max-width:460px;margin:10px auto 4px">
+      <rect x="4" y="6" width="150" height="104" rx="12" fill="#000" stroke="#495057" stroke-width="3"/>
+      <text x="79" y="30" fill="#9aa3b5" font-size="14" text-anchor="middle">HOLD</text>
+      <text x="66" y="84" fill="#40c057" font-size="46" font-weight="800" text-anchor="middle">92</text>
+      <text x="124" y="84" fill="#40c057" font-size="18" font-weight="800" text-anchor="middle">PT</text>
+      <text x="79" y="138" fill="#e8ebf1" font-size="15" text-anchor="middle">점수 (등급 색)</text>
+      <text x="190" y="44" fill="#e8590c" font-size="14" font-weight="800" text-anchor="middle">2.5초</text>
+      <path d="M166 58 L212 58" stroke="#e8590c" stroke-width="3"/><path d="M205 51 L214 58 L205 65" fill="none" stroke="#e8590c" stroke-width="3"/>
+      <path d="M214 74 L168 74" stroke="#e8590c" stroke-width="3"/><path d="M175 67 L166 74 L175 81" fill="none" stroke="#e8590c" stroke-width="3"/>
+      <rect x="226" y="6" width="150" height="104" rx="12" fill="#000" stroke="#495057" stroke-width="3"/>
+      <text x="301" y="30" fill="#9aa3b5" font-size="14" text-anchor="middle">HOLD</text>
+      <text x="290" y="82" fill="#fff" font-size="36" font-weight="800" text-anchor="middle">338.2</text>
+      <text x="356" y="82" fill="#fff" font-size="14" font-weight="700" text-anchor="middle">Hz</text>
+      <text x="301" y="138" fill="#e8ebf1" font-size="15" text-anchor="middle">파노</text>
+    </svg>
+    <p class="mute">측정이 끝나 HOLD가 되면 큰 숫자 자리에 <b>점수(PT)</b>와 <b>파노 Hz</b>가 2.5초씩 번갈아 나옵니다. 처음 1초는 파노. 측정 중에는 화면 위쪽에 <b>SCORE 92</b>처럼 작게 나옵니다.</p>
+  </section>
+
+  <!-- ===================================================== records -->
+  <section id="s-rec">
+    <h2>7. 기록</h2>
+    <img class="shot half" src="manual/m-recs.jpg" alt="기록" loading="lazy">
+    <ul>
+      <li><b>모터</b>를 고르면 그 모터 이름으로 저장됩니다. <b>✎</b>로 모터 추가·이름 바꾸기.</li>
+      <li>"확실한 결과가 나올 때마다 자동 기록"을 켜 두면 알아서 쌓입니다. <b>＋ 지금 값</b>은 손으로 저장.</li>
+      <li>기록마다 시간·rpm·전압·전류·방향과 <b>🩺 점수 칩</b>이 붙습니다. 메모를 눌러 글을 남길 수 있습니다.</li>
+      <li><b>CSV 저장</b>: 엑셀로 열 수 있는 파일로 내보냅니다 (점수·등급 열 포함).</li>
+    </ul>
+    <p class="mute">기록은 이 휴대폰에만 저장됩니다. 가끔 CSV로 백업하세요.</p>
+  </section>
+
+  <!-- ===================================================== clean -->
+  <section id="s-clean">
+    <h2>8. 모터클리닝</h2>
+    <img class="shot half" src="manual/clean.jpg" alt="모터클리닝 화면" loading="lazy">
+    <ul>
+      <li>맨 위에서 <b>전원공급기 연결 (USB)</b>.</li>
+      <li><b>최소 전압 → 최대 전압 → 최소</b>로 부드럽게 오르내리기를 <b>반복 횟수</b>만큼 합니다. <b>왕복 1회(초)</b>로 빠르기를 정합니다.</li>
+      <li><b>방향</b>: 정방향 / 역방향 / 번갈아 (역방향은 릴레이 필요).</li>
+      <li>화면 아래에서 시작·정지, 진행 상황과 파노를 봅니다. 설정은 💾 프리셋으로 저장.</li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== break-in -->
+  <section id="s-break">
+    <h2>9. 모터길들이기</h2>
+    <img class="shot half" src="manual/breakin.jpg" alt="모터길들이기 화면" loading="lazy">
+    <ul>
+      <li><b>구간</b>마다 전압, 방향(정/역/번갈아), 시간(분·초), 쿨링(분·초)을 정합니다. <b>+ 구간 추가</b>로 최대 10개.</li>
+      <li>한 사이클: 구간 1 → 쿨링 → 구간 2 → … → <b>파노 측정</b> → 사이클 뒤 쉬기.</li>
+      <li><b>🎯 목표 파노</b> 켜기: 목표에 닿으면 자동 정지 (최대 사이클은 안전 한도). 끄기: 정한 횟수만큼 반복.</li>
+      <li>사이클마다 잰 파노가 그래프로 쌓입니다. 구간 사이 전압은 1초에 걸쳐 부드럽게 바뀝니다.</li>
+    </ul>
+    <div class="tip">실행 중엔 DPS 보호(OVP/OCP)를 필요한 만큼만 걸고, 끝나면 원래 값으로 돌려놓습니다.</div>
+  </section>
+
+  <!-- ===================================================== settings -->
+  <section id="s-set">
+    <h2>10. 설정</h2>
+    <p>스틱을 연결하면 스틱에 저장된 설정을 불러옵니다. 바꾼 뒤 꼭 <b>[스틱에 저장]</b>을 누르세요.</p>
+    <img class="shot half" src="manual/set-wait.jpg" alt="측정 대기 시간 설정" loading="lazy">
+    <table>
+      <tr><th>항목</th><th>기본값</th><th>설명</th></tr>
+      <tr><td>화면 밝기</td><td>67%</td><td>스틱 화면 밝기</td></tr>
+      <tr><td>진동 감도</td><td>40 mg</td><td>이보다 센 진동을 모터로 봄</td></tr>
+      <tr><td>소리 감도</td><td>보통</td><td>소리 값이 안 잡히면 높음</td></tr>
+      <tr><td><b>측정 대기 시간</b></td><td><b>2.5초</b></td><td>진동 인식 뒤 기다리는 시간 (0~5초)</td></tr>
+      <tr><td>빨간 숫자 기준</td><td>550 Hz</td><td>넘으면 숫자가 빨갛게</td></tr>
+      <tr><td>대기 모드 진입</td><td>30초</td><td>모터가 없으면 대기 화면으로</td></tr>
+      <tr><td>자동 꺼짐</td><td>10분</td><td>배터리일 때 꺼짐</td></tr>
+    </table>
+    <img class="shot half" src="manual/set-clock.jpg" alt="대기 모드 시계 설정" loading="lazy">
+    <ul>
+      <li><b>🕒 대기 모드 시계</b>: 쉬는 동안 스틱에 시계만 나옵니다. 시간은 앱에 연결할 때 휴대폰에서 받아 옵니다. 12/24시간, 배터리일 때도 표시, 밝기.</li>
+      <li><b>블루투스 잠금</b>: 이 휴대폰에서만 바꿀 수 있게 잠급니다. 풀 땐 스틱 앞(A)·옆(B) 버튼을 함께 3초.</li>
+      <li><b>앱 설정</b>: 연결 알림 진동·소리, 화면 꺼짐 방지, 릴레이 연결됨.</li>
+      <li>헷갈리면 <b>[기본값으로 되돌리기]</b> → <b>[스틱에 저장]</b>.</li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== update -->
+  <section id="s-up">
+    <h2>11. 업데이트 · 활성화</h2>
+    <h3>처음 한 번: 활성화</h3>
+    <p>새 스틱은 잠겨 있습니다. 앱의 <b>[📨 활성화 요청 보내기]</b>로 제작자에게 카톡을 보내고, 답장으로 온 <b>활성화 링크</b>를 누른 뒤 스틱을 연결하면 끝납니다.</p>
+    <h3>스틱 펌웨어 (블루투스)</h3>
+    <ul>
+      <li>새 버전이 있으면 홈에 알림이 뜹니다 → <b>[업데이트]</b>.</li>
+      <li>배터리 25% 이상(USB에 꽂혀 있으면 상관없음). 끊겨도 90초 안에 다시 연결하면 이어받습니다.</li>
+      <li>PC 크롬에서 USB로도 설치할 수 있습니다: <a href="./" style="color:var(--blue)">펌웨어 설치 페이지</a>. 활성화는 그대로 유지됩니다.</li>
+    </ul>
+    <h3>앱</h3>
+    <p>앱을 완전히 닫았다 다시 열면 새 버전이 됩니다. 버전은 설정 맨 아래에 있습니다.</p>
+  </section>
+
+  <!-- ===================================================== iphone -->
+  <section id="s-ios">
+    <h2>12. 아이폰</h2>
+    <ul>
+      <li>무료 앱 <b>Bluefy</b>를 받아 그 안에서 <b>jung86.github.io/panotrio/app.html</b>을 엽니다.</li>
+      <li>된다: 스틱 연결, 파노측정, 기록, 설정, 활성화, 업데이트, 컨디션 점수(파노만으로).</li>
+      <li class="warn">안 된다: 전원공급기(DPS-150) USB 연결, 모터클리닝, 모터길들이기.</li>
+    </ul>
+    <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;background:var(--acc);color:#fff;font-weight:800;padding:10px 14px;border-radius:10px;text-decoration:none">Bluefy 받기</a>
+  </section>
+
+  <!-- ===================================================== faq -->
+  <section id="s-faq">
+    <h2>13. 문제 해결</h2>
+    <ul>
+      <li><b>스틱이 목록에 없어요</b>: 블루투스·위치 켜짐, 크롬(아이폰은 Bluefy)인지 확인. 다른 휴대폰에 연결돼 있으면 안 보입니다. 스틱을 껐다 켜기.</li>
+      <li><b>측정이 시작 안 돼요</b>: 스틱을 메인터넌스에 단단히 물렸는지, <b>진동 감도</b>를 낮춰(민감) 보세요. 대기 시간 동안 진동이 끊기면 다시 기다립니다.</li>
+      <li><b>값이 2배로 나와요</b>: 느린 모터는 범위를 <b>LOW</b>로.</li>
+      <li><b>점수가 안 나와요</b>: "전원 불안정"이면 전류 제한을 올리거나 전원을 확인, "측정 불안정"이면 스틱을 다시 물리고 재세요.</li>
+      <li><b>DPS-150이 안 보여요</b>: 충전 전용 선이 아닌 <b>데이터선</b>인지, DPS 전원이 켜졌는지 확인하고 다시 꽂기.</li>
+      <li><b>새 기능이 안 보여요</b>: 앱을 완전히 닫았다 다시 열기.</li>
+    </ul>
+  </section>
+
+  <p class="foot">설치 방법(안드로이드·아이폰)은 <a href="download.html">다운로드 페이지</a>에 있습니다.<br>설명서 2026-11-25</p>
+</main>
+<script>
+  (() => { let d = 'M130 70'; for (let x = 136, k = 0; x <= 514; x += 6, k++) d += ` L${x} ${k % 2 ? 98 : 14}`; d += ' L520 70'; const v = document.getElementById('vib'); if (v) v.setAttribute('d', d); })();
+  // back to the app: go back in history when we came from it, otherwise open it
+  document.getElementById('back').onclick = e => {
+    if (document.referrer && /app\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
+  };
+</script>
+</body>
+</html>

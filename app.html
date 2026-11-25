@@ -134,16 +134,6 @@
   .ppl .acts button { padding:7px 9px; font-size:13px; }
   .pst { font-size:12px; font-weight:800; border-radius:6px; padding:1px 6px; margin-left:6px; }
   .pst.ok { background:#2b8a3e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#1971c2; color:#fff; }
-  #manual { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
-  #manual.open { display:block; }
-  #manual .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
-  #manual .card { line-height:1.6; font-size:15px; }
-  #manual h2 { font-size:18px; margin:0 0 6px; color:var(--ink); }
-  #manual ol, #manual ul { margin:4px 0 0; padding-left:20px; }
-  #manual li { margin:3px 0; }
-  #manual .tip { background:rgba(232,89,12,.14); border-radius:10px; padding:8px 10px; font-size:14px; margin-top:8px; }
-  #manual .toc { display:flex; flex-wrap:wrap; gap:6px; }
-  #manual .toc a { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 11px; color:var(--ink); text-decoration:none; font-size:14px; font-weight:700; }
   .tile.wide { grid-column:1 / -1; flex-direction:row; justify-content:center; padding:16px 10px; gap:12px; }
   .tile.wide svg { width:40px; height:40px; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
@@ -302,7 +292,7 @@
         <path d="M8 14c8-3 16-3 24 3v36c-8-6-16-6-24-3z" stroke="#ffffff" stroke-width="4"/>
         <path d="M56 14c-8-3-16-3-24 3v36c8-6 16-6 24-3z" stroke="#e8590c" stroke-width="4"/>
       </svg>
-      <div style="text-align:left"><div class="tl">설명서</div><div class="ts">사용 방법 한눈에</div></div>
+      <div style="text-align:left"><div class="tl">설명서</div><div class="ts">그림으로 보는 사용 방법</div></div>
     </div>
   </div>
   <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
@@ -312,102 +302,6 @@
     <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
   </div>
   <a href="download.html" style="display:block;text-align:center;margin-top:10px;color:#74c0fc;font-weight:700;text-decoration:none">📥 다운로드 · 사용 설명서 (안드로이드 / 아이폰)</a>
-</div></div>
-<div id="manual"><div class="inner">
-  <header>
-    <div class="hdr-l"><button id="btnManBack" class="back" aria-label="메뉴로">‹</button><h1>📖 설명서</h1></div>
-  </header>
-  <div class="toc" style="margin:6px 0 4px">
-    <a href="#m1">연결</a><a href="#m2">측정</a><a href="#m3">전원공급기</a><a href="#m4">컨디션 점수</a><a href="#m5">클리닝·길들이기</a><a href="#m6">설정</a><a href="#m7">업데이트</a><a href="#m8">아이폰</a><a href="#m9">문제 해결</a>
-  </div>
-
-  <div class="card" id="m1"><h2>1. 처음 시작 · 스틱 연결</h2>
-    <ol>
-      <li>휴대폰 <b>블루투스</b>와 <b>위치(GPS)</b>를 켭니다. (안드로이드는 위치가 꺼져 있으면 스틱을 못 찾습니다)</li>
-      <li>안드로이드는 <b>크롬</b>으로 엽니다. 삼성 인터넷·카톡 안 브라우저는 안 됩니다.</li>
-      <li>스틱을 켜고 <b>[스틱 연결 (블루투스)]</b> → <b>파노체크-XXXXXXXX</b> 선택.</li>
-      <li><b>처음 한 번 활성화</b>: 새 스틱은 잠겨 있습니다. <b>[📨 활성화 요청 보내기]</b>로 제작자에게 보내고, 답장으로 온 링크를 누른 뒤 스틱을 연결하면 끝납니다.</li>
-    </ol>
-    <div class="tip">스틱은 휴대폰 한 대하고만 연결됩니다. 목록에 없으면 다른 휴대폰 앱을 닫거나 스틱을 껐다 켜세요. 앱 첫 화면의 <b>[📲 홈 화면에 앱 설치]</b>를 누르면 아이콘으로 바로 열립니다.</div>
-  </div>
-
-  <div class="card" id="m2"><h2>2. 파노측정</h2>
-    <ul>
-      <li>메뉴 <b>파노측정</b> → 스틱을 모터에 대거나(진동) 가까이 둡니다(소리).</li>
-      <li><b>모드</b>: 진동 / 소리 / 진동+소리. 진동+소리에서 두 값이 맞으면 <b>MATCH</b>.</li>
-      <li><b>범위</b>: AUTO(보통 모터) · LOW(느린 모터) · WIDE(넓게).</li>
-      <li>값이 안정되면 큰 숫자(Hz)와 rpm이 나오고, <b>기록</b>에 자동 저장됩니다. 모터별로 나눠 저장, 메모, <b>CSV 저장</b> 가능.</li>
-      <li><b>↺ 측정 초기화</b>를 누르면 다시 대기합니다.</li>
-    </ul>
-  </div>
-
-  <div class="card" id="m3"><h2>3. 전원공급기 (DPS-150)</h2>
-    <ul>
-      <li>휴대폰 USB-C ↔ DPS-150 <b>Micro USB(데이터선)</b> 연결. DPS 전원은 <b>PD 충전기</b>로 넣습니다.</li>
-      <li>파노측정의 <b>⚡ 전원공급기 [연결]</b> → DPS-150 선택. 한 번 허락하면 다음부터 저절로 연결됩니다.</li>
-      <li>전압·전류 제한을 정하고 큰 <b>[정방향] [역방향]</b> 버튼으로 방향을 고른 뒤 <b>[출력 켜기]</b>.</li>
-      <li>역방향은 스틱에 <b>릴레이 보드</b>를 달고 설정에서 <b>"릴레이 연결됨"</b>을 켜야 쓸 수 있습니다.</li>
-      <li>자주 쓰는 값은 💾 프리셋으로 저장하세요.</li>
-    </ul>
-  </div>
-
-  <div class="card" id="m4"><h2>4. 🩺 모터 컨디션 점수</h2>
-    <ul>
-      <li>모터를 돌리면 앱이 <b>100점 만점</b> 점수를 냅니다. <b style="color:#51cf66">85점↑ 좋음</b> · <b style="color:#fcc419">65점↑ 보통</b> · <b style="color:#ff6b6b">그 아래 점검 필요</b>.</li>
-      <li>전원공급기가 있으면 전압·전류·파노를 함께 보고, 없으면 파노 흔들림만으로 냅니다.</li>
-      <li><b>⏱ 컨디션 측정</b>: 일반 / 청소 전 / 청소 후를 고르고 시간(15·30·60초·2분)을 정해 누르면, 같은 전압으로 돌려 점수를 냅니다. 청소 전·후 비교 표가 나옵니다.</li>
-      <li>전압이 흔들리거나 전류 제한(CC)에 걸리면 <b>"전원 불안정"</b>으로 점수를 내지 않습니다.</li>
-      <li>점수는 <b>기록</b>과 <b>CSV</b>에도 남습니다.</li>
-      <li><b>스틱 화면</b>(펌웨어 2.6): 측정이 끝나면 큰 숫자 자리에 <b>점수(PT, 등급 색)</b>와 <b>파노 Hz</b>가 <b>2.5초씩 번갈아</b> 나옵니다.</li>
-    </ul>
-  </div>
-
-  <div class="card" id="m5"><h2>5. 모터클리닝 · 모터길들이기</h2>
-    <ul>
-      <li><b>모터클리닝</b>: 낮은 전압부터 목표 전압까지 부드럽게 올렸다 내리며 자동으로 돌립니다. 정·역 반복은 릴레이 필요.</li>
-      <li><b>모터길들이기</b>: 구간(전압·방향·시간·쿨링)을 최대 10개까지 넣고 사이클을 반복합니다. 사이클마다 파노를 재서 그래프로 보여 줍니다.</li>
-      <li><b>🎯 목표 파노</b>를 켜면 목표에 닿을 때 자동으로 멈춥니다. 끄면 정한 횟수만큼 반복합니다.</li>
-      <li>실행 중엔 DPS 보호(OVP/OCP)를 알맞게 걸고, 끝나면 원래 값으로 돌려놓습니다.</li>
-    </ul>
-  </div>
-
-  <div class="card" id="m6"><h2>6. 설정</h2>
-    <ul>
-      <li>스틱을 연결하면 스틱의 설정을 불러옵니다. 바꾼 뒤 꼭 <b>[스틱에 저장]</b>을 누르세요.</li>
-      <li>기본값: 밝기 67% · 진동 감도 40 mg · 소리 감도 보통 · <b>측정 대기 시간 2.5초</b> · 빨간 숫자 550 Hz · 대기 모드 30초 · 자동 꺼짐 10분.</li>
-      <li><b>측정 대기 시간</b>은 <b>0초</b>까지 줄일 수 있습니다(펌웨어 2.6 이상). 0초면 진동을 느끼자마자 바로 잽니다.</li>
-      <li><b>🕒 대기 모드 시계</b>: 쉬는 동안 스틱에 시계만 나옵니다. 시간은 앱에 연결할 때 휴대폰에서 받아 옵니다. 12/24시간, 배터리일 때도 표시, 밝기 선택.</li>
-      <li><b>블루투스 잠금</b>: 이 휴대폰에서만 바꿀 수 있게 잠급니다. 풀 땐 스틱 앞(A)·옆(B) 버튼을 함께 3초.</li>
-      <li>값이 헷갈리면 <b>[기본값으로 되돌리기]</b> → <b>[스틱에 저장]</b>.</li>
-    </ul>
-  </div>
-
-  <div class="card" id="m7"><h2>7. 업데이트</h2>
-    <ul>
-      <li><b>스틱 펌웨어</b>: 새 버전이 있으면 앱 첫 화면에 알림이 뜹니다. <b>[업데이트]</b>를 누르면 블루투스로 설치됩니다. 배터리 25% 이상(또는 USB 연결)이어야 하고, 끊겨도 다시 연결하면 이어받습니다.</li>
-      <li>PC 크롬에서 USB로 설치할 수도 있습니다: <b>jung86.github.io/panotrio</b>. 활성화는 그대로 유지됩니다.</li>
-      <li><b>앱</b>: 앱을 완전히 닫았다 다시 열면 새 버전이 됩니다. 버전은 설정 맨 아래에 나옵니다.</li>
-    </ul>
-  </div>
-
-  <div class="card" id="m8"><h2>8. 아이폰</h2>
-    <ul>
-      <li>아이폰은 무료 앱 <b>Bluefy</b> 안에서 이 주소를 엽니다: <b>jung86.github.io/panotrio/app.html</b></li>
-      <li>스틱 연결, 측정, 기록, 설정, 활성화, 컨디션 점수(파노만으로)는 됩니다.</li>
-      <li><b style="color:#ff6b6b">아이폰은 전원공급기(DPS-150) USB 연결이 안 됩니다.</b> 그래서 모터클리닝·길들이기도 안 됩니다.</li>
-    </ul>
-    <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;background:#e8590c;color:#fff;font-weight:800;padding:9px 12px;border-radius:10px;text-decoration:none">Bluefy 받기</a>
-  </div>
-
-  <div class="card" id="m9"><h2>9. 문제 해결</h2>
-    <ul>
-      <li><b>스틱이 안 보여요</b>: 블루투스·위치 켜짐, 크롬(아이폰은 Bluefy)인지, 다른 휴대폰에 연결돼 있지 않은지 확인. 스틱을 껐다 켜기.</li>
-      <li><b>자꾸 끊겨요</b>: 휴대폰과 스틱을 가까이 두세요. 끊기면 앱이 자동으로 다시 연결합니다.</li>
-      <li><b>DPS-150이 안 보여요</b>: 충전 전용 선이 아닌 <b>데이터선</b>인지, DPS 전원이 켜졌는지 확인하고 다시 꽂기.</li>
-      <li><b>점수가 안 나와요</b>: "전원 불안정"이면 전류 제한을 올리거나 전원을 확인하세요. "측정 불안정"이면 스틱을 모터에 단단히 대고 다시 재세요.</li>
-    </ul>
-    <a href="download.html" style="display:block;margin-top:10px;color:#74c0fc;font-weight:700;text-decoration:none">📥 다운로드 · 설치 안내 페이지 열기</a>
-  </div>
 </div></div>
 <div id="admin"><div class="inner">
   <header>
@@ -1163,12 +1057,11 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // ---------------------------------------------------------------- navigation: menu / 파노측정 / 설정 (phone back button works)
 function showView() {
   const v = (location.hash || '#home').slice(1);
-  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings' && v !== 'admin' && v !== 'manual' && v !== 'clean' && v !== 'breakin');
+  $('home').classList.toggle('show', v !== 'measure' && v !== 'settings' && v !== 'admin' && v !== 'clean' && v !== 'breakin');
   $('clean').classList.toggle('open', v === 'clean' || v === 'breakin');
   if (v === 'clean' || v === 'breakin') { setCleanMode(v === 'breakin' ? 'break' : 'clean'); cleanRender(); cleanHistRender(); }
   $('settings').classList.toggle('open', v === 'settings');
   $('admin').classList.toggle('open', v === 'admin');
-  $('manual').classList.toggle('open', v === 'manual');
   if (v === 'admin') adminShow();
   if (v === 'settings') renderSettings();
   if (v === 'measure' && cur) drawChart();
@@ -1181,9 +1074,8 @@ $('tileMeasure').onclick = () => go('measure');
 $('tileSettings').onclick = () => go('settings');
 $('tileClean').onclick = () => go('clean');
 $('tileBreakin').onclick = () => go('breakin');
-$('tileManual').onclick = () => go('manual');
-$('btnManBack').onclick = goHome;
-document.querySelectorAll('#manual .toc a').forEach(a => a.onclick = e => { e.preventDefault(); const t = document.getElementById(a.getAttribute('href').slice(1)); if (t) t.scrollIntoView({ behavior: 'smooth' }); });
+$('tileManual').onclick = () => { location.href = 'manual.html'; };
+if (location.hash === '#manual') history.replaceState(null, '', location.pathname + '#home');
 $('btnHome').onclick = goHome;
 $('btnClose').onclick = goHome;
 $('btnConnect2').onclick = () => { unlockAudio(); connect(); };
@@ -1495,7 +1387,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25z';
+const APP_BUILD = '2026-11-26a';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
