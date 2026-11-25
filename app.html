@@ -202,6 +202,7 @@
   .msum { font-size:13px; color:var(--mute); padding:4px 2px; min-height:18px; }
   .mtag { font-size:11px; color:#ffd8a8; background:#3a2a1a; border-radius:5px; padding:1px 5px; margin-right:4px; }
   .chip { font-size:11px; font-weight:700; color:#000; border-radius:6px; padding:2px 6px; background:var(--grey); white-space:nowrap; }
+  .chip.cchip { text-align:center; line-height:1.25; padding:3px 7px; margin-right:4px; } .chip.cchip b { font-size:15px; }
   #splash { position:fixed; inset:0; z-index:99; background:#111418; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
   #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
   #splash .name { font-size:34px; font-weight:800; letter-spacing:2px; }
@@ -1371,7 +1372,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25s';
+const APP_BUILD = '2026-11-25t';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1681,6 +1682,7 @@ function drawChart() {
   }
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function condBand(r) { return r.condBad ? ['전원 불안정', 'var(--orange)'] : r.cond === undefined ? null : r.cond >= 85 ? ['좋음', 'var(--green)'] : r.cond >= 65 ? ['보통', 'var(--yellow)'] : ['점검 필요', 'var(--red)']; }
 function recColor(st) { return /^MATCH\?/.test(st) ? 'var(--yellow)' : /^MATCH|^MIC OK|^VIB OK/.test(st) ? 'var(--green)' : /^CLOSE|^MIC WEAK/.test(st) ? 'var(--yellow)' : /^VIB ONLY/.test(st) ? 'var(--orange)' : /정회전|역회전/.test(st) ? 'var(--cyan)' : 'var(--grey)'; }
 function renderRecs() {
   const box = $('recs');
@@ -1697,11 +1699,11 @@ function renderRecs() {
   const p2 = n => String(n).padStart(2, '0');
   box.innerHTML = list.map(([r, i]) => {
     const d = new Date(r.t), tm = `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
-    const st = (r.status || '').split('  ')[0];
+    const st = (r.status || '').split('  ')[0], cb = condBand(r);
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
       <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
-      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}${r.cond !== undefined ? ` · 🩺${r.cond}점` : ''}</div></div>
-      ${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
+      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
+      ${cb ? `<span class="chip cchip" style="background:${cb[1]}">${r.condBad ? '⚠ 전원<br>불안정' : `🩺 <b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('');
 }
@@ -1721,9 +1723,9 @@ $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send
 $('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
 $('btnClear').onclick = () => { if (confirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
 $('btnCsv').onclick = () => {
-  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status', 'volt', 'amp', 'direction', 'condition']].concat(
+  const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status', 'volt', 'amp', 'direction', 'condition', 'condition_grade']].concat(
     recs.map(r => [new Date(r.t).toISOString(), r.motor || '', r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status,
-                   r.volt !== undefined ? r.volt : '', r.amp !== undefined ? r.amp : '', r.dir === undefined ? '' : r.dir ? 'reverse' : 'forward', r.cond !== undefined ? r.cond : '']));
+                   r.volt !== undefined ? r.volt : '', r.amp !== undefined ? r.amp : '', r.dir === undefined ? '' : r.dir ? 'reverse' : 'forward', r.cond !== undefined ? r.cond : '', (condBand(r) || [''])[0]]));
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -2575,6 +2577,10 @@ function ckFinish() {
   beep(r.unstable || g[2] === 2 ? [440, 330] : [880, 1320]);
   notify('컨디션 측정 끝: ' + (r.unstable ? '전원 불안정' : r.score + '점 ' + g[0]), !r.unstable && g[2] < 2);
   $('ckLive').textContent = '';
+  recs.unshift(Object.assign({ t: r.t, memo: '⏱ ' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
+    volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? { condBad: 1 } : { cond: r.score }));
+  if (recs.length > 500) recs.length = 500;
+  saveRecs(recs); renderRecs();
   ckShow(r); ckSendStick(r); ckRender();
 }
 async function ckSendStick(r) {                       // 'K' grade score hz*10 mA tag  (stick firmware 2.4+)
