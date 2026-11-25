@@ -1372,7 +1372,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25v';
+const APP_BUILD = '2026-11-25w';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1682,7 +1682,7 @@ function drawChart() {
   }
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-function condBand(r) { return r.condBad ? ['전원 불안정', 'var(--orange)'] : r.cond === undefined ? null : r.cond >= 85 ? ['좋음', 'var(--green)'] : r.cond >= 65 ? ['보통', 'var(--yellow)'] : ['점검 필요', 'var(--red)']; }
+function condBand(r) { return r.condBad ? [r.measBad ? '측정 불안정' : '전원 불안정', 'var(--orange)'] : r.cond === undefined ? null : r.cond >= 85 ? ['좋음', 'var(--green)'] : r.cond >= 65 ? ['보통', 'var(--yellow)'] : ['점검 필요', 'var(--red)']; }
 function recColor(st) { return /^MATCH\?/.test(st) ? 'var(--yellow)' : /^MATCH|^MIC OK|^VIB OK/.test(st) ? 'var(--green)' : /^CLOSE|^MIC WEAK/.test(st) ? 'var(--yellow)' : /^VIB ONLY/.test(st) ? 'var(--orange)' : /정회전|역회전/.test(st) ? 'var(--cyan)' : 'var(--grey)'; }
 function renderRecs() {
   const box = $('recs');
@@ -1703,7 +1703,7 @@ function renderRecs() {
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
       <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
       <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
-      ${cb ? `<span class="chip cchip" style="background:${cb[1]}">${r.condBad ? '⚠ 전원<br>불안정' : `🩺 <b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
+      ${cb ? `<span class="chip cchip" style="background:${cb[1]}">${r.condBad ? (r.measBad ? '⚠ 측정<br>불안정' : '⚠ 전원<br>불안정') : `🩺 <b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('');
 }
@@ -2455,7 +2455,10 @@ function condCompute() {
   const v = psu ? st.v : null, i = psu ? st.i : null, hz = cur.big, rpv = psu ? hz * 60 / v : null;
   const now = Date.now(), win = hist.filter(h => now - h.t < 5000 && h.big > 0).map(h => h.big);
   let cv = null;
-  if (win.length >= 6) { const m = win.reduce((a, b) => a + b, 0) / win.length; cv = Math.sqrt(win.reduce((a, b) => a + (b - m) ** 2, 0) / win.length) / m * 100; }
+  if (win.length >= 6) {                             // ignore a stray wrong line; too many strays = still measuring
+    const md = median(win), w = win.filter(x => Math.abs(x - md) <= md * 0.1);
+    if (w.length >= Math.max(6, win.length * 0.8)) { const m = w.reduce((a, b) => a + b, 0) / w.length; cv = Math.sqrt(w.reduce((a, b) => a + (b - m) ** 2, 0) / w.length) / m * 100; }
+  }
   const agree = cur.vib > 0 && cur.mic > 0 ? Math.abs(cur.vib - cur.mic) / Math.max(cur.vib, cur.mic) * 100 : null;
   const dir = stickDir;
   const base = psu && curMotor ? recs.filter(r => r.motor === curMotor && condSame(r, v) && (r.dir === undefined || dir === null || r.dir === dir)) : [];
@@ -2525,7 +2528,7 @@ var ck = ck || null, ckTag = 0, stickCnd = stickCnd || false;
 function ckLoad() { try { return JSON.parse(localStorage.getItem(CK_KEY) || '[]') || []; } catch (e) { return []; } }
 function ckSaveAll(a) { try { localStorage.setItem(CK_KEY, JSON.stringify(a.slice(0, 300))); } catch (e) {} }
 function ckStats(a) { const n = a.length, m = a.reduce((x, y) => x + y, 0) / n; return { n, m, sd: Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / n), lo: Math.min(...a), hi: Math.max(...a) }; }
-function ckGrade(r) { return r.unstable ? ['전원 불안정', 'var(--orange)', 3] : r.score >= 85 ? ['좋음', 'var(--green)', 0] : r.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
+function ckGrade(r) { return r.unstable ? [r.measBad ? '측정 불안정' : '전원 불안정', 'var(--orange)', 3] : r.score >= 85 ? ['좋음', 'var(--green)', 0] : r.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
 function ckWhyNot() {
   const st = dps.st || {};
   if (!dps.link) return '먼저 전원공급기를 연결하세요.';
@@ -2562,7 +2565,11 @@ function ckFinish() {
   const c = ck; clearInterval(c.timer); ck = null;
   if (c.v.length < 8 || c.hz.length < 6) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">값이 충분히 들어오지 않았습니다 (전압 ' + c.v.length + '개, 파노 ' + c.hz.length + '개). 스틱 위치를 확인하고 다시 해 주세요.</b>'; ckRender(); return; }
   // drop the first fifth of pano values (the stick settles after the start)
-  const hz = c.hz.slice(Math.floor(c.hz.length / 5)), V = ckStats(c.v), I = ckStats(c.i), H = ckStats(hz);
+  // the stick sometimes locks onto a wrong line (2x harmonic at low speed): keep values near the median,
+  // and when too many fall outside, call it a measuring problem instead of taking points off the motor
+  const hzAll = c.hz.slice(Math.floor(c.hz.length / 5)), hzMed = median(hzAll), hzIn = hzAll.filter(x => Math.abs(x - hzMed) <= hzMed * 0.1);
+  const measBad = hzIn.length < Math.max(6, hzAll.length * 0.8);
+  const hz = measBad ? hzAll : hzIn, V = ckStats(c.v), I = ckStats(c.i), H = ckStats(hz);
   const third = Math.max(1, Math.floor(hz.length / 3)), h1 = ckStats(hz.slice(0, third)).m, h3 = ckStats(hz.slice(-third)).m;
   const r = { t: Date.now(), motor: c.motor, tag: c.tag, dur: c.dur, dir: c.dir,
     v: +V.m.toFixed(3), vr: +(V.hi - V.lo).toFixed(3), i: +I.m.toFixed(4), icv: I.m > 0.005 ? +(I.sd / I.m * 100).toFixed(2) : 0,
@@ -2572,6 +2579,7 @@ function ckFinish() {
   if (r.vr > Math.max(0.06, r.v * 0.02)) why.push(`전압이 ${r.vr.toFixed(2)} V 흔들림`);
   if (c.cc > c.n * 0.1) why.push('전류 제한(CC)에 걸림');
   if (c.prot) why.push(c.prot + ' 보호 동작');
+  if (measBad && !why.length) { r.measBad = 1; why.push('파노가 서로 다른 값 사이를 오감 (스틱 위치·모드를 확인)'); }
   r.unstable = why.length > 0; r.uw = why.join(', ');
   const all = ckLoad();
   const base = all.filter(b => !b.unstable && b.motor === r.motor && Math.abs(b.v - r.v) <= Math.max(0.2, r.v * 0.05) && (b.dir === undefined || b.dir === null || r.dir === null || b.dir === r.dir)).slice(0, 5);
@@ -2580,9 +2588,9 @@ function ckFinish() {
   if (!r.unstable) {
     let s = 100; const pts = [];
     const cut = (cond, n, why) => { if (cond && n > 0.5) { s -= n; pts.push([why, Math.round(n)]); } };
-    cut(r.hcv > 0.5, Math.min(30, (r.hcv - 0.5) * 12), '파노 흔들림');
-    cut(Math.abs(r.drift) > 1, Math.min(15, (Math.abs(r.drift) - 1) * 5), r.drift > 0 ? '파노가 계속 오름 (아직 길드는 중)' : '파노가 계속 내려감');
-    cut(r.icv > 3, Math.min(20, (r.icv - 3) * 2), '전류 출렁임 (브러시·정류자)');
+    cut(r.hcv > 1.0, Math.min(30, (r.hcv - 1.0) * 12), '파노 흔들림');     // limits from the 2026-11-25 bench run
+    cut(Math.abs(r.drift) > 2, Math.min(15, (Math.abs(r.drift) - 2) * 5), r.drift > 0 ? '파노가 계속 오름 (아직 길드는 중)' : '파노가 계속 내려감');
+    cut(r.icv > 4, Math.min(20, (r.icv - 4) * 2), '전류 출렁임 (브러시·정류자)');
     cut(r.dI !== null && r.dI !== undefined && r.dI > 5, Math.min(30, (r.dI - 5) * 1.5), '전류가 평소보다 높음 (뻑뻑함)');
     cut(r.dR !== undefined && r.dR < -3, Math.min(30, (-r.dR - 3) * 2), '회전이 평소보다 느림');
     r.score = Math.max(0, Math.round(s)); r.pts = pts;
@@ -2590,10 +2598,10 @@ function ckFinish() {
   all.unshift(r); ckSaveAll(all);
   const g = ckGrade(r);
   beep(r.unstable || g[2] === 2 ? [440, 330] : [880, 1320]);
-  notify('컨디션 측정 끝: ' + (r.unstable ? '전원 불안정' : r.score + '점 ' + g[0]), !r.unstable && g[2] < 2);
+  notify('컨디션 측정 끝: ' + (r.unstable ? g[0] : r.score + '점 ' + g[0]), !r.unstable && g[2] < 2);
   $('ckLive').textContent = '';
   recs.unshift(Object.assign({ t: r.t, memo: '⏱ ' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
-    volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? { condBad: 1 } : { cond: r.score }));
+    volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? (r.measBad ? { condBad: 1, measBad: 1 } : { condBad: 1 }) : { cond: r.score }));
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs();
   ckShow(r); ckSendStick(r); ckRender();
@@ -2613,7 +2621,8 @@ function ckShow(r) {
     ['전류', `${r.i.toFixed(3)} A · 출렁임 ±${r.icv.toFixed(1)}%` + pct(r.dI, true)],
     ['전압당 회전', `${Math.round(r.rpv).toLocaleString()} rpm/V` + pct(r.dR, false)]
   ];
-  const note = r.unstable ? `전원 불안정: ${esc(r.uw)}. 이번 측정은 점수와 비교에서 뺐습니다. 전류 제한을 올리거나 전원을 확인하고 다시 해 주세요.`
+  const note = r.measBad ? `측정 불안정: ${esc(r.uw)}. 모터 탓이 아니라 측정 문제라 점수와 비교에서 뺐습니다. 스틱을 모터에 단단히 대고 다시 해 주세요.`
+    : r.unstable ? `전원 불안정: ${esc(r.uw)}. 이번 측정은 점수와 비교에서 뺐습니다. 전류 제한을 올리거나 전원을 확인하고 다시 해 주세요.`
     : (r.pts.length ? '감점: ' + r.pts.map(p => `${p[0]} −${p[1]}`).join(', ') : '감점 없음') + (r.bN ? ` · 이전 측정 ${r.bN}개와 비교` : ' · 이전 측정이 없어 이번 값이 기준이 됩니다');
   $('ckRes').innerHTML = `<div class="ckRes"><div class="condScore">${r.unstable ? '--' : r.score + '<small>/100</small>'}</div><div><span class="condGrade" style="background:${g[1]}">${g[0]}</span> <span class="help">${esc(CK_TAGS[r.tag])} · ${r.dur}초${r.motor ? ' · ' + esc(r.motor) : ''}</span>` +
     `<div class="help" style="margin-top:4px">${note}${stickCnd ? ' · 스틱 화면에도 보냈습니다' : ''}</div></div></div>` +
