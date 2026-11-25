@@ -604,8 +604,8 @@
     <div class="ckBox">
       <div class="ttl" style="margin:0">⏱ 컨디션 측정 <small style="color:var(--mute);font-weight:600">같은 전압으로 일정 시간 돌려서 점수 내기</small></div>
       <div class="seg" id="ckTag"><button data-t="0" class="sel2">일반</button><button data-t="1">청소 전</button><button data-t="2">청소 후</button></div>
-      <div class="prow" style="margin-top:6px"><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select><button id="btnCk" class="primary">▶ 측정 시작</button></div>
-      <label class="auto" style="margin-top:6px"><input type="checkbox" id="ckAutoOn" checked> 모터가 돌기 시작하면 자동으로 측정 (출력 켜고 3초 뒤)</label>
+      <div class="prow" style="margin-top:6px"><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select></div>
+      <div class="help" style="margin-top:6px">전원공급기 출력을 켜면 3초 뒤 자동으로 잽니다. 다시 재려면 출력을 껐다 켜세요.</div>
       <div id="ckLive" class="help" style="margin-top:6px"></div>
       <div id="ckRes"></div>
       <div id="ckCmp"></div>
@@ -1450,7 +1450,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26g';
+const APP_BUILD = '2026-11-26h';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2743,9 +2743,7 @@ function ckCompare(r) {                               // latest 청소 전 vs th
     tr('전류 출렁임', bef.icv, aft.icv, x => '±' + x.toFixed(1) + '%', cell(aft.icv - bef.icv, false)) + '</table>';
 }
 function ckRender() {
-  if (!$('btnCk')) return;
-  $('btnCk').textContent = ck ? '■ 멈추기' : '▶ 측정 시작';
-  $('btnCk').classList.toggle('primary', !ck);
+  if (!$('ckDur')) return;
   $('ckDur').disabled = !!ck;
   [...$('ckTag').children].forEach(b => { b.classList.toggle('sel2', +b.dataset.t === ckTag); b.disabled = !!ck; });
   if (ck) {
@@ -2753,14 +2751,11 @@ function ckRender() {
     $('ckLive').innerHTML = `측정 중… ${left}초 남음 · ${(+st.v || 0).toFixed(2)} V ${(+st.i || 0).toFixed(3)} A · 파노 ${ck.hz.length}개${st.cc ? ' · <b style="color:#ffd43b">CC</b>' : ''}<div class="ckBar"><i style="width:${Math.min(100, el / ck.dur * 100)}%"></i></div>`;
   }
 }
-$('btnCk').onclick = ckStart;
 $('ckTag').onclick = e => { const b = e.target.closest('button'); if (b && !ck) { ckTag = +b.dataset.t; ckRender(); } };
 function ckShowLast() { if (ck) return; const last = ckLoad().find(b => b.motor === curMotor); if (last) ckShow(last); else { $('ckRes').innerHTML = ''; $('ckCmp').innerHTML = ''; } }
 // auto start: once per motor run (output ON). Waits 3 s for the motor to settle and for pano to come in.
 var ckArm = ckArm || { on: false, t: 0, done: false };
-var ckAutoOn = (() => { try { return localStorage.getItem('panocheck-ckauto') !== '0'; } catch (e) { return true; } })();
-$('ckAutoOn').checked = ckAutoOn;
-$('ckAutoOn').onchange = () => { ckAutoOn = $('ckAutoOn').checked; try { localStorage.setItem('panocheck-ckauto', ckAutoOn ? '1' : '0'); } catch (e) {} if (!ckAutoOn && !ck) $('ckLive').textContent = ''; };
+var ckAutoOn = true;                                 // always on (start button removed in 2026-11-26h)
 function ckAutoTick() {
   const on = !!(dps.link && dps.st && dps.st.on), now = Date.now();
   if (on && !ckArm.on) { ckArm.t = now; ckArm.done = false; }
