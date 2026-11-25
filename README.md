@@ -5,7 +5,7 @@ rpm = 파노 × 60 (예: 500 Hz = 30,000 rpm)
 
 - **설치 페이지:** https://jung86.github.io/panotrio/ — PC 크롬/엣지로 열고 CONNECT → INSTALL
 - **휴대폰 앱:** https://jung86.github.io/panotrio/app.html — 안드로이드 크롬 (블루투스)
-- **현재 버전:** 2.3 (2.0부터 앱에서 블루투스로 펌웨어 업데이트: fw/latest.json, 서명 확인)
+- **현재 버전:** 2.4 (2.0부터 앱에서 블루투스로 펌웨어 업데이트: fw/latest.json, 서명 확인)
 
 ## 활성화
 
