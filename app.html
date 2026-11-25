@@ -557,7 +557,7 @@
         <div class="set-top"><span class="set-name">측정 대기 시간</span><span class="set-val" id="vWt">-</span></div>
         <div class="set-def">기본값: 2.5초</div>
         <div class="stepper"><button class="stp" data-for="sWt" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sWt" min="0" max="50" step="1"><button class="stp" data-for="sWt" data-d="1" aria-label="늘리기">+</button></div>
-        <div class="set-ends"><span>1.0초</span><span>5.0초</span></div>
+        <div class="set-ends"><span id="wtMinLbl">0초</span><span>5.0초</span></div>
         <div class="set-help">진동을 인식한 뒤 측정하기까지 기다리는 시간.</div>
       </div>
       <div class="set-row">
@@ -988,7 +988,9 @@ function renderSettings() {
   if (!dragging) {
     $('sBr').value = view.br; $('vBr').textContent = Math.round(view.br / 255 * 100) + '%';
     $('sVm').value = vmIndex(view.vm); $('vVm').textContent = vmLabel(view.vm);
-    $('sWt').min = !conn || verNum(stickVer) >= 2006 ? 0 : 10;     // 0 s (measure at once) needs firmware 2.6
+    const wtMin = !conn || verNum(stickVer) >= 2006 ? 0 : 10;      // 0 s (measure at once) needs firmware 2.6
+    $('sWt').min = wtMin; $('wtMinLbl').textContent = wtMin ? '1.0초' : '0초';
+    if (mySet && +mySet.wt < wtMin) { mySet.wt = wtMin; saveMySet(); }   // an older stick can't take below 1.0 s
     $('sWt').value = view.wt; $('vWt').textContent = wtLabel(view.wt);
     $('cHotOff').checked = +view.hot === 0; $('sHot').disabled = +view.hot === 0;
     if (+view.hot) $('sHot').value = view.hot;
@@ -1493,7 +1495,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25y';
+const APP_BUILD = '2026-11-25z';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2231,7 +2233,7 @@ function breakStagesRender() {
   box.innerHTML = bStages.map((x, i) => `<div class="bstage" data-i="${i}"><div class="h"><span class="sp">구간 ${i + 1}</span>` +
     (n > 1 ? `<button data-mv="-1" data-i="${i}" aria-label="위로"${i ? '' : ' disabled'}>↑</button><button data-mv="1" data-i="${i}" aria-label="아래로"${i < n - 1 ? '' : ' disabled'}>↓</button><button data-del="${i}" aria-label="구간 삭제">🗑</button>` : '') + `</div>
     <div class="cgrid">
-      <label>길들이기 전압 (V)${st('bV' + i, 0, 12, 0.1, x.v)}</label>
+      <label>길들이기 전압 (V)${st('bV' + i, 0.3, 12, 0.1, x.v)}</label>
       <label>방향<select id="bD${i}"><option value="fwd"${x.dir === 'fwd' ? ' selected' : ''}>정방향</option><option value="rev"${x.dir === 'rev' ? ' selected' : ''}>역방향</option><option value="alt"${x.dir === 'alt' ? ' selected' : ''}>번갈아 (사이클마다)</option></select></label>
       <label>시간 (분)${st('bM' + i, 0, 60, 1, Math.floor(x.sec / 60), 'numeric')}</label>
       <label>시간 (초)${st('bS' + i, 0, 55, 5, x.sec % 60, 'numeric')}</label>
