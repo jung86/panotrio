@@ -1,8 +1,8 @@
 {
- "ver": "2.4",
- "size": 1052112,
- "sha256": "1850ff165f5f0d182b4f84121b0fe3370f669bdcd1f1783d9c86d7ef90a9a61e",
- "sig": "9aBEPeFi66TgZeebMiJP7Vx5ErUfEzTVHonMmhKaHcespuEMeAdAxgqErJykIFsmO4AEJQC8k9ydoDTlOLOD6Q",
- "bin": "fw/PanoCheck-2.4.app.bin",
- "note": "대기 시계 수정 · 컨디션 점수 표시"
+ "ver": "2.5",
+ "size": 1053792,
+ "sha256": "1f9d2581c88e2373611b84eb434b85c6ba691f25a3d17cfdbdbbd4dffa835327",
+ "sig": "TUCJf2LgyVER1XHbjJq-BWbI6HO6wfuND3bMLdnsKRZd_LNAeVG0YM1MPw-YrKzCKKqIYj8MaP1ICb-xWgzJ_g",
+ "bin": "fw/PanoCheck-2.5.app.bin",
+ "note": "저속 파노 2배 보정 · 측정 안정성 개선"
 }
