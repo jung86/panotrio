@@ -1450,7 +1450,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26f';
+const APP_BUILD = '2026-11-26g';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2772,7 +2772,7 @@ function ckAutoTick() {
   if (ckWhyNot()) { $('ckLive').textContent = '파노가 들어오면 자동으로 측정합니다 (스틱을 모터에 대 주세요)'; return; }
   ckArm.msg = false; ckStart(true);
 }
-function ckRearm() { if (ck && ck.auto) { clearInterval(ck.timer); ck = null; } if (ckArm.on) { ckArm.t = Date.now(); ckArm.done = false; } ckRender(); }
+function ckRearm() { if (ck && ck.auto) { clearInterval(ck.timer); ck = null; } if (ckArm.on) { ckArm.t = Date.now(); ckArm.done = false; } if (!ck) { ckArm.msg = true; $('ckLive').textContent = '모터가 자리 잡으면 자동으로 측정합니다…'; } ckRender(); }
 setInterval(ckAutoTick, 500);
 window.ckReady = true; ckShowLast(); ckRender();
 
