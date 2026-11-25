@@ -111,6 +111,15 @@
   .condRows { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:14px; margin-top:10px; font-variant-numeric:tabular-nums; }
   .condRows .k { color:var(--mute); }
   .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
+  .ckBox { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
+  .ckBox .seg button { min-height:40px; }
+  .ckBar { height:6px; border-radius:3px; background:#232a33; margin-top:6px; overflow:hidden; } .ckBar i { display:block; height:100%; background:var(--acc); }
+  .ckRes { display:flex; align-items:center; gap:12px; margin-top:8px; }
+  .ckRes .condScore { font-size:38px; white-space:nowrap; flex-shrink:0; min-width:0; }
+  .ckBox .prow select { flex:0 0 42%; } .ckBox .prow button { flex:1; }
+  .ckCmp { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; font-variant-numeric:tabular-nums; }
+  .ckCmp th, .ckCmp td { padding:3px 4px; text-align:right; border-bottom:1px solid var(--line); } .ckCmp th:first-child, .ckCmp td:first-child { text-align:left; color:var(--mute); }
+  .ckCmp .up { color:#ff8787; } .ckCmp .dn { color:#69db7c; }
   .prow { display:flex; gap:6px; align-items:center; margin:8px 0 2px; }
   .prow select { flex:1; min-width:0; font:600 15px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
   .prow button { padding:8px 11px; font-size:15px; white-space:nowrap; min-height:48px; }
@@ -569,6 +578,14 @@
       <div style="flex:1;min-width:0"><span class="ttl" style="margin:0 6px 0 0">🩺 모터 컨디션</span><span id="condGrade" class="condGrade" style="background:var(--grey)">대기</span><div id="condNote" class="help" style="margin-top:4px">전원공급기 출력을 켜고 모터를 돌리면 표시됩니다.</div></div>
     </div>
     <div id="condRows" class="condRows"></div>
+    <div class="ckBox">
+      <div class="ttl" style="margin:0">⏱ 컨디션 측정 <small style="color:var(--mute);font-weight:600">같은 전압으로 일정 시간 돌려서 점수 내기</small></div>
+      <div class="seg" id="ckTag"><button data-t="0" class="sel2">일반</button><button data-t="1">청소 전</button><button data-t="2">청소 후</button></div>
+      <div class="prow" style="margin-top:6px"><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select><button id="btnCk" class="primary">▶ 측정 시작</button></div>
+      <div id="ckLive" class="help" style="margin-top:6px"></div>
+      <div id="ckRes"></div>
+      <div id="ckCmp"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -790,7 +807,7 @@ async function sendTime() {                          // the stick's standby cloc
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
 }
@@ -1354,7 +1371,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25r';
+const APP_BUILD = '2026-11-25s';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1389,6 +1406,7 @@ function onInfo(dv, whole) {
   if ($('clean').classList.contains('open')) cleanRender(); else psuRender();
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
   stickVer = kv.VER || ''; stickOta = kv.OTA === '1'; fwCheck();
+  stickCnd = kv.CND === '1' || verNum(stickVer) >= 2004;      // stick can show the condition score (firmware 2.4+)
 }
 
 // ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)
@@ -1593,6 +1611,7 @@ function renderMotors() {
   sel.innerHTML = '<option value="">(모터 선택 안 함)</option>' + motors.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') + '<option value="__new">＋ 새 모터 추가</option>';
   sel.value = motors.includes(curMotor) ? curMotor : '';
   $('btnMotorEdit').disabled = !curMotor;
+  if (window.ckReady) ckShowLast();
 }
 $('motorSel').onchange = () => {
   const v = $('motorSel').value;
@@ -2479,6 +2498,135 @@ function condRender(force) {
 }
 function condSnapshot() { const c = condLast; return c && c.hasBase ? { cond: c.score } : {}; }
 condRender(true);
+
+// ---------------------------------------------------------------- ⏱ 컨디션 측정: a fixed window at one voltage -> score 0~100
+// Checks that the power supply really held the voltage (else "전원 불안정", not scored), then rates
+// pano steadiness, pano drift, current level/steadiness and (when there are earlier checks) the change from them.
+// Result goes to the stick screen over Bluetooth when the firmware says it can show it (CND=1 in INFO, or 2.4+).
+const CK_KEY = 'panocheck-condchk', CK_TAGS = ['일반', '청소 전', '청소 후'];
+var ck = ck || null, ckTag = 0, stickCnd = stickCnd || false;
+function ckLoad() { try { return JSON.parse(localStorage.getItem(CK_KEY) || '[]') || []; } catch (e) { return []; } }
+function ckSaveAll(a) { try { localStorage.setItem(CK_KEY, JSON.stringify(a.slice(0, 300))); } catch (e) {} }
+function ckStats(a) { const n = a.length, m = a.reduce((x, y) => x + y, 0) / n; return { n, m, sd: Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / n), lo: Math.min(...a), hi: Math.max(...a) }; }
+function ckGrade(r) { return r.unstable ? ['전원 불안정', 'var(--orange)', 3] : r.score >= 85 ? ['좋음', 'var(--green)', 0] : r.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
+function ckWhyNot() {
+  const st = dps.st || {};
+  if (!dps.link) return '먼저 전원공급기를 연결하세요.';
+  if (!st.on) return '전원공급기 출력을 켜고 모터를 돌린 뒤 시작하세요.';
+  if (cl.run || cl.busy) return '모터클리닝·길들이기 실행 중에는 측정할 수 없습니다.';
+  if (!cmdChar || !cur || Date.now() - cur.t > 3000) return '스틱을 연결하고 모터에 대 주세요 (파노가 들어와야 합니다).';
+  return '';
+}
+function ckStart() {
+  unlockAudio();
+  if (ck) { ckEnd('측정을 멈췄습니다'); return; }
+  const why = ckWhyNot(); if (why) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">' + esc(why) + '</b>'; return; }
+  const dur = +$('ckDur').value || 30;
+  ck = { t0: Date.now(), dur, tag: ckTag, motor: curMotor, dir: stickDir, v: [], i: [], hz: [], cc: 0, prot: '', n: 0, lastHz: 0 };
+  ck.timer = setInterval(ckTick, 250);
+  if (IOS) stayAwake();
+  $('ckRes').innerHTML = ''; $('ckCmp').innerHTML = '';
+  ckRender();
+}
+function ckTick() {
+  if (!ck) return;
+  const st = dps.st || {}, now = Date.now();
+  if (!dps.link || !st.on) { ckEnd('전원공급기 출력이 꺼져서 멈췄습니다'); return; }
+  if (cl.run || cl.busy) { ckEnd('다른 실행이 시작되어 멈췄습니다'); return; }
+  ck.n++;
+  if (st.t && now - st.t < 2000 && st.v > 0) { ck.v.push(st.v); ck.i.push(st.i); }
+  if (st.cc) ck.cc++;
+  if (st.prot) ck.prot = st.prot;
+  if (cur && now - cur.t < 1500 && cur.big > 0 && cur.t !== ck.lastHz) { ck.lastHz = cur.t; ck.hz.push(cur.big); }
+  if (now - ck.t0 >= ck.dur * 1000) ckFinish(); else ckRender();
+}
+function ckEnd(msg) { if (ck) clearInterval(ck.timer); ck = null; $('ckLive').innerHTML = msg ? '<b style="color:#ffd43b">' + esc(msg) + '</b>' : ''; ckRender(); }
+function ckFinish() {
+  const c = ck; clearInterval(c.timer); ck = null;
+  if (c.v.length < 8 || c.hz.length < 6) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">값이 충분히 들어오지 않았습니다 (전압 ' + c.v.length + '개, 파노 ' + c.hz.length + '개). 스틱 위치를 확인하고 다시 해 주세요.</b>'; ckRender(); return; }
+  // drop the first fifth of pano values (the stick settles after the start)
+  const hz = c.hz.slice(Math.floor(c.hz.length / 5)), V = ckStats(c.v), I = ckStats(c.i), H = ckStats(hz);
+  const third = Math.max(1, Math.floor(hz.length / 3)), h1 = ckStats(hz.slice(0, third)).m, h3 = ckStats(hz.slice(-third)).m;
+  const r = { t: Date.now(), motor: c.motor, tag: c.tag, dur: c.dur, dir: c.dir,
+    v: +V.m.toFixed(3), vr: +(V.hi - V.lo).toFixed(3), i: +I.m.toFixed(4), icv: I.m > 0.005 ? +(I.sd / I.m * 100).toFixed(2) : 0,
+    hz: +H.m.toFixed(2), hcv: +(H.sd / H.m * 100).toFixed(3), drift: +((h3 - h1) / H.m * 100).toFixed(2) };
+  r.rpv = +(r.hz * 60 / r.v).toFixed(1);
+  const why = [];
+  if (r.vr > Math.max(0.06, r.v * 0.02)) why.push(`전압이 ${r.vr.toFixed(2)} V 흔들림`);
+  if (c.cc > c.n * 0.1) why.push('전류 제한(CC)에 걸림');
+  if (c.prot) why.push(c.prot + ' 보호 동작');
+  r.unstable = why.length > 0; r.uw = why.join(', ');
+  const all = ckLoad();
+  const base = all.filter(b => !b.unstable && b.motor === r.motor && Math.abs(b.v - r.v) <= Math.max(0.2, r.v * 0.05) && (b.dir === undefined || b.dir === null || r.dir === null || b.dir === r.dir)).slice(0, 5);
+  r.bN = base.length;
+  if (base.length) { const bI = median(base.map(b => b.i)), bR = median(base.map(b => b.rpv)); r.dI = bI > 0.005 ? +((r.i - bI) / bI * 100).toFixed(1) : null; r.dR = +((r.rpv - bR) / bR * 100).toFixed(1); }
+  if (!r.unstable) {
+    let s = 100; const pts = [];
+    const cut = (cond, n, why) => { if (cond && n > 0.5) { s -= n; pts.push([why, Math.round(n)]); } };
+    cut(r.hcv > 0.5, Math.min(30, (r.hcv - 0.5) * 12), '파노 흔들림');
+    cut(Math.abs(r.drift) > 1, Math.min(15, (Math.abs(r.drift) - 1) * 5), r.drift > 0 ? '파노가 계속 오름 (아직 길드는 중)' : '파노가 계속 내려감');
+    cut(r.icv > 3, Math.min(20, (r.icv - 3) * 2), '전류 출렁임 (브러시·정류자)');
+    cut(r.dI !== null && r.dI !== undefined && r.dI > 5, Math.min(30, (r.dI - 5) * 1.5), '전류가 평소보다 높음 (뻑뻑함)');
+    cut(r.dR !== undefined && r.dR < -3, Math.min(30, (-r.dR - 3) * 2), '회전이 평소보다 느림');
+    r.score = Math.max(0, Math.round(s)); r.pts = pts;
+  }
+  all.unshift(r); ckSaveAll(all);
+  const g = ckGrade(r);
+  beep(r.unstable || g[2] === 2 ? [440, 330] : [880, 1320]);
+  notify('컨디션 측정 끝: ' + (r.unstable ? '전원 불안정' : r.score + '점 ' + g[0]), !r.unstable && g[2] < 2);
+  $('ckLive').textContent = '';
+  ckShow(r); ckSendStick(r); ckRender();
+}
+async function ckSendStick(r) {                       // 'K' grade score hz*10 mA tag  (stick firmware 2.4+)
+  const ch = cmdChar; if (!ch || !stickCnd || lockedOut()) return;
+  const b = new Uint8Array(8), dv = new DataView(b.buffer);
+  b[0] = 75; b[1] = ckGrade(r)[2]; b[2] = r.unstable ? 255 : r.score;
+  dv.setUint16(3, Math.min(65535, Math.round(r.hz * 10)), true); dv.setUint16(5, Math.min(65535, Math.round(r.i * 1000)), true); b[7] = r.tag;
+  try { await gatt(() => ch.writeValue(b)); } catch (e) {}
+}
+function ckShow(r) {
+  const g = ckGrade(r), pct = (d, badUp) => d === null || d === undefined ? '' : ` <span class="${(badUp ? d > 5 : d < -3) ? 'up' : (badUp ? d < -5 : d > 3) ? 'dn' : ''}">(이전 ${d >= 0 ? '+' : ''}${d.toFixed(1)}%)</span>`;
+  const rows = [
+    ['전압', `${r.v.toFixed(2)} V · 흔들림 ${r.vr.toFixed(2)} V ${r.unstable ? '⚠' : '✓'}`],
+    ['파노', `${r.hz.toFixed(1)} Hz · ±${r.hcv.toFixed(2)}% · 변화 ${r.drift >= 0 ? '+' : ''}${r.drift.toFixed(1)}%`],
+    ['전류', `${r.i.toFixed(3)} A · 출렁임 ±${r.icv.toFixed(1)}%` + pct(r.dI, true)],
+    ['전압당 회전', `${Math.round(r.rpv).toLocaleString()} rpm/V` + pct(r.dR, false)]
+  ];
+  const note = r.unstable ? `전원 불안정: ${esc(r.uw)}. 이번 측정은 점수와 비교에서 뺐습니다. 전류 제한을 올리거나 전원을 확인하고 다시 해 주세요.`
+    : (r.pts.length ? '감점: ' + r.pts.map(p => `${p[0]} −${p[1]}`).join(', ') : '감점 없음') + (r.bN ? ` · 이전 측정 ${r.bN}개와 비교` : ' · 이전 측정이 없어 이번 값이 기준이 됩니다');
+  $('ckRes').innerHTML = `<div class="ckRes"><div class="condScore">${r.unstable ? '--' : r.score + '<small>/100</small>'}</div><div><span class="condGrade" style="background:${g[1]}">${g[0]}</span> <span class="help">${esc(CK_TAGS[r.tag])} · ${r.dur}초${r.motor ? ' · ' + esc(r.motor) : ''}</span>` +
+    `<div class="help" style="margin-top:4px">${note}${stickCnd ? ' · 스틱 화면에도 보냈습니다' : ''}</div></div></div>` +
+    `<div class="condRows">${rows.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('')}</div>`;
+  ckCompare(r);
+}
+function ckCompare(r) {                               // latest 청소 전 vs the 청소 후 after it (same motor, about the same voltage)
+  const all = ckLoad().filter(b => !b.unstable && b.motor === r.motor && Math.abs(b.v - r.v) <= Math.max(0.2, r.v * 0.05));
+  const aft = all.find(b => b.tag === 2), bef = aft ? all.find(b => b.tag === 1 && b.t < aft.t) : all.find(b => b.tag === 1);
+  if (!bef || !aft) { $('ckCmp').innerHTML = bef ? '<div class="help" style="margin-top:6px">청소 전 측정이 있습니다. 청소 후 [청소 후]로 다시 재면 비교해 드립니다.</div>' : ''; return; }
+  const d = (a, b) => b ? (a - b) / b * 100 : 0, cell = (x, goodUp) => { x = Math.round(x * 10) / 10 || 0; return `<span class="${Math.abs(x) < 0.5 ? '' : (x > 0) === goodUp ? 'dn' : 'up'}">${x >= 0 ? '+' : ''}${x.toFixed(1)}</span>`; };
+  const tr = (k, a, b, f, dd) => `<tr><td>${k}</td><td>${f(a)}</td><td>${f(b)}</td><td>${dd}</td></tr>`;
+  $('ckCmp').innerHTML = `<div class="ttl" style="margin:10px 0 0">🧽 청소 전·후 비교 <small style="color:var(--mute);font-weight:600">${bef.v.toFixed(1)} V</small></div><table class="ckCmp"><tr><th></th><th>청소 전</th><th>청소 후</th><th>변화</th></tr>` +
+    tr('점수', bef.score, aft.score, x => x, cell(aft.score - bef.score, true).replace('.0<', '<') + '점') +
+    tr('전류 (A)', bef.i, aft.i, x => x.toFixed(3), cell(d(aft.i, bef.i), false) + '%') +
+    tr('회전 (rpm/V)', bef.rpv, aft.rpv, x => Math.round(x).toLocaleString(), cell(d(aft.rpv, bef.rpv), true) + '%') +
+    tr('파노 흔들림', bef.hcv, aft.hcv, x => '±' + x.toFixed(2) + '%', cell(aft.hcv - bef.hcv, false)) +
+    tr('전류 출렁임', bef.icv, aft.icv, x => '±' + x.toFixed(1) + '%', cell(aft.icv - bef.icv, false)) + '</table>';
+}
+function ckRender() {
+  if (!$('btnCk')) return;
+  $('btnCk').textContent = ck ? '■ 멈추기' : '▶ 측정 시작';
+  $('btnCk').classList.toggle('primary', !ck);
+  $('ckDur').disabled = !!ck;
+  [...$('ckTag').children].forEach(b => { b.classList.toggle('sel2', +b.dataset.t === ckTag); b.disabled = !!ck; });
+  if (ck) {
+    const el = (Date.now() - ck.t0) / 1000, left = Math.max(0, Math.ceil(ck.dur - el)), st = dps.st || {};
+    $('ckLive').innerHTML = `측정 중… ${left}초 남음 · ${(+st.v || 0).toFixed(2)} V ${(+st.i || 0).toFixed(3)} A · 파노 ${ck.hz.length}개${st.cc ? ' · <b style="color:#ffd43b">CC</b>' : ''}<div class="ckBar"><i style="width:${Math.min(100, el / ck.dur * 100)}%"></i></div>`;
+  }
+}
+$('btnCk').onclick = ckStart;
+$('ckTag').onclick = e => { const b = e.target.closest('button'); if (b && !ck) { ckTag = +b.dataset.t; ckRender(); } };
+function ckShowLast() { if (ck) return; const last = ckLoad().find(b => b.motor === curMotor); if (last) ckShow(last); else { $('ckRes').innerHTML = ''; $('ckCmp').innerHTML = ''; } }
+window.ckReady = true; ckShowLast(); ckRender();
 
 // ---------------------------------------------------------------- presets (named settings, kept on this phone)
 function presetBox(key, sel, label, read, apply, busy) {
