@@ -237,6 +237,19 @@
   main .condScore { font-size:34px; min-width:68px; }
   main .condRows { font-size:13px; gap:1px 10px; margin-top:6px; line-height:1.35; }
   #conn { cursor:pointer; }
+  /* iPhone: in-app dialogs (see askBox) and room for the notch / home bar */
+  .askOv { position:fixed; inset:0; z-index:95; background:rgba(10,12,16,.88); display:flex; align-items:center; justify-content:center; padding:20px; }
+  .askBox { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; width:100%; max-width:420px; }
+  .askMsg { white-space:pre-line; font-size:16px; line-height:1.5; margin-bottom:12px; }
+  .askIn { width:100%; font:600 16px system-ui; padding:12px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); margin-bottom:12px; }
+  .askBtns { display:flex; gap:10px; } .askBtns button { flex:1; padding:14px; font-size:17px; }
+  #home .inner, #clean .inner, #admin .inner, #settings .inner, main {
+    padding-top:max(14px, env(safe-area-inset-top)); padding-bottom:calc(40px + env(safe-area-inset-bottom));
+    padding-left:max(14px, env(safe-area-inset-left)); padding-right:max(14px, env(safe-area-inset-right)); }
+  #home .inner { padding-top:max(26px, env(safe-area-inset-top)); padding-left:max(18px, env(safe-area-inset-left)); padding-right:max(18px, env(safe-area-inset-right)); }
+  #toast { top:calc(14px + env(safe-area-inset-top)); }
+  #home, #clean, #admin, #settings { top:var(--nobt, 0px); }
+  .iosOnly { display:none; } html.ios .iosOnly { display:inline; }
 </style>
 </head>
 <body>
@@ -296,7 +309,7 @@
     </div>
   </div>
   <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
-  <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요.</p>
+  <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요. <span class="iosOnly">아이폰은 Bluefy 앱에서 스틱 측정만 됩니다.</span></p>
   <div class="card" style="margin-top:10px;display:flex;align-items:center;gap:10px">
     <div style="flex:1;font-size:14px;line-height:1.5">🍎 <b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요. (스틱 측정만 가능)</div>
     <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
@@ -635,7 +648,7 @@
     <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다.</p>
   </div>
 
-  <p class="help">안드로이드 크롬에서 사용하세요. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
+  <p class="help">안드로이드 크롬에서 사용하세요<span class="iosOnly"> (아이폰은 Bluefy 앱)</span>. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
 </main>
 
 <script>
@@ -698,6 +711,54 @@ function notify(text, good) {
   if (appSet.snd) beep(good ? [880, 1320] : [660, 440]);
 }
 
+// ---------------------------------------------------------------- iPhone-safe dialogs and file saving
+// Bluefy is an app built on the iPhone's web view: confirm() / prompt() may not show there (it then answers
+// "cancel" at once) and a download link may do nothing. On iPhone the app uses its own dialog and the share sheet.
+const IOS_UA = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+function askBox(msg, def, isText) {
+  return new Promise(res => {
+    const ov = document.createElement('div'); ov.className = 'askOv';
+    ov.innerHTML = `<div class="askBox"><div class="askMsg"></div>${isText ? '<input class="askIn" type="text" autocomplete="off">' : ''}` +
+      `<div class="askBtns"><button class="askNo">취소</button><button class="askYes primary">확인</button></div></div>`;
+    ov.querySelector('.askMsg').textContent = msg;
+    const inp = ov.querySelector('.askIn'); if (inp) inp.value = def == null ? '' : String(def);
+    const done = v => { ov.remove(); res(v); };
+    ov.querySelector('.askNo').onclick = () => done(isText ? null : false);
+    ov.querySelector('.askYes').onclick = () => done(isText ? inp.value : true);
+    if (inp) inp.onkeydown = e => { if (e.key === 'Enter') done(inp.value); };
+    document.body.appendChild(ov);
+    if (inp) setTimeout(() => { inp.focus(); inp.select(); }, 50);
+  });
+}
+function askConfirm(msg) { return IOS_UA ? askBox(msg, null, false) : Promise.resolve(confirm(msg)); }
+function askText(msg, def) { return IOS_UA ? askBox(msg, def, true) : Promise.resolve(prompt(msg, def)); }
+async function saveFile(blob, name) {
+  if (IOS_UA) {
+    try {
+      const f = new File([blob], name, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: name }); return; }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    // no file sharing in this browser: show the text so it can be copied
+    const txt = await blob.text(), ov = document.createElement('div'); ov.className = 'askOv';
+    ov.innerHTML = `<div class="askBox"><div class="askMsg"><b></b><br>이 브라우저는 파일 저장이 안 됩니다. [복사]를 눌러 메모·메일에 붙여넣으세요.</div>` +
+      `<textarea class="askIn" readonly rows="8" style="font:12px ui-monospace,monospace"></textarea><div class="askBtns"><button class="askNo">닫기</button><button class="askYes primary">복사</button></div></div>`;
+    ov.querySelector('b').textContent = name; ov.querySelector('textarea').value = txt;
+    ov.querySelector('.askNo').onclick = () => ov.remove();
+    ov.querySelector('.askYes').onclick = async () => {
+      const ta = ov.querySelector('textarea');
+      try { await navigator.clipboard.writeText(txt); } catch (e) { ta.focus(); ta.select(); ta.setSelectionRange(0, txt.length); try { document.execCommand('copy'); } catch (e2) {} }
+      notify('복사했습니다', true);
+    };
+    document.body.appendChild(ov); return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+if (IOS_UA) document.documentElement.classList.add('ios');
+if (IOS_UA) {                                       // iPhone zooms in on a text box under 16 px and stays zoomed
+  const vp = document.querySelector('meta[name=viewport]'); if (vp) vp.content += ', maximum-scale=1';
+}
+
 // ---------------------------------------------------------------- one Bluetooth operation at a time
 // Android Chrome refuses a read / write while another is still running ("GATT operation already in
 // progress") - and the refused setting was silently lost. Every operation goes through this queue
@@ -740,7 +801,7 @@ function noBtNotice() {                              // Samsung Internet, iPhone
 async function copyAppUrl() {
   const u = location.origin + location.pathname + (/#(act|req)=/.test(location.hash) ? location.hash : '');
   try { await navigator.clipboard.writeText(u); notify('주소를 복사했습니다 · Bluefy 주소창에 붙여넣으세요', true); }
-  catch (e) { prompt('이 주소를 복사해서 Bluefy에 붙여넣으세요', u); }
+  catch (e) { await askText('이 주소를 복사해서 Bluefy에 붙여넣으세요', u); }
 }
 (() => {
   if (navigator.bluetooth) return;
@@ -752,6 +813,7 @@ async function copyAppUrl() {
     (n.android ? `<a id="btnToChrome" href="#" style="${btn}">크롬으로 열기</a>` : '') +
     (n.ios ? `<div style="display:flex;flex-direction:column;gap:6px"><a id="btnToBluefy" href="#" style="${btn}">Bluefy로 열기</a><a href="${BLUEFY_URL}" target="_blank" rel="noopener" style="${btn};background:#1971c2">Bluefy 받기</a><a id="btnCopyUrl" href="#" style="${btn};background:#495057">주소 복사</a></div>` : '');
   document.body.prepend(bar);
+  const fit = () => document.documentElement.style.setProperty('--nobt', bar.offsetHeight + 'px'); fit(); addEventListener('resize', fit);
   if (n.android) $('btnToChrome').onclick = e => { e.preventDefault(); location.href = chromeUrl(); };
   if (n.ios) {
     $('btnCopyUrl').onclick = e => { e.preventDefault(); copyAppUrl(); };
@@ -1021,7 +1083,7 @@ for (const [id, k] of [['segCk', 'ck'], ['segC12', 'c12'], ['segCb', 'cb']]) $(i
 bindRange('sCbr', v => $('vCbr').textContent = Math.round(v / 255 * 100) + '%', v => edit('cbr', v));
 $('btnStickSave').onclick = () => saveToStick(false);
 $('cLock').onchange = () => { sendKey('L', $('cLock').checked ? myKey : 0); };
-$('btnDefaults').onclick = () => { if (confirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
+$('btnDefaults').onclick = async () => { if (await askConfirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
 for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake'], ['aRelay', 'relay']])
   $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'relay') relaySetChanged(); if (key === 'hot' && cur) render(); };
 let wakeLock = null;
@@ -1387,7 +1449,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26b';
+const APP_BUILD = '2026-11-26c';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1505,7 +1567,7 @@ async function fwStart(asked) {
   if (fwBusy || !otaChar || !cmdChar) return;
   if (cl.run || cl.busy) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
   if (dps.link && dps.st.on) { notify('전원공급기 출력을 끈 뒤 업데이트하세요', false); return; }
-  if (asked !== true && !confirm(`스틱을 ${fwLatest.ver} 버전으로 업데이트할까요?\n\n· 2~5분 걸립니다. 그동안 측정은 멈춥니다.\n· 휴대폰을 스틱 가까이 두고 이 화면을 켜 두세요.\n· 중간에 끊겨도 스틱은 지금 버전으로 그대로 켜집니다.`)) return;
+  if (asked !== true && !await askConfirm(`스틱을 ${fwLatest.ver} 버전으로 업데이트할까요?\n\n· 2~5분 걸립니다. 그동안 측정은 멈춥니다.\n· 휴대폰을 스틱 가까이 두고 이 화면을 켜 두세요.\n· 중간에 끊겨도 스틱은 지금 버전으로 그대로 켜집니다.`)) return;
   fwBusy = true; fwCancel = false; $('fwBox').style.display = 'none';
   let wake = null; try { if ('wakeLock' in navigator) wake = await navigator.wakeLock.request('screen'); } catch (e) {}
   stayAwake();
@@ -1526,7 +1588,9 @@ async function fwStart(asked) {
     // 2. listen, ask the stick. If Bluetooth drops, wait for the automatic reconnection and continue:
     //    the stick keeps what it already saved for 90 s (firmware 2.2+; older ones start again from 0).
     let ch = null, gen = -1, chunk = 20, st = null, p = null;
-    const wr = v => { const c = ch; return gatt(() => (c.writeValueWithoutResponse ? c.writeValueWithoutResponse(v) : c.writeValue(v))); };
+    // iPhone may drop "without response" packets when they come too fast: after a missed answer, send with response (slower, sure)
+    let slowW = false;
+    const wr = v => { const c = ch; return gatt(() => (c.writeValueWithoutResponse && !slowW ? c.writeValueWithoutResponse(v) : c.writeValue(v))); };
     const wrR = v => { const c = ch; return gatt(() => c.writeValue(v)); };
     const h = new Uint8Array(112), dvh = new DataView(h.buffer);
     dvh.setUint32(0, data.length, true);
@@ -1569,7 +1633,7 @@ async function fwStart(asked) {
         }
         st = await p;
         while (st && st.state === 1 && st.written < stop && st.rx >= stop) st = await fwNext(4000);   // still saving
-        if (!st) { if (++misses > 8) throw new Error('스틱이 답하지 않습니다'); p = fwNext(4000); await wrR(new Uint8Array([81])).catch(() => {}); st = await p; if (!st) continue; }
+        if (!st) { if (IOS_UA) slowW = true; if (++misses > 8) throw new Error('스틱이 답하지 않습니다'); p = fwNext(4000); await wrR(new Uint8Array([81])).catch(() => {}); st = await p; if (!st) continue; }
       } catch (e) { if (!cmdChar || connGen !== gen) continue; throw e; }         // dropped in the middle: relink above
       if (st.state !== 1) throw new Error(FW_ERR[st.err] || '실패 ' + st.err);
       off = st.written; misses = 0;
@@ -1629,18 +1693,18 @@ function renderMotors() {
   $('btnMotorEdit').disabled = !curMotor;
   if (window.ckReady) ckShowLast();
 }
-$('motorSel').onchange = () => {
+$('motorSel').onchange = async () => {
   const v = $('motorSel').value;
   if (v === '__new') {
-    const name = (prompt('새 모터 이름 (예: 하이퍼대시3 #1)', '') || '').trim();
+    const name = (await askText('새 모터 이름 (예: 하이퍼대시3 #1)', '') || '').trim();
     if (name && !motors.includes(name)) motors.push(name);
     if (name) curMotor = name;
   } else curMotor = v;
   saveMotors(); renderMotors(); renderRecs();
 };
-$('btnMotorEdit').onclick = () => {
+$('btnMotorEdit').onclick = async () => {
   if (!curMotor) return;
-  const name = prompt('모터 이름 바꾸기 (비우면 목록에서 지움, 기록은 남음)', curMotor);
+  const name = await askText('모터 이름 바꾸기 (비우면 목록에서 지움, 기록은 남음)', curMotor);
   if (name === null) return;
   const n = name.trim(), i = motors.indexOf(curMotor);
   if (!n) { if (i >= 0) motors.splice(i, 1); curMotor = ''; }
@@ -1723,9 +1787,9 @@ function renderRecs() {
   }).join('');
 }
 $('fchips').onclick = e => { const b = e.target.closest('button'); if (b) { recFilter = b.dataset.f; renderRecs(); } };
-$('recs').onclick = e => {
+$('recs').onclick = async e => {
   const a = e.target.closest('[data-memo]'), m = a ? a.dataset.memo : undefined, d = e.target.dataset.del;
-  if (m !== undefined) { e.preventDefault(); const v = prompt('메모 (예: 모터 이름, 전압)', recs[m].memo || ''); if (v !== null) { recs[m].memo = v; saveRecs(recs); renderRecs(); } }
+  if (m !== undefined) { e.preventDefault(); const v = await askText('메모 (예: 모터 이름, 전압)', recs[m].memo || ''); if (v !== null) { recs[m].memo = v; saveRecs(recs); renderRecs(); } }
   if (d !== undefined) { recs.splice(+d, 1); saveRecs(recs); renderRecs(); }
 };
 
@@ -1735,17 +1799,14 @@ $('conn').onclick = () => { if ($('connectBox').style.display !== 'none') { unlo
 $('btnReset').onclick = () => { send('X', 0); lastAutoBig = 0; hist.length = 0; drawChart(); };
 $('segMode').onclick = e => { const b = e.target.closest('button'); if (b) send('M', +b.dataset.v); };
 $('segRange').onclick = e => { const b = e.target.closest('button'); if (b) send('R', +b.dataset.v); };
-$('btnSave').onclick = () => { const v = prompt('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
-$('btnClear').onclick = () => { if (confirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
+$('btnSave').onclick = async () => { const v = await askText('메모 (예: 모터 이름, 전압)', ''); if (v !== null) addRecord(v); };
+$('btnClear').onclick = async () => { if (await askConfirm('기록을 모두 지울까요?')) { recs = []; saveRecs(recs); renderRecs(); } };
 $('btnCsv').onclick = () => {
   const rows = [['time', 'motor', 'memo', 'mode', 'pano_hz', 'rpm', 'vib_hz', 'mic_hz', 'status', 'volt', 'amp', 'direction', 'condition', 'condition_grade']].concat(
     recs.map(r => [new Date(r.t).toISOString(), r.motor || '', r.memo, MODES[r.mode] || '', r.big, Math.round(r.big * 60), r.vib, r.mic, r.status,
                    r.volt !== undefined ? r.volt : '', r.amp !== undefined ? r.amp : '', r.dir === undefined ? '' : r.dir ? 'reverse' : 'forward', r.cond !== undefined ? r.cond : '', (condBand(r) || [''])[0]]));
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = 'panocheck-' + new Date().toISOString().slice(0, 10) + '.csv';
-  a.click();
+  saveFile(new Blob([csv], { type: 'text/csv' }), 'panocheck-' + new Date().toISOString().slice(0, 10) + '.csv');
 };
 renderMotors();
 renderRecs();
@@ -2456,6 +2517,12 @@ $('btnInstall').onclick = async () => {
     installEvt = null;
   } else notify('크롬 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', true);
 };
+if (!('usb' in navigator) && !('serial' in navigator)) {      // iPhone (Bluefy, Safari) and some browsers: no USB, so no DPS-150
+  $('dpsInfo').innerHTML = IOS_UA
+    ? '<b style="color:#ffa94d">아이폰은 전원공급기(DPS-150) USB 연결이 안 됩니다.</b> 모터클리닝·길들이기는 안드로이드 크롬이나 PC 크롬에서 하세요. 스틱 파노 측정은 그대로 됩니다.'
+    : '<b style="color:#ffa94d">이 브라우저는 USB 연결이 안 됩니다.</b> 안드로이드 크롬이나 PC 크롬에서 여세요.';
+  $('btnDps').style.background = 'var(--grey)'; $('btnDps').style.borderColor = 'var(--grey)';
+}
 $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mode: standalone)').matches ? ' · 설치된 앱' : '');
 
 // ---------------------------------------------------------------- 🩺 motor condition: current, rpm per volt, steadiness, forward/reverse
@@ -2687,15 +2754,15 @@ function presetBox(key, sel, label, read, apply, busy) {
     if (busy()) { notify('실행 중에는 프리셋을 바꿀 수 없습니다', false); fill(''); return; }
     const v = load()[n]; if (v) { apply(v); notify('불러옴: ' + n, true); }
   };
-  $(sel + 'Save').onclick = () => {
+  $(sel + 'Save').onclick = async () => {
     const v = read(); if (!v) return;
-    const n = (prompt('프리셋 이름 (같은 이름이면 덮어씁니다)', $(sel).value || '') || '').trim().slice(0, 30);
+    const n = (await askText('프리셋 이름 (같은 이름이면 덮어씁니다)', $(sel).value || '') || '').trim().slice(0, 30);
     if (!n) return;
     const o = load(); o[n] = v; store(o); fill(n); notify('✓ 저장했습니다: ' + n, true);
   };
-  $(sel + 'Del').onclick = () => {
+  $(sel + 'Del').onclick = async () => {
     const n = $(sel).value; if (!n) { notify('지울 프리셋을 먼저 고르세요', false); return; }
-    if (!confirm(`프리셋 "${n}"을(를) 지울까요?`)) return;
+    if (!await askConfirm(`프리셋 "${n}"을(를) 지울까요?`)) return;
     const o = load(); delete o[n]; store(o); fill(''); notify('지웠습니다', true);
   };
   fill('');
@@ -2758,28 +2825,26 @@ async function pplRender(fetchList) {
   }).join('') : '<div class="help" style="padding:10px 0">' + (ids.length ? '검색 결과가 없습니다' : '아직 기록이 없습니다') + '</div>';
 }
 $('pplQ').oninput = () => pplRender();
-$('pplList').onclick = e => {
+$('pplList').onclick = async e => {
   const b = e.target.closest('button'), row = e.target.closest('.row'); if (!b || !row) return;
   const id = row.dataset.id, o = pplAll(), ent = o[id]; if (!ent) return;
   $('aId').value = fmtId(id); $('aName').value = ent.name || ''; $('aLvInfo').textContent = '';
   if (b.dataset.a === 'link') { $('btnAdmMake').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); }
-  else if (b.dataset.a === 'rvk') { if (confirm(`${ent.name || fmtId(id)}의 허락을 취소하는 줄을 만들까요?`)) { $('btnAdmRvk').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); } }
-  else if (b.dataset.a === 'edit') { const n = prompt('이름 (메모)', ent.name || ''); if (n !== null) { ent.name = n.trim().slice(0, 30); pplStore(o); pplRender(); } }
-  else if (b.dataset.a === 'del') { if (confirm(`${ent.name || fmtId(id)}을(를) 목록에서 뺄까요?\n(허락이 취소되는 것은 아닙니다)`)) { delete o[id]; pplStore(o); pplRender(); } }
+  else if (b.dataset.a === 'rvk') { if (await askConfirm(`${ent.name || fmtId(id)}의 허락을 취소하는 줄을 만들까요?`)) { $('btnAdmRvk').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); } }
+  else if (b.dataset.a === 'edit') { const n = await askText('이름 (메모)', ent.name || ''); if (n !== null) { ent.name = n.trim().slice(0, 30); pplStore(o); pplRender(); } }
+  else if (b.dataset.a === 'del') { if (await askConfirm(`${ent.name || fmtId(id)}을(를) 목록에서 뺄까요?\n(허락이 취소되는 것은 아닙니다)`)) { delete o[id]; pplStore(o); pplRender(); } }
 };
-$('btnPplAdd').onclick = () => {
-  const raw = prompt('스틱 ID (8자리)', ''); if (raw === null) return;
+$('btnPplAdd').onclick = async () => {
+  const raw = await askText('스틱 ID (8자리)', ''); if (raw === null) return;
   const id = raw.toUpperCase().replace(/[^0-9A-F]/g, '');
   if (id.length !== 8) { notify('스틱 ID는 8자리(0-9, A-F)입니다', false); return; }
-  const n = prompt('이름 (메모)', '') || '';
+  const n = await askText('이름 (메모)', '') || '';
   const o = pplAll(); o[id] = Object.assign(o[id] || { lv: 0, made: Date.now() }, n.trim() ? { name: n.trim().slice(0, 30) } : {}); pplStore(o); pplRender();
   notify('추가했습니다', true);
 };
 $('btnPplExport').onclick = () => {
   const blob = new Blob([JSON.stringify({ app: 'panocheck-admin-people', v: 1, saved: new Date().toISOString(), people: pplAll() }, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  const d = new Date(); a.download = `파노체크-허락목록-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  const d = new Date(); saveFile(blob, `파노체크-허락목록-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`);
 };
 $('btnPplImport').onclick = () => $('pplFile').click();
 $('pplFile').onchange = async () => {

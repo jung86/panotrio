@@ -12,7 +12,7 @@
   * { box-sizing:border-box; }
   html { scroll-behavior:smooth; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif; }
-  .top { position:sticky; top:0; z-index:5; background:rgba(18,21,27,.94); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); }
+  .top { position:sticky; top:0; z-index:5; background:rgba(18,21,27,.94); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); }
   .top .in { max-width:640px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; gap:10px; }
   .back { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:10px; font-size:22px; width:42px; height:42px; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; }
   .top h1 { font-size:20px; margin:0; flex:1; }
