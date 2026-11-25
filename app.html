@@ -637,7 +637,7 @@ const HOT_HZ = 550;                    // above this the big value turns red and
 const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
-var connGen = 0, otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false;
+var connGen = 0, otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false, fwAsked = '';
 // 모터클리닝 / DPS-150 state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
 const cl = { mode: 'clean', phase: '', hist: [], vSending: false, run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
@@ -1354,7 +1354,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25q';
+const APP_BUILD = '2026-11-25r';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1401,6 +1401,26 @@ async function fwCheck() {
     try { const r = await fetch('fw/latest.json', { cache: 'no-cache' }); if (r.ok) fwLatest = await r.json(); } catch (e) {}
   }
   fwRender();
+  fwAutoAsk();
+}
+// When the stick connects and is older, ask once (per app opening and version) with a big popup.
+// Never silently: an update stops measuring for 2-5 minutes. Not while cleaning / break-in / DPS output is running.
+function fwAutoAsk() {
+  if (fwBusy || !fwNewer() || !stickOta || !otaChar || !cmdChar) return;
+  if (fwAsked === fwLatest.ver || $('fwAsk') || $('fwOv')) return;
+  if (cl.run || cl.busy || (dps.link && dps.st.on) || document.hidden) return;
+  fwAsked = fwLatest.ver;
+  const ov = document.createElement('div'); ov.id = 'fwAsk';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:89;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #1971c2;border-radius:18px;padding:22px;text-align:center;line-height:1.5">' +
+    `<div style="font-size:20px;font-weight:800">🔄 스틱 새 버전 ${esc(fwLatest.ver)}</div>` +
+    `<div style="margin-top:6px;color:#c9d1dc">지금 스틱 ${esc(stickVer)}${fwLatest.note ? '<br><span style="color:#a5d8ff">' + esc(fwLatest.note) + '</span>' : ''}</div>` +
+    '<div style="margin-top:10px;font-size:14px;color:#8a94a6">2~5분 걸리고 그동안 측정은 멈춥니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜집니다.</div>' +
+    '<button id="fwAskGo" class="primary" style="margin-top:14px;width:100%">지금 업데이트</button>' +
+    '<button id="fwAskNo" style="margin-top:8px;width:100%">나중에 (홈 화면에서 할 수 있어요)</button></div>';
+  document.body.appendChild(ov);
+  $('fwAskGo').onclick = () => { ov.remove(); fwStart(true); };
+  $('fwAskNo').onclick = () => ov.remove();
 }
 function fwNewer() { return fwLatest && stickVer && verNum(fwLatest.ver) > verNum(stickVer); }
 function fwRender(msg) {
@@ -1446,11 +1466,12 @@ function fwShow(pc, text, btn) {
 }
 function fwClose() { const ov = $('fwOv'); if (ov) ov.remove(); }
 let fwCancel = false;
-async function fwStart() {
+async function fwStart(asked) {
+  { const a = $('fwAsk'); if (a) a.remove(); }
   if (fwBusy || !otaChar || !cmdChar) return;
   if (cl.run || cl.busy) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
   if (dps.link && dps.st.on) { notify('전원공급기 출력을 끈 뒤 업데이트하세요', false); return; }
-  if (!confirm(`스틱을 ${fwLatest.ver} 버전으로 업데이트할까요?\n\n· 2~5분 걸립니다. 그동안 측정은 멈춥니다.\n· 휴대폰을 스틱 가까이 두고 이 화면을 켜 두세요.\n· 중간에 끊겨도 스틱은 지금 버전으로 그대로 켜집니다.`)) return;
+  if (asked !== true && !confirm(`스틱을 ${fwLatest.ver} 버전으로 업데이트할까요?\n\n· 2~5분 걸립니다. 그동안 측정은 멈춥니다.\n· 휴대폰을 스틱 가까이 두고 이 화면을 켜 두세요.\n· 중간에 끊겨도 스틱은 지금 버전으로 그대로 켜집니다.`)) return;
   fwBusy = true; fwCancel = false; $('fwBox').style.display = 'none';
   let wake = null; try { if ('wakeLock' in navigator) wake = await navigator.wakeLock.request('screen'); } catch (e) {}
   stayAwake();
