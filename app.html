@@ -216,10 +216,10 @@
   main .psuRow { margin-top:6px; gap:6px; }
   main .nstep .stp, main .psuRow input { min-height:38px; }
   main .psuRow input { padding:4px; }
-  .psuAct { display:grid; grid-template-columns:1fr 1.6fr; gap:6px; margin-top:6px; }
-  .psuAct #psuOut { padding:8px 4px; font-size:16px; }
-  .psuAct #psuDir { margin-top:0; }
-  .psuAct #psuDir button { min-height:42px; }
+  .psuAct { display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px; }
+  .psuAct #psuOut { min-height:52px; padding:10px 4px; font-size:17px; }
+  .psuAct #psuDir { margin-top:0; gap:8px; }
+  .psuAct #psuDir button { min-height:68px; font-size:21px; font-weight:800; border-radius:12px; }
   main #psuMsg:empty, main #condNote:empty { display:none; }
   main .condTop { gap:10px; }
   main .condScore { font-size:34px; min-width:68px; }
@@ -1354,7 +1354,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25o';
+const APP_BUILD = '2026-11-25p';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
