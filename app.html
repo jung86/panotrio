@@ -1372,7 +1372,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25u';
+const APP_BUILD = '2026-11-25v';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2501,7 +2501,7 @@ function condRender(force) {
   $('condRows').innerHTML = rows.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('');
 }
 function condLiveGrade(c) { return c.cv === null ? ['재는 중', 'var(--cyan)', 4] : c.score >= 85 ? ['좋음', 'var(--green)', 0] : c.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
-// Live score on the stick's measuring screen (firmware 2.4+): 'k'(0x6B) grade score hz*10(u16 LE) flags; grade 255 = clear.
+// Live score on the stick's measuring screen (firmware 2.4+): 'g'(0x67) grade score hz*10(u16 LE) flags; grade 255 = clear.
 var condLiveT = 0, condLiveKey = '';
 function condLiveStick(c) {
   const ch = cmdChar; if (!ch || !stickCnd || lockedOut() || ck) return;
@@ -2510,7 +2510,7 @@ function condLiveStick(c) {
   if (now - condLiveT < 700) return;                  // keep Bluetooth free for the pano stream
   condLiveKey = key; condLiveT = now;
   const b = new Uint8Array(6), dv = new DataView(b.buffer);
-  b[0] = 107; b[1] = g; b[2] = c ? c.score : 0; dv.setUint16(3, c ? Math.min(65535, Math.round(c.hz * 10)) : 0, true); b[5] = c && c.psu ? 1 : 0;
+  b[0] = 103; b[1] = g; b[2] = c ? c.score : 0; dv.setUint16(3, c ? Math.min(65535, Math.round(c.hz * 10)) : 0, true); b[5] = c && c.psu ? 1 : 0;
   gatt(() => ch.writeValue(b)).catch(() => {});
 }
 function condSnapshot() { const c = condLast; return c && c.cv !== null ? { cond: c.score } : {}; }
@@ -2598,10 +2598,10 @@ function ckFinish() {
   saveRecs(recs); renderRecs();
   ckShow(r); ckSendStick(r); ckRender();
 }
-async function ckSendStick(r) {                       // 'K' grade score hz*10 mA tag  (stick firmware 2.4+)
+async function ckSendStick(r) {                       // 'G' grade score hz*10 mA tag  (stick firmware 2.4+)
   const ch = cmdChar; if (!ch || !stickCnd || lockedOut()) return;
   const b = new Uint8Array(8), dv = new DataView(b.buffer);
-  b[0] = 75; b[1] = ckGrade(r)[2]; b[2] = r.unstable ? 255 : r.score;
+  b[0] = 71; b[1] = ckGrade(r)[2]; b[2] = r.unstable ? 255 : r.score;
   dv.setUint16(3, Math.min(65535, Math.round(r.hz * 10)), true); dv.setUint16(5, Math.min(65535, Math.round(r.i * 1000)), true); b[7] = r.tag;
   try { await gatt(() => ch.writeValue(b)); } catch (e) {}
 }
