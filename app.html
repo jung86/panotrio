@@ -367,9 +367,9 @@
     <div class="hdr-r"><span id="cleanStick" class="conn">스틱 연결 안 됨</span></div>
   </header>
   <div class="card">
-    <div class="ttl">전원공급기 (DPS-150)</div>
+    <div class="ttl">전원공급기 (DPS-150 / DPS100)</div>
     <button id="btnDps" class="primary">전원공급기 연결 (USB)</button>
-    <div id="dpsInfo" class="help" style="margin-top:8px">휴대폰 USB-C ↔ DPS-150 <b>Micro USB(데이터)</b> 선으로 연결하고 누르세요. DPS-150 전원은 PD 충전기로 넣습니다.</div>
+    <div id="dpsInfo" class="help" style="margin-top:8px">휴대폰 USB-C ↔ 전원공급기 <b>데이터 단자</b>(DPS-150: Micro USB, DPS100: PC COMM) 선으로 연결하고 누르세요. 전원공급기 전원은 PD 충전기로 넣습니다.</div>
     <div class="dpsLive">
       <div><span id="dV">-.--</span><small>V</small></div>
       <div><span id="dA">-.---</span><small>A</small></div>
@@ -678,7 +678,7 @@ const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
 var connGen = 0, otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false, fwAsked = '';
-// 모터클리닝 / DPS-150 state (used by the views before their code further down runs)
+// 모터클리닝 / DPS-150 (or DPS100) state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
 const cl = { mode: 'clean', phase: '', hist: [], vSending: false, run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
 let stickDir = null, stickRly = null;               // from the stick's info text (firmware 1.9+)
@@ -1449,7 +1449,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26d';
+const APP_BUILD = '2026-11-26e';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1815,7 +1815,17 @@ renderRecs();
   sp.onclick = go; setTimeout(go, 1800); })();
 setInterval(() => { if (cur) drawChart(); }, 1000);
 
-// ---------------------------------------------------------------- DPS-150 power supply over USB
+// ---------------------------------------------------------------- DPS-150 / DPS100 power supply over USB
+// DPS100 (another maker, same screen and, it seems, the same protocol): not tried on a real unit yet.
+// Its USB chip is unknown, so the first list also shows the usual USB-serial chips, the device the user picks
+// is remembered (vendor / product id) for reconnecting, and its model name sets the limits.
+const DPS_VIDS = [0x2e3c, 0x0483, 0x28e9, 0x1a86, 0x10c4];   // Artery (DPS-150), ST, GigaDevice, WCH, Silicon Labs
+function dpsSaved() { try { return JSON.parse(localStorage.getItem('dpsDev') || 'null'); } catch (e) { return null; } }
+function dpsIsOurs(vid, pid) { const s = dpsSaved(); return vid === 0x2e3c || !!(s && s.vid === vid && s.pid === pid); }
+function dpsIs100() { return /DPS\s*-?\s*100(?!\d)/i.test(dps.st.model || ''); }
+function dpsName() { return dps.st.model || (dps.link ? '전원공급기' : 'DPS-150 / DPS100'); }
+// limits of the connected model (this app itself never goes past 12 V / 5 A)
+function dpsCaps() { return dpsIs100() ? { v: 30, a: 5, ocp: 5.05, w: 100 } : { v: 30, a: 5.1, ocp: 5.2, w: 150 }; }
 // Protocol from the open reverse-engineered description (cho45/fnirsi-dps-150, MIT):
 //   to device:   F1 <cmd> <reg> <len> <data...> <sum>     from device: F0 A1 <reg> <len> <data...> <sum>
 //   sum = (reg + len + data bytes) & 255, floats are little-endian float32.
@@ -1834,7 +1844,9 @@ function dpsSend(cmd, reg, data) {                 // one write at a time, small
   const p = dps.wq.then(run, run); dps.wq = p.catch(() => {}); return p;
 }
 const dpsByte = (reg, v) => dpsSend(0xB1, reg, [v & 255]);
-function dpsFloat(reg, v) { const b = new Uint8Array(4); new DataView(b.buffer).setFloat32(0, v, true); return dpsSend(0xB1, reg, b); }
+function dpsFloat(reg, v) {
+  if (reg === DPS_I) v = Math.min(v, dpsCaps().a); else if (reg === DPS_V) v = Math.min(v, dpsCaps().v);
+  const b = new Uint8Array(4); new DataView(b.buffer).setFloat32(0, v, true); return dpsSend(0xB1, reg, b); }
 const dpsGet = reg => dpsSend(0xA1, reg, [0]);
 const dpsOutput = on => dpsByte(DPS_OUT, on ? 1 : 0);
 let dpsBuf = new Uint8Array(0);
@@ -1872,7 +1884,7 @@ function dpsParse(reg, d) {
   if (st.prot && cl.run) cleanStop('전원공급기 보호 동작: ' + st.prot);
 }
 async function dpsOpenSerial(known, any) {
-  const port = known || await navigator.serial.requestPort(any ? {} : { filters: [{ usbVendorId: 0x2e3c }] });   // DPS-150 only, unless asked for all
+  const port = known || await navigator.serial.requestPort(any ? {} : { filters: DPS_VIDS.map(v => ({ usbVendorId: v })) });   // DPS-150 / DPS100 chips, unless asked for all
   if (port.readable) { try { await port.close(); } catch (e) {} }
   await port.open({ baudRate: 115200, bufferSize: 1024 });
   let reader = null, alive = true;
@@ -1884,14 +1896,15 @@ async function dpsOpenSerial(known, any) {
     }
     if (alive) dpsLost();
   })();
+  const info = port.getInfo ? port.getInfo() : {};
   return {
-    kind: 'serial',
+    kind: 'serial', vid: info.usbVendorId, pid: info.usbProductId,
     write: async b => { const w = port.writable.getWriter(); try { await w.write(b); } finally { w.releaseLock(); } },
     close: async () => { alive = false; try { await reader.cancel(); } catch (e) {} try { await port.close(); } catch (e) {} }
   };
 }
 async function dpsOpenUsb(known, any) {             // minimal USB CDC-ACM driver (Android)
-  const dev = known || await navigator.usb.requestDevice({ filters: any ? [{ vendorId: 0x2e3c }, { classCode: 2 }, { classCode: 10 }] : [{ vendorId: 0x2e3c }] });   // 0x2e3c: Artery (DPS-150's chip)
+  const dev = known || await navigator.usb.requestDevice({ filters: any ? [...DPS_VIDS.map(v => ({ vendorId: v })), { classCode: 2 }, { classCode: 10 }] : DPS_VIDS.map(v => ({ vendorId: v })) });   // 0x2e3c: Artery (DPS-150's chip)
   if (dev.opened) { try { await dev.close(); } catch (e) {} }
   await dev.open();
   if (!dev.configuration) await dev.selectConfiguration(1);
@@ -1921,7 +1934,7 @@ async function dpsOpenUsb(known, any) {             // minimal USB CDC-ACM drive
     if (alive) dpsLost();
   })();
   return {
-    kind: 'usb',
+    kind: 'usb', vid: dev.vendorId, pid: dev.productId,
     write: async b => { await dev.transferOut(epOut.endpointNumber, b); },
     close: async () => { alive = false; try { await dev.close(); } catch (e) {} }
   };
@@ -1934,7 +1947,7 @@ var dpsGuardV = 0, dpsGuardA = 0;
 async function dpsGuard(v, a) {
   if (!dps.link) return;
   try { if (!localStorage.getItem('dpsProt') && dps.st.ovp > 0) localStorage.setItem('dpsProt', JSON.stringify({ ovp: dps.st.ovp, ocp: dps.st.ocp })); } catch (e) {}
-  const gv = Math.round(Math.min(Math.max(dpsGuardV, v + 0.6), 12.6) * 100) / 100, ga = Math.round(Math.min(Math.max(dpsGuardA, a + 0.5), 5.2) * 100) / 100;
+  const gv = Math.round(Math.min(Math.max(dpsGuardV, v + 0.6), 12.6) * 100) / 100, ga = Math.round(Math.min(Math.max(dpsGuardA, a + 0.5), dpsCaps().ocp) * 100) / 100;
   if (gv !== dpsGuardV) { await dpsFloat(DPS_OVP, gv); dpsGuardV = gv; }     // only ever raised while on: a lower setting
   if (ga !== dpsGuardA) { await dpsFloat(DPS_OCP, ga); dpsGuardA = ga; }     // must not trip on the motor's coasting voltage
 }
@@ -1952,15 +1965,15 @@ function dpsMsg(html) {                              // connection messages show
 async function dpsKnown(useUsb) {
   try {
     if (useUsb) {
-      const d = (await navigator.usb.getDevices()).filter(x => x.vendorId === 0x2e3c);
+      const d = (await navigator.usb.getDevices()).filter(x => dpsIsOurs(x.vendorId, x.productId));
       return d.length === 1 ? { kind: 'usb', dev: d[0] } : null;
     }
     const ports = await navigator.serial.getPorts();
-    const p = ports.filter(x => { const i = x.getInfo ? x.getInfo() : {}; return i.usbVendorId === 0x2e3c; });
+    const p = ports.filter(x => { const i = x.getInfo ? x.getInfo() : {}; return dpsIsOurs(i.usbVendorId, i.usbProductId); });
     return p.length === 1 ? { kind: 'serial', dev: p[0] } : null;
   } catch (e) { return null; }
 }
-const DPS_HELP = '<br>· 데이터선인지 (충전 전용 선은 안 됨)<br>· DPS-150 전원이 켜져 있는지<br>· 선을 뽑았다 다시 꽂고 [연결]';
+const DPS_HELP = '<br>· 데이터선인지 (충전 전용 선은 안 됨)<br>· 전원공급기(DPS-150 / DPS100) 전원이 켜져 있는지<br>· 선을 뽑았다 다시 꽂고 [연결]';
 let dpsConnecting = false;
 async function dpsConnect(opt) {
   const silent = !!(opt && opt.silent);
@@ -1973,7 +1986,7 @@ async function dpsConnect(opt) {
   const known = await dpsKnown(useUsb);
   if (silent && !known) return;
   dpsConnecting = true;
-  dpsMsg(known ? '전에 허락한 DPS-150에 다시 연결하는 중…' : '연결 중… 목록에서 DPS-150을 한 번 누르세요');
+  dpsMsg(known ? '전에 허락한 전원공급기에 다시 연결하는 중…' : '연결 중… 목록에서 DPS-150 / DPS100을 한 번 누르세요');
   try {
     try {
       if (known) { try { dps.link = known.kind === 'usb' ? await dpsOpenUsb(known.dev) : await dpsOpenSerial(known.dev); } catch (e) { if (silent) throw e; dps.link = null; } }
@@ -1981,8 +1994,8 @@ async function dpsConnect(opt) {
     }
     catch (e) {                                       // nothing picked in the first list: offer the other kind of list
       if (e.name !== 'NotFoundError' || silent) throw e;
-      // the first list shows only the DPS-150; if it was not there, show every USB / serial device
-      dpsMsg('DPS-150이 안 보였다면 다음 목록에서 USB 장치를 고르세요');
+      // the first list shows only the known chips; if it was not there, show every USB / serial device
+      dpsMsg('전원공급기가 안 보였다면 다음 목록에서 USB 장치를 고르세요');
       if (useUsb && android) dps.link = await dpsOpenUsb(null, true);
       else if (useUsb && 'serial' in navigator) dps.link = await dpsOpenSerial(null, true);
       else if ('usb' in navigator) dps.link = await dpsOpenUsb(null, true);
@@ -1997,6 +2010,7 @@ async function dpsConnect(opt) {
     clearInterval(dps.poll); dps.poll = setInterval(() => { if (dps.link) dpsGet(DPS_ALL).catch(() => {}); }, 1000);
     dpsConnecting = false;
     setTimeout(() => { if (dps.link && dps.st.t && !dps.st.on && !cl.run && !cl.busy) dpsUnguard(); }, 1500);   // limits left over from a stopped app
+    setTimeout(() => { if (dps.link && dps.st.t && dps.link.vid !== undefined) { try { localStorage.setItem('dpsDev', JSON.stringify({ vid: dps.link.vid, pid: dps.link.pid })); } catch (e) {} } }, 2500);   // it answered: remember it for reconnecting
     setTimeout(() => { if (dps.link && !dps.st.t) dpsMsg('<b style="color:#ff6b6b">연결은 됐는데 응답이 없습니다.</b>' + DPS_HELP); }, 2500);
     if ($('psuMsg')) $('psuMsg').textContent = '';
     dpsRender();
@@ -2004,7 +2018,7 @@ async function dpsConnect(opt) {
     const l = dps.link; dps.link = null; if (l) { try { await l.close(); } catch (e2) {} }
     dpsConnecting = false;
     if (silent) { dpsMsg(''); dpsRender(); return; }
-    if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 DPS-150이 없습니다.</b>' + DPS_HELP);
+    if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 전원공급기가 없습니다.</b>' + DPS_HELP);
     else dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP);
     dpsRender();
   }
@@ -2036,7 +2050,7 @@ function dpsRender() {
   $('btnDps').classList.toggle('primary', !on);
   $('dV').textContent = n(st.v, 2); $('dA').textContent = n(st.i, 3); $('dW').textContent = n(st.p, 2);
   if (on && st.t) {
-    $('dpsInfo').textContent = (st.model || 'DPS-150') + ' 연결됨 · 출력 ' + (st.on ? 'ON' : 'OFF');
+    $('dpsInfo').textContent = dpsName() + ' 연결됨 · 출력 ' + (st.on ? 'ON' : 'OFF');
     $('dpsSub').textContent = [st.vin ? '입력 ' + st.vin.toFixed(1) + ' V' : '', st.temp ? st.temp.toFixed(0) + ' °C' : '', st.on ? (st.cc ? 'CC (전류 제한 중)' : 'CV') : '', st.prot ? '⚠ ' + st.prot : ''].filter(Boolean).join(' · ');
   } else if (!on) $('dpsSub').textContent = '';
   cleanRenderBtns();
@@ -2453,7 +2467,7 @@ async function psuApply() {                          // new voltage / current: s
   try { if (dps.st.on) await dpsGuard(s.v, s.a); await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); } catch (e) { $('psuMsg').textContent = '보내지 못했습니다: ' + e.message; }
 }
 async function psuToggle() {
-  if (!dps.link) { $('psuMsg').textContent = '먼저 위의 [연결]로 전원공급기를 연결하세요 (휴대폰 ↔ DPS-150 데이터선)'; return; }
+  if (!dps.link) { $('psuMsg').textContent = '먼저 위의 [연결]로 전원공급기를 연결하세요 (휴대폰 ↔ DPS-150 / DPS100 데이터선)'; return; }
   if (!psuFree()) return;
   if (dps.st.on) { try { await dpsOutput(false); dps.st.on = false; await dpsUnguard(); } catch (e) {} psuRender(); return; }
   const s = psuRead(); if (!s) return;
@@ -2517,9 +2531,9 @@ $('btnInstall').onclick = async () => {
     installEvt = null;
   } else notify('크롬 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', true);
 };
-if (!('usb' in navigator) && !('serial' in navigator)) {      // iPhone (Bluefy, Safari) and some browsers: no USB, so no DPS-150
+if (!('usb' in navigator) && !('serial' in navigator)) {      // iPhone (Bluefy, Safari) and some browsers: no USB, so no DPS-150 / DPS100
   $('dpsInfo').innerHTML = IOS_UA
-    ? '<b style="color:#ffa94d">아이폰은 전원공급기(DPS-150) USB 연결이 안 됩니다.</b> 모터클리닝·길들이기는 안드로이드 크롬이나 PC 크롬에서 하세요. 스틱 파노 측정은 그대로 됩니다.'
+    ? '<b style="color:#ffa94d">아이폰은 전원공급기(DPS-150 / DPS100) USB 연결이 안 됩니다.</b> 모터클리닝·길들이기는 안드로이드 크롬이나 PC 크롬에서 하세요. 스틱 파노 측정은 그대로 됩니다.'
     : '<b style="color:#ffa94d">이 브라우저는 USB 연결이 안 됩니다.</b> 안드로이드 크롬이나 PC 크롬에서 여세요.';
   $('btnDps').style.background = 'var(--grey)'; $('btnDps').style.borderColor = 'var(--grey)';
 }
