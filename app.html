@@ -307,6 +307,13 @@
       </svg>
       <div style="text-align:left"><div class="tl">설명서</div><div class="ts">그림으로 보는 사용 방법</div></div>
     </div>
+    <div class="tile wide" id="tileReport" role="button">
+      <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 10C17 10 6 19 6 30c0 7 5 13 12 16l-3 10 11-7c2 0 4 1 6 1 15 0 26-9 26-20S47 10 32 10z" fill="#fee500" stroke="#fee500" stroke-width="3"/>
+        <path d="M32 20v12M32 39v1" stroke="#3c1e1e" stroke-width="5"/>
+      </svg>
+      <div style="text-align:left"><div class="tl">오류·문의 신고</div><div class="ts">카카오톡으로 제작자에게 바로 보내기</div></div>
+    </div>
   </div>
   <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요. <span class="iosOnly">아이폰은 Bluefy 앱에서 스틱 측정만 됩니다.</span></p>
@@ -1138,6 +1145,14 @@ $('tileSettings').onclick = () => go('settings');
 $('tileClean').onclick = () => go('clean');
 $('tileBreakin').onclick = () => go('breakin');
 $('tileManual').onclick = () => { location.href = 'manual.html'; };
+const REPORT_KAKAO = 'https://qr.kakao.com/talk/KAoG3jvpyh58RB7NFy4KUi7kl2I-';   // maker's KakaoTalk profile
+$('tileReport').onclick = async () => {               // copy app/stick info first, then open the maker's KakaoTalk
+  const id = $('infoId') ? $('infoId').textContent : '', info = $('infoTxt') ? $('infoTxt').textContent : '';
+  const t = '[파노체크 오류·문의]\n내용: \n\n앱 ' + APP_BUILD + (info && info.indexOf('펌웨어') >= 0 ? '\n' + info : '') + (id && !id.startsWith('-') ? '\n스틱 ID ' + id : '') +
+    '\n' + (IOS ? '아이폰' : /Android/i.test(navigator.userAgent) ? '안드로이드' : 'PC') + (dps.link ? ' · ' + dpsName() + ' 연결' : '');
+  try { await navigator.clipboard.writeText(t); notify('앱 정보를 복사했습니다 · 카톡 대화창에 붙여넣고 내용을 적어 주세요', true); } catch (e) {}
+  setTimeout(() => { location.href = REPORT_KAKAO; }, 700);
+};
 if (location.hash === '#manual') history.replaceState(null, '', location.pathname + '#home');
 $('btnHome').onclick = goHome;
 $('btnClose').onclick = goHome;
@@ -1450,7 +1465,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26h';
+const APP_BUILD = '2026-11-26i';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
