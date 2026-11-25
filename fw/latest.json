@@ -1,8 +1,8 @@
 {
- "ver": "2.5",
- "size": 1053792,
- "sha256": "1f9d2581c88e2373611b84eb434b85c6ba691f25a3d17cfdbdbbd4dffa835327",
- "sig": "TUCJf2LgyVER1XHbjJq-BWbI6HO6wfuND3bMLdnsKRZd_LNAeVG0YM1MPw-YrKzCKKqIYj8MaP1ICb-xWgzJ_g",
- "bin": "fw/PanoCheck-2.5.app.bin",
- "note": "저속 파노 2배 보정 · 측정 안정성 개선"
+ "ver": "2.6",
+ "size": 1054880,
+ "sha256": "081a3bb3dc69519ed0473149262f387db0b1584433d893ef628885372d3b7813",
+ "sig": "4hOFfi_g6cl1aPOWqGf_xGIL-821rVFWgqpVxN9kghwm9xJrobr6NjhDUu-aoLPdr904nvOTAeboFI82MMCdEw",
+ "bin": "fw/PanoCheck-2.6.app.bin",
+ "note": "측정 후 점수 표시 · 대기 0초 설정"
 }
