@@ -1,8 +1,8 @@
 {
- "ver": "2.3",
- "size": 1049968,
- "sha256": "b64e5eb07a8aebf64140415c8d1eb86fd3503585cb137604acb80eb62c5b33d1",
- "sig": "XaglIkHG4f4TkZGUyVn3pq95oDzcNd4Y-SnRhqBCY5-K8aAsFpT-wP5U_hjarLqSq8UTLRkSozhJg4WdLmDDEw",
- "bin": "fw/PanoCheck-2.3.app.bin",
- "note": "대기 모드 시계 · 릴레이 전원 절약 · 업데이트 이어받기"
+ "ver": "2.4",
+ "size": 1052112,
+ "sha256": "1850ff165f5f0d182b4f84121b0fe3370f669bdcd1f1783d9c86d7ef90a9a61e",
+ "sig": "9aBEPeFi66TgZeebMiJP7Vx5ErUfEzTVHonMmhKaHcespuEMeAdAxgqErJykIFsmO4AEJQC8k9ydoDTlOLOD6Q",
+ "bin": "fw/PanoCheck-2.4.app.bin",
+ "note": "대기 시계 수정 · 컨디션 점수 표시"
 }
