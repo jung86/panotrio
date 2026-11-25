@@ -182,61 +182,7 @@
       <li>큰 <b>[정방향] [역방향]</b> 버튼으로 방향을 고르고 <b>[출력 켜기]</b>.</li>
       <li><b>💾 저장</b>: 자주 쓰는 전압·전류를 프리셋으로.</li>
     </ul>
-    <div class="tip">역방향은 스틱 Grove 단자에 <b>릴레이 보드</b>를 달고(<a href="#s-relay" style="color:var(--blue)">배선 보기</a>), 설정에서 <b>"릴레이 연결됨"</b>을 켜야 쓸 수 있습니다. 전류 제한을 1 A 정도로 낮추면 모터가 안 돌거나 CC에 걸려 "전원 불안정"이 나올 수 있습니다.</div>
-    <h3 id="s-relay" style="margin:18px 0 6px">🔁 정·역 릴레이 연결 (2채널 릴레이 보드)</h3>
-    <p>파란 릴레이 2개짜리 보드를 <b>파란 나사 단자가 왼쪽</b>에 오게 놓고, 나사를 <b>위에서부터 1~6번</b>으로 셉니다. 선은 세 묶음만 연결하면 됩니다.</p>
-    <svg viewBox="0 0 360 330" style="display:block;width:100%;max-width:520px;margin:10px auto;background:#0f1217;border:1px solid var(--line);border-radius:12px" font-family="system-ui,sans-serif" font-size="12">
-      <rect x="120" y="20" width="150" height="250" rx="10" fill="#1b2029" stroke="#495057"/>
-      <text x="200" y="262" fill="#9aa3b5" text-anchor="middle" font-size="10">2 Relay Module</text>
-      <rect x="140" y="30" width="80" height="105" rx="6" fill="#1971c2"/><text x="180" y="88" fill="#fff" text-anchor="middle" font-weight="700">K2</text>
-      <rect x="140" y="145" width="80" height="105" rx="6" fill="#1971c2"/><text x="180" y="203" fill="#fff" text-anchor="middle" font-weight="700">K1</text>
-      <g fill="#4dabf7" stroke="#d0ebff">
-        <circle cx="128" cy="48" r="9"/><circle cx="128" cy="83" r="9"/><circle cx="128" cy="118" r="9"/>
-        <circle cx="128" cy="163" r="9"/><circle cx="128" cy="198" r="9"/><circle cx="128" cy="233" r="9"/>
-      </g>
-      <g fill="#0f1217" font-weight="800" text-anchor="middle" font-size="11">
-        <text x="128" y="52">1</text><text x="128" y="87">2</text><text x="128" y="122">3</text><text x="128" y="167">4</text><text x="128" y="202">5</text><text x="128" y="237">6</text>
-      </g>
-      <g stroke-width="3" fill="none">
-        <path d="M119 48 H70 V233 H119" stroke="#ff6b6b"/>
-        <path d="M119 118 H95 V163 H119" stroke="#74c0fc"/>
-        <path d="M119 83 H105" stroke="#fcc419"/><path d="M119 198 H105" stroke="#fcc419"/>
-      </g>
-      <g font-weight="700" font-size="11">
-        <text x="8" y="140" fill="#ff6b6b">DPS +</text><text x="8" y="154" fill="#ff6b6b" font-weight="400" font-size="10">(1번·6번)</text>
-        <text x="72" y="300" fill="#74c0fc" text-anchor="middle">DPS − : 3번·4번</text>
-        <text x="72" y="316" fill="#fcc419" text-anchor="middle">모터 두 선: 2번·5번</text>
-      </g>
-      <line x1="95" y1="140" x2="95" y2="290" stroke="#74c0fc" stroke-width="3"/>
-      <line x1="105" y1="83" x2="105" y2="198" stroke="#fcc419" stroke-width="0"/>
-      <g font-size="11">
-        <rect x="246" y="40" width="16" height="80" rx="3" fill="#000" stroke="#868e96"/>
-        <text x="270" y="52" fill="#adb5bd">GND ← 검정</text>
-        <text x="270" y="72" fill="#fcc419">IN1 ← 노랑</text>
-        <text x="270" y="92" fill="#e8ebf1">IN2 ← 하양</text>
-        <text x="270" y="112" fill="#ff6b6b">VCC ← 빨강</text>
-        <rect x="246" y="150" width="16" height="30" rx="3" fill="#fcc419"/>
-        <text x="270" y="165" fill="#9aa3b5" font-size="10">노란 점퍼</text><text x="270" y="178" fill="#9aa3b5" font-size="10">그대로 둠</text>
-        <text x="300" y="215" fill="#e8ebf1" text-anchor="middle" font-weight="700">스틱 Grove</text>
-        <text x="300" y="230" fill="#9aa3b5" text-anchor="middle" font-size="10">4가닥 선</text>
-      </g>
-    </svg>
-    <table>
-      <tr><th>어디에</th><th>무엇을</th></tr>
-      <tr><td><b>1번, 6번</b> 나사</td><td>DPS 출력 <b style="color:var(--bad)">+</b> (빨강) · 선 2가닥으로 나눠서</td></tr>
-      <tr><td><b>3번, 4번</b> 나사</td><td>DPS 출력 <b style="color:var(--blue)">−</b> (검정) · 선 2가닥으로 나눠서</td></tr>
-      <tr><td><b>2번, 5번</b> 나사 (각 릴레이 가운데)</td><td>모터 선 두 가닥 (한 가닥씩)</td></tr>
-      <tr><td>오른쪽 4핀 GND·IN1·IN2·VCC</td><td>스틱 Grove 선: 검정→GND, 노랑→IN1, 하양→IN2, 빨강→VCC<br><span class="mute">핀 순서는 보드에 적힌 글자를 보고 맞추세요. 노랑·하양은 바뀌어도 됩니다.</span></td></tr>
-    </table>
-    <div class="tip"><b>필요한 선</b>: ① 스틱 Grove → 점퍼 <b>암(구멍)</b> 4가닥 케이블 1개 ② DPS 출력에서 나오는 + 선, − 선을 각각 <b>2갈래</b>로 나눌 짧은 전선(굵기 0.5 mm² 이상, 3 A 견딜 것) ③ 모터 선 2가닥.</div>
-    <ol class="steps" style="margin-top:10px">
-      <li>DPS 출력은 <b>끈 채로</b> 위 표대로 연결합니다.</li>
-      <li>앱 <b>설정 → 릴레이 연결됨</b>을 켭니다.</li>
-      <li>모터클리닝 화면 아래 <b>릴레이 보드 (역방향용)</b>를 열고 <b>LOW 트리거</b>를 고릅니다.</li>
-      <li><b>릴레이 시험</b>을 눌러 딸깍 2번 나면 정상.</li>
-      <li>DPS를 <b>1.5 V</b>로 켜고 <b>정방향</b>·<b>역방향</b>을 눌러 모터가 반대로 도는지 봅니다. 정방향이 거꾸로 돌면 <b>2번·5번 모터 선만 서로 바꿔</b> 끼우세요.</li>
-    </ol>
-    <div class="tip">잘못 꽂아도 DPS +와 −가 직접 붙는 길은 없어서 <b>합선은 나지 않습니다</b>. 모터가 아예 안 돌면 나사 번호를 다시 확인하세요. 방향을 바꿀 땐 앱이 자동으로 <b>출력 끄기 → 모터 멈춤 기다리기 → 릴레이 전환 → 다시 켜기</b> 순서로 합니다. 릴레이는 10 A짜리라 3 A면 넉넉합니다.</div>
+    <div class="tip">역방향은 스틱 Grove 단자에 <b>릴레이 보드</b>를 달고, 설정에서 <b>"릴레이 연결됨"</b>을 켜야 쓸 수 있습니다. 전류 제한을 1 A 정도로 낮추면 모터가 안 돌거나 CC에 걸려 "전원 불안정"이 나올 수 있습니다.</div>
   </section>
 
   <!-- ===================================================== condition -->
