@@ -99,7 +99,8 @@
 - 앱을 고치면 app.html의 `APP_BUILD` 값을 올리고 push → GitHub Pages가 배포. 폰에서는 페이지를 닫았다 다시 열어야 반영.
 - app.html 초기화 중 `showView()`가 먼저 불리므로, 그 경로에서 쓰는 변수는 뒤에 `let/const`로 선언하지 말 것(TDZ). `var x = x || 기본값` 방식 사용.
 - 동적으로 만든 −/+ 버튼은 `bindSteppers(상자)`를 불러야 동작.
-- 새 펌웨어 배포: 병합 bin → `PanoCheck-X.Y-M5StickS3.bin`(설치 페이지용), 앱 bin → `fw/PanoCheck-X.Y.app.bin`, `fw/latest.json`(ver, size, sha256, sig, bin, note), `manifest.json`, index.html 제목, README 갱신, 이전 bin은 삭제.
+- **USB 설치는 NVS(0x9000~0xE000, 활성화·설정)를 덮어쓰면 안 됨.** 병합 bin을 offset 0에 통째로 쓰면 NVS가 0xFF로 지워져 활성화가 풀림(2026-11-25 실제 발생). manifest.json은 `install/bootloader-X.Y.bin`(0), `install/partitions-X.Y.bin`(0x8000), `install/otadata-X.Y.bin`(0xE000), `fw/PanoCheck-X.Y.app.bin`(0x10000) 네 조각으로 씀. 병합 bin에서 잘라 만들면 됨.
+- 새 펌웨어 배포: 병합 bin → `PanoCheck-X.Y-M5StickS3.bin`(보관용, 설치 조각을 여기서 자름), 앱 bin → `fw/PanoCheck-X.Y.app.bin`, `fw/latest.json`(ver, size, sha256, sig, bin, note), `manifest.json`, index.html 제목, README 갱신, 이전 bin은 삭제.
 - 서명 메시지 형식: `PanoCheck|fw|v1|버전|SHA256HEX` (ECDSA P-256). **비공개 키는 사용자 PC의 비공개 폴더에만 있고 절대 저장소에 올리지 않음.** bin에 비공개 키가 들어가지 않았는지 확인.
 - **컨디션 결과 → 스틱 (펌웨어 2.4에서 만들 것)**: 명령 특성(cmdChar)에 8바이트 `'K'(0x4B), 등급, 점수, 파노×10 (u16 LE), 전류 mA (u16 LE), 구분`.
   등급 0 좋음(초록) / 1 보통(노랑) / 2 점검 필요(빨강) / 3 전원 불안정(주황, 점수 255=없음). 구분 0 일반 / 1 청소 전 / 2 청소 후.
