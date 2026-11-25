@@ -7,10 +7,10 @@
     {
       "chipFamily": "ESP32-S3",
       "parts": [
-        {
-          "path": "PanoCheck-2.3-M5StickS3.bin",
-          "offset": 0
-        }
+        { "path": "install/bootloader-2.3.bin", "offset": 0 },
+        { "path": "install/partitions-2.3.bin", "offset": 32768 },
+        { "path": "install/otadata-2.3.bin", "offset": 57344 },
+        { "path": "fw/PanoCheck-2.3.app.bin", "offset": 65536 }
       ]
     }
   ]

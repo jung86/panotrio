@@ -24,7 +24,7 @@
 
 ## 3. 현재 버전 (2026-11-25 기준)
 
-- 앱: **2026-11-25t** (설정 맨 아래에 표시)
+- 앱: **2026-11-25u** (설정 맨 아래에 표시)
 - 스틱 펌웨어: **2.3** (설치 페이지와 블루투스 업데이트 파일 fw/latest.json)
 - 사용자의 실제 스틱(파노체크-1DD625E0): **2.3** (2026-11-25 PC Arduino IDE로 설치, activated=1 확인)
 
@@ -99,11 +99,13 @@
 - 앱을 고치면 app.html의 `APP_BUILD` 값을 올리고 push → GitHub Pages가 배포. 폰에서는 페이지를 닫았다 다시 열어야 반영.
 - app.html 초기화 중 `showView()`가 먼저 불리므로, 그 경로에서 쓰는 변수는 뒤에 `let/const`로 선언하지 말 것(TDZ). `var x = x || 기본값` 방식 사용.
 - 동적으로 만든 −/+ 버튼은 `bindSteppers(상자)`를 불러야 동작.
-- 새 펌웨어 배포: 병합 bin → `PanoCheck-X.Y-M5StickS3.bin`(설치 페이지용), 앱 bin → `fw/PanoCheck-X.Y.app.bin`, `fw/latest.json`(ver, size, sha256, sig, bin, note), `manifest.json`, index.html 제목, README 갱신, 이전 bin은 삭제.
+- **USB 설치는 NVS(0x9000~0xE000, 활성화·설정)를 덮어쓰면 안 됨.** 병합 bin을 offset 0에 통째로 쓰면 NVS가 0xFF로 지워져 활성화가 풀림(2026-11-25 실제 발생). manifest.json은 `install/bootloader-X.Y.bin`(0), `install/partitions-X.Y.bin`(0x8000), `install/otadata-X.Y.bin`(0xE000), `fw/PanoCheck-X.Y.app.bin`(0x10000) 네 조각으로 씀. 병합 bin에서 잘라 만들면 됨.
+- 새 펌웨어 배포: 병합 bin → `PanoCheck-X.Y-M5StickS3.bin`(보관용, 설치 조각을 여기서 자름), 앱 bin → `fw/PanoCheck-X.Y.app.bin`, `fw/latest.json`(ver, size, sha256, sig, bin, note), `manifest.json`, index.html 제목, README 갱신, 이전 bin은 삭제.
 - 서명 메시지 형식: `PanoCheck|fw|v1|버전|SHA256HEX` (ECDSA P-256). **비공개 키는 사용자 PC의 비공개 폴더에만 있고 절대 저장소에 올리지 않음.** bin에 비공개 키가 들어가지 않았는지 확인.
 - **컨디션 결과 → 스틱 (펌웨어 2.4에서 만들 것)**: 명령 특성(cmdChar)에 8바이트 `'K'(0x4B), 등급, 점수, 파노×10 (u16 LE), 전류 mA (u16 LE), 구분`.
   등급 0 좋음(초록) / 1 보통(노랑) / 2 점검 필요(빨강) / 3 전원 불안정(주황, 점수 255=없음). 구분 0 일반 / 1 청소 전 / 2 청소 후.
   스틱은 받으면 "92점 좋음"처럼 점수를 크게, 등급 색으로 약 8초 보여 주고 원래 화면으로. INFO에 `CND=1`을 넣어 지원을 알릴 것(앱은 CND=1 또는 버전 2.4 이상일 때만 보냄, 그 전 펌웨어엔 안 보냄).
+- **실시간 점수 → 스틱 (펌웨어 2.4에서 만들 것)**: 그냥 모터를 돌려도(컨디션 측정 안 눌러도, 전원공급기 없어도) 앱이 🩺 점수를 계산해서 6바이트 `'k'(0x6B), 등급(0 좋음/1 보통/2 점검 필요/4 재는 중/255 지움), 점수, 파노×10 (u16 LE), 플래그(bit0 전원공급기 값 포함)`를 최대 0.7~2초 간격으로 보냄(앱 2026-11-25u). 스틱은 측정 화면에 파노와 함께 점수를 등급 색으로 작게 표시, 5초 동안 안 오면 지움. 전원공급기 없으면 점수는 파노 흔들림(+진동·소리 차이)만으로 냄.
 - 블루투스 OTA 특성 UUID: 7a1e0006-5c1b-4f2e-9d3a-50a0b0c0d0e1 (명령 Q/H/B/D/E/C).
 - DPS-150: OVP 레지스터 209, OCP 210. 원래 값은 localStorage `dpsProt`에 저장했다가 복구.
 - 사용자 확인 없이 파일 삭제·메시지 전송 금지. 사용자 대신 비밀번호·인증 코드 입력 금지.

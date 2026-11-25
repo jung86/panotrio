@@ -1372,7 +1372,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25t';
+const APP_BUILD = '2026-11-25u';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2450,14 +2450,15 @@ function median(a) { const b = a.slice().sort((x, y) => x - y), m = b.length >> 
 function condSame(r, v) { return r.volt !== undefined && r.volt > 0.3 && Math.abs(r.volt - v) <= Math.max(0.2, v * 0.05); }
 function condCompute() {
   const st = dps.st || {};
-  if (!cur || !(cur.big > 0) || !dps.link || !st.on || !(st.v > 0.3) || !(st.i >= 0)) return null;
-  const v = st.v, i = st.i, hz = cur.big, rpv = hz * 60 / v;
+  if (!cur || !(cur.big > 0) || Date.now() - cur.t > 3000) return null;
+  const psu = !!(dps.link && st.on && st.v > 0.3 && st.i >= 0);   // without the power supply: pano steadiness only
+  const v = psu ? st.v : null, i = psu ? st.i : null, hz = cur.big, rpv = psu ? hz * 60 / v : null;
   const now = Date.now(), win = hist.filter(h => now - h.t < 5000 && h.big > 0).map(h => h.big);
   let cv = null;
   if (win.length >= 6) { const m = win.reduce((a, b) => a + b, 0) / win.length; cv = Math.sqrt(win.reduce((a, b) => a + (b - m) ** 2, 0) / win.length) / m * 100; }
   const agree = cur.vib > 0 && cur.mic > 0 ? Math.abs(cur.vib - cur.mic) / Math.max(cur.vib, cur.mic) * 100 : null;
   const dir = stickDir;
-  const base = curMotor ? recs.filter(r => r.motor === curMotor && condSame(r, v) && (r.dir === undefined || dir === null || r.dir === dir)) : [];
+  const base = psu && curMotor ? recs.filter(r => r.motor === curMotor && condSame(r, v) && (r.dir === undefined || dir === null || r.dir === dir)) : [];
   let bI = null, bR = null;
   if (base.length >= 2) { bI = median(base.map(r => r.amp)); bR = median(base.map(r => r.big * 60 / r.volt)); }
   const dI = bI > 0.005 ? (i - bI) / bI * 100 : null, dR = bR ? (rpv - bR) / bR * 100 : null;
@@ -2468,37 +2469,51 @@ function condCompute() {
   if (agree !== null && agree > 2) score -= Math.min(10, (agree - 2) * 2);
   // forward / reverse: latest record of each direction at this voltage
   let fr = null;
-  if (curMotor) {
+  if (psu && curMotor) {
     const f = recs.find(r => r.motor === curMotor && r.dir === 0 && condSame(r, v)), rv = recs.find(r => r.motor === curMotor && r.dir === 1 && condSame(r, v));
     if (f && rv) fr = Math.abs(f.big / f.volt - rv.big / rv.volt) / Math.max(f.big / f.volt, rv.big / rv.volt) * 100;
   }
   if (fr !== null && fr > 3) score -= Math.min(15, (fr - 3) * 2);
-  return { score: Math.max(0, Math.round(score)), v, i, hz, rpv, cv, agree, dI, dR, bN: base.length, fr, hasBase: bI !== null, clear: isClearResult(statusText) };
+  return { score: Math.max(0, Math.round(score)), psu, v, i, hz, rpv, cv, agree, dI, dR, bN: base.length, fr, hasBase: bI !== null, clear: isClearResult(statusText) };
 }
 function condRender(force) {
   const now = Date.now(); if (!force && now - condT < 400) return; condT = now;
   if (!$('condCard')) return;
   const c = condCompute(); condLast = c;
+  condLiveStick(c);
   if (!c) {
     $('condScore').innerHTML = '--'; $('condGrade').textContent = '대기'; $('condGrade').style.background = 'var(--grey)';
-    $('condNote').textContent = !dps.link ? '전원공급기를 연결하고 출력을 켜면 표시됩니다.' : !(dps.st && dps.st.on) ? '출력을 켜고 모터를 돌리면 표시됩니다.' : '파노 측정을 기다리는 중…';
+    $('condNote').textContent = '모터를 돌리고 스틱을 대면 바로 점수가 나옵니다.';
     $('condRows').innerHTML = ''; return;
   }
-  const g = !c.hasBase ? ['기준 쌓는 중', 'var(--cyan)'] : c.score >= 85 ? ['좋음', 'var(--green)'] : c.score >= 65 ? ['보통', 'var(--yellow)'] : ['점검 필요', 'var(--red)'];
+  const g = condLiveGrade(c);
   $('condScore').innerHTML = c.score + '<small>점</small>';
   $('condGrade').textContent = g[0]; $('condGrade').style.background = g[1];
-  $('condNote').textContent = !curMotor ? '모터를 선택하면 그 모터의 평소 값과 비교합니다.' : !c.hasBase ? `같은 전압(${c.v.toFixed(1)}V) 기록 ${c.bN}/2개 · 기록이 쌓이면 평소와 비교합니다` : `${esc(curMotor)} · ${c.v.toFixed(1)}V 기록 ${c.bN}개와 비교`;
+  $('condNote').textContent = !c.psu ? '파노 흔들림으로 낸 점수입니다 · 전원공급기 출력을 켜면 전류까지 봅니다' : !curMotor ? '모터를 선택하면 그 모터의 평소 값과도 비교합니다.' : !c.hasBase ? `같은 전압(${c.v.toFixed(1)}V) 기록 ${c.bN}/2개 · 기록이 쌓이면 평소와도 비교합니다` : `${esc(curMotor)} · ${c.v.toFixed(1)}V 기록 ${c.bN}개와 비교`;
   const pct = (d, badUp) => d === null ? '' : ` <span class="${(badUp ? d > 3 : d < -2) ? 'up' : (badUp ? d < -3 : d > 2) ? 'dn' : ''}">(평소 ${(Math.round(d * 10) / 10 || 0) >= 0 ? '+' : ''}${(Math.round(d * 10) / 10 || 0).toFixed(1)}%)</span>`;
-  const rows = [
+  const rows = (c.psu ? [
     ['전류', `${c.i.toFixed(3)} A @ ${c.v.toFixed(2)} V` + pct(c.dI, true)],
-    ['전압당 회전', `${Math.round(c.rpv).toLocaleString()} rpm/V` + pct(c.dR, false)],
+    ['전압당 회전', `${Math.round(c.rpv).toLocaleString()} rpm/V` + pct(c.dR, false)]] : [['파노', c.hz.toFixed(1) + ' Hz']]).concat([
     ['안정성', c.cv === null ? '측정 중…' : `±${c.cv.toFixed(2)}% ${c.cv < 0.5 ? '(아주 고름)' : c.cv < 1.5 ? '(보통)' : '(흔들림)'}`]
-  ];
+  ]);
   if (c.agree !== null) rows.push(['진동·소리 차이', c.agree.toFixed(1) + '%']);
   if (c.fr !== null) rows.push(['정/역 차이', c.fr.toFixed(1) + '%' + (c.fr > 3 ? ' (한쪽으로 치우침)' : '')]);
   $('condRows').innerHTML = rows.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('');
 }
-function condSnapshot() { const c = condLast; return c && c.hasBase ? { cond: c.score } : {}; }
+function condLiveGrade(c) { return c.cv === null ? ['재는 중', 'var(--cyan)', 4] : c.score >= 85 ? ['좋음', 'var(--green)', 0] : c.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
+// Live score on the stick's measuring screen (firmware 2.4+): 'k'(0x6B) grade score hz*10(u16 LE) flags; grade 255 = clear.
+var condLiveT = 0, condLiveKey = '';
+function condLiveStick(c) {
+  const ch = cmdChar; if (!ch || !stickCnd || lockedOut() || ck) return;
+  const g = c ? condLiveGrade(c)[2] : 255, key = c ? g + ':' + c.score : 'x', now = Date.now();
+  if (key === condLiveKey && (g === 255 || now - condLiveT < 2000)) return;
+  if (now - condLiveT < 700) return;                  // keep Bluetooth free for the pano stream
+  condLiveKey = key; condLiveT = now;
+  const b = new Uint8Array(6), dv = new DataView(b.buffer);
+  b[0] = 107; b[1] = g; b[2] = c ? c.score : 0; dv.setUint16(3, c ? Math.min(65535, Math.round(c.hz * 10)) : 0, true); b[5] = c && c.psu ? 1 : 0;
+  gatt(() => ch.writeValue(b)).catch(() => {});
+}
+function condSnapshot() { const c = condLast; return c && c.cv !== null ? { cond: c.score } : {}; }
 condRender(true);
 
 // ---------------------------------------------------------------- ⏱ 컨디션 측정: a fixed window at one voltage -> score 0~100
