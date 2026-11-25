@@ -139,6 +139,8 @@
   .set-name { font-weight:700; }
   .set-val { font-variant-numeric:tabular-nums; color:#ffd8a8; font-weight:700; white-space:nowrap; }
   .set-help { font-size:13px; color:var(--mute); margin-top:2px; }
+  .set-def { font-size:12px; color:var(--mute); opacity:.85; margin:1px 0 4px; }
+  .set-def b { color:inherit; font-weight:700; }
   .set-ends { display:flex; justify-content:space-between; font-size:12px; color:var(--mute); }
   input[type=range] { width:100%; margin:0; accent-color:var(--acc); height:28px; }
   .stepper { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
@@ -409,28 +411,33 @@
       <div class="set-help" style="margin-bottom:4px">스틱을 연결하면 <b>스틱에 저장된 설정을 불러옵니다</b>. 값을 바꾼 뒤 아래 <b>스틱에 저장</b>을 눌러야 스틱에 들어갑니다.</div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">화면 밝기</span><span class="set-val" id="vBr">-</span></div>
+        <div class="set-def">기본값: 67%</div>
         <div class="stepper"><button class="stp" data-for="sBr" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sBr" min="10" max="255" step="5"><button class="stp" data-for="sBr" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>어둡게</span><span>밝게</span></div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">진동 감도</span><span class="set-val" id="vVm">-</span></div>
+        <div class="set-def">기본값: 40 mg</div>
         <div class="stepper"><button class="stp" data-for="sVm" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sVm" min="0" max="10" step="1"><button class="stp" data-for="sVm" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>민감</span><span>둔감</span></div>
         <div class="set-help">민감할수록 약한 진동도 모터로 봅니다. 너무 민감하면 책상 떨림에도 측정이 시작될 수 있습니다.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">소리 감도</span><span class="set-val" id="vMic">-</span></div>
+        <div class="set-def">기본값: 보통</div>
         <div class="seg" id="segMic"><button data-v="25">높음</button><button data-v="40">보통</button><button data-v="70">낮음</button></div>
         <div class="set-help">소리 값(M)이 잘 안 잡히면 높음, 엉뚱한 값이 잡히면 낮음.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">측정 대기 시간</span><span class="set-val" id="vWt">-</span></div>
+        <div class="set-def">기본값: 2.5초</div>
         <div class="stepper"><button class="stp" data-for="sWt" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sWt" min="10" max="50" step="1"><button class="stp" data-for="sWt" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>1.0초</span><span>5.0초</span></div>
         <div class="set-help">진동을 인식한 뒤 측정하기까지 기다리는 시간.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">빨간 숫자 기준</span><span class="set-val" id="vHot">-</span></div>
+        <div class="set-def">기본값: 550 Hz (효과 켜짐)</div>
         <div class="stepper"><button class="stp" data-for="sHot" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sHot" min="300" max="900" step="5"><button class="stp" data-for="sHot" data-d="1" aria-label="늘리기">+</button></div>
         <label class="sw" style="margin-top:6px"><span class="set-help" style="margin:0">빨간 숫자 효과 끄기</span><input type="checkbox" id="cHotOff"></label>
         <div class="set-help">이 값보다 빠르면 스틱과 앱의 숫자가 빨갛게 흔들립니다.</div>
@@ -440,16 +447,19 @@
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">대기 모드 진입 시간</span><span class="set-val" id="vDim">-</span></div>
+        <div class="set-def">기본값: 30초</div>
         <div class="seg" id="segDim" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="15">15초</button><button data-v="30">30초</button><button data-v="60">1분</button><button data-v="180">3분</button></div>
         <div class="set-help">모터가 안 돌고 조작이 없으면 이 시간 뒤 대기 모드로 들어갑니다. 버튼을 누르거나 모터가 돌면 바로 깨어납니다 (이때 첫 버튼은 화면만 켭니다).</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">대기 모드 화면</span><span class="set-val" id="vSb">-</span></div>
+        <div class="set-def">기본값: 화면 끄기</div>
         <div class="seg" id="segSb" style="grid-template-columns:1fr 1fr"><button data-v="1">화면 끄기</button><button data-v="0">어둡게</button></div>
         <div class="set-help">화면 끄기가 배터리를 가장 많이 아낍니다. 화면이 꺼져 있어도 스틱은 켜져 있습니다.</div>
       </div>
       <div class="set-row" id="rowClk">
         <div class="set-top"><span class="set-name">🕒 대기 모드 시계</span><span class="set-val" id="vClk">-</span></div>
+        <div class="set-def">기본값: 켜기 · 24시간 · <b>충전 중에만</b> · 밝기 16%</div>
         <div class="seg" id="segCk" style="grid-template-columns:1fr 1fr"><button data-v="1">켜기</button><button data-v="0">끄기</button></div>
         <div class="seg" id="segC12" style="grid-template-columns:1fr 1fr;margin-top:6px"><button data-v="0">24시간 (14:30)</button><button data-v="1">12시간 (2:30 PM)</button></div>
         <div class="seg" id="segCb" style="grid-template-columns:1fr 1fr;margin-top:6px"><button data-v="0">충전 중에만</button><button data-v="1">배터리일 때도</button></div>
@@ -459,11 +469,12 @@
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">자동 꺼짐</span><span class="set-val" id="vOff">-</span></div>
+        <div class="set-def">기본값: 10분</div>
         <div class="seg" id="segOff" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="5">5분</button><button data-v="10">10분</button><button data-v="20">20분</button><button data-v="30">30분</button></div>
         <div class="set-help">모터가 안 돌고 아무 조작이 없으면 스틱을 끕니다. 꺼지기 10초 전에 화면 아래에 알려줍니다. USB에 꽂혀 있으면 꺼지지 않습니다.</div>
       </div>
       <div class="set-row">
-        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-help">모터가 없을 때 스틱의 처리 속도를 낮춰 전기를 아낍니다. 모터가 돌기 시작하면 바로 원래 속도로 측정합니다.</div></span><input type="checkbox" id="cSave"></label>
+        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 스틱의 처리 속도를 낮춰 전기를 아낍니다. 모터가 돌기 시작하면 바로 원래 속도로 측정합니다.</div></span><input type="checkbox" id="cSave"></label>
       </div>
       <div class="set-row">
         <button id="btnStickSave" style="width:100%;padding:14px;font-size:17px;font-weight:800">스틱에 저장</button>
@@ -483,11 +494,11 @@
 
   <div class="card">
     <div class="ttl">앱 설정</div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span></span><input type="checkbox" id="aVib"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span></span><input type="checkbox" id="aSnd"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span></span><input type="checkbox" id="aHot"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-help">스틱 Grove 포트에 릴레이 보드를 달았을 때만 켜세요. 꺼져 있으면 역방향을 쓰지 않습니다.</div></span><input type="checkbox" id="aRelay"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aVib"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aSnd"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aHot"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">스틱 Grove 포트에 릴레이 보드를 달았을 때만 켜세요. 꺼져 있으면 역방향을 쓰지 않습니다.</div></span><input type="checkbox" id="aRelay"></label></div>
   </div>
 
   <div class="card">
@@ -1343,7 +1354,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25n';
+const APP_BUILD = '2026-11-25o';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
