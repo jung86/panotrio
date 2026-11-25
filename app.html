@@ -605,6 +605,7 @@
       <div class="ttl" style="margin:0">⏱ 컨디션 측정 <small style="color:var(--mute);font-weight:600">같은 전압으로 일정 시간 돌려서 점수 내기</small></div>
       <div class="seg" id="ckTag"><button data-t="0" class="sel2">일반</button><button data-t="1">청소 전</button><button data-t="2">청소 후</button></div>
       <div class="prow" style="margin-top:6px"><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select><button id="btnCk" class="primary">▶ 측정 시작</button></div>
+      <label class="auto" style="margin-top:6px"><input type="checkbox" id="ckAutoOn" checked> 모터가 돌기 시작하면 자동으로 측정 (출력 켜고 3초 뒤)</label>
       <div id="ckLive" class="help" style="margin-top:6px"></div>
       <div id="ckRes"></div>
       <div id="ckCmp"></div>
@@ -1449,7 +1450,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26e';
+const APP_BUILD = '2026-11-26f';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -2465,6 +2466,7 @@ function psuFree() { return !!dps.link && !cl.run && !cl.busy && !psuBusy; }
 async function psuApply() {                          // new voltage / current: sent right away (also while running)
   const s = psuRead(); if (!s || !psuFree()) return;
   try { if (dps.st.on) await dpsGuard(s.v, s.a); await dpsFloat(DPS_I, s.a); await dpsFloat(DPS_V, s.v); } catch (e) { $('psuMsg').textContent = '보내지 못했습니다: ' + e.message; }
+  if (window.ckReady && dps.st.on && ckAutoOn) ckRearm();        // new voltage: measure again at it
 }
 async function psuToggle() {
   if (!dps.link) { $('psuMsg').textContent = '먼저 위의 [연결]로 전원공급기를 연결하세요 (휴대폰 ↔ DPS-150 / DPS100 데이터선)'; return; }
@@ -2485,6 +2487,7 @@ async function psuDir(d) {
     if (wasOn) { await dpsOutput(false); await waitMotorStop(); }
     await sendDir(d); await sleep(150);
     if (wasOn) await dpsOutput(true);
+    if (wasOn && window.ckReady && ckAutoOn) ckRearm();             // other direction: measure again
     $('psuMsg').textContent = '';
   } catch (e) { $('psuMsg').innerHTML = '<b style="color:#ff6b6b">방향 전환 실패: ' + esc(e.message) + '</b>'; try { await dpsOutput(false); } catch (e2) {} }
   psuBusy = false; psuRender();
@@ -2633,12 +2636,13 @@ function ckWhyNot() {
   if (!cmdChar || !cur || Date.now() - cur.t > 3000) return '스틱을 연결하고 모터에 대 주세요 (파노가 들어와야 합니다).';
   return '';
 }
-function ckStart() {
-  unlockAudio();
-  if (ck) { ckEnd('측정을 멈췄습니다'); return; }
+function ckStart(auto) {
+  if (auto !== true) unlockAudio();
+  if (ck) { ckEnd('측정을 멈췄습니다'); ckArm.done = true; return; }
   const why = ckWhyNot(); if (why) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">' + esc(why) + '</b>'; return; }
   const dur = +$('ckDur').value || 30;
-  ck = { t0: Date.now(), dur, tag: ckTag, motor: curMotor, dir: stickDir, v: [], i: [], hz: [], cc: 0, prot: '', n: 0, lastHz: 0 };
+  ckArm.done = true;
+  ck = { auto: auto === true, t0: Date.now(), dur, tag: ckTag, motor: curMotor, dir: stickDir, v: [], i: [], hz: [], cc: 0, prot: '', n: 0, lastHz: 0 };
   ck.timer = setInterval(ckTick, 250);
   if (IOS) stayAwake();
   $('ckRes').innerHTML = ''; $('ckCmp').innerHTML = '';
@@ -2752,6 +2756,24 @@ function ckRender() {
 $('btnCk').onclick = ckStart;
 $('ckTag').onclick = e => { const b = e.target.closest('button'); if (b && !ck) { ckTag = +b.dataset.t; ckRender(); } };
 function ckShowLast() { if (ck) return; const last = ckLoad().find(b => b.motor === curMotor); if (last) ckShow(last); else { $('ckRes').innerHTML = ''; $('ckCmp').innerHTML = ''; } }
+// auto start: once per motor run (output ON). Waits 3 s for the motor to settle and for pano to come in.
+var ckArm = ckArm || { on: false, t: 0, done: false };
+var ckAutoOn = (() => { try { return localStorage.getItem('panocheck-ckauto') !== '0'; } catch (e) { return true; } })();
+$('ckAutoOn').checked = ckAutoOn;
+$('ckAutoOn').onchange = () => { ckAutoOn = $('ckAutoOn').checked; try { localStorage.setItem('panocheck-ckauto', ckAutoOn ? '1' : '0'); } catch (e) {} if (!ckAutoOn && !ck) $('ckLive').textContent = ''; };
+function ckAutoTick() {
+  const on = !!(dps.link && dps.st && dps.st.on), now = Date.now();
+  if (on && !ckArm.on) { ckArm.t = now; ckArm.done = false; }
+  ckArm.on = on;
+  if (!on && ckArm.msg && !ck) { ckArm.msg = false; $('ckLive').textContent = ''; }
+  if (!on || !ckAutoOn || ck || ckArm.done || psuBusy || cl.run || cl.busy) return;
+  ckArm.msg = true;
+  if (now - ckArm.t < 3000) { $('ckLive').textContent = '모터가 자리 잡으면 자동으로 측정합니다…'; return; }
+  if (ckWhyNot()) { $('ckLive').textContent = '파노가 들어오면 자동으로 측정합니다 (스틱을 모터에 대 주세요)'; return; }
+  ckArm.msg = false; ckStart(true);
+}
+function ckRearm() { if (ck && ck.auto) { clearInterval(ck.timer); ck = null; } if (ckArm.on) { ckArm.t = Date.now(); ckArm.done = false; } ckRender(); }
+setInterval(ckAutoTick, 500);
 window.ckReady = true; ckShowLast(); ckRender();
 
 // ---------------------------------------------------------------- presets (named settings, kept on this phone)
