@@ -410,7 +410,7 @@
     <details style="margin-top:8px"><summary class="help">릴레이 보드 (역방향용)</summary>
       <div class="help" style="margin:6px 0">스틱 Grove 포트(G9·G10)에 2채널 릴레이를 연결해 극성을 바꿉니다. 보드의 트리거 방식을 고르세요.</div>
       <label class="sw" style="margin:6px 0"><span><b>릴레이 연결됨</b></span><input type="checkbox" id="cRelayOn"></label>
-      <select id="cRly"><option value="1">HIGH 트리거 (권장)</option><option value="0">LOW 트리거</option></select>
+      <select id="cRly"><option value="1">HIGH 트리거</option><option value="0">LOW 트리거 (파란 2채널 보드)</option></select>
       <button id="btnRlyTest" style="width:100%;margin-top:8px">릴레이 시험 (출력 꺼진 상태에서 딸깍 2번)</button>
     </details>
   </div>
@@ -1449,7 +1449,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26c';
+const APP_BUILD = '2026-11-26d';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
