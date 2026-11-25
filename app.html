@@ -441,7 +441,7 @@
       <div class="set-row">
         <div class="set-top"><span class="set-name">측정 대기 시간</span><span class="set-val" id="vWt">-</span></div>
         <div class="set-def">기본값: 2.5초</div>
-        <div class="stepper"><button class="stp" data-for="sWt" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sWt" min="10" max="50" step="1"><button class="stp" data-for="sWt" data-d="1" aria-label="늘리기">+</button></div>
+        <div class="stepper"><button class="stp" data-for="sWt" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sWt" min="0" max="50" step="1"><button class="stp" data-for="sWt" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>1.0초</span><span>5.0초</span></div>
         <div class="set-help">진동을 인식한 뒤 측정하기까지 기다리는 시간.</div>
       </div>
@@ -873,7 +873,8 @@ function renderSettings() {
   if (!dragging) {
     $('sBr').value = view.br; $('vBr').textContent = Math.round(view.br / 255 * 100) + '%';
     $('sVm').value = vmIndex(view.vm); $('vVm').textContent = vmLabel(view.vm);
-    $('sWt').value = view.wt; $('vWt').textContent = (view.wt / 10).toFixed(1) + '초';
+    $('sWt').min = !conn || verNum(stickVer) >= 2006 ? 0 : 10;     // 0 s (measure at once) needs firmware 2.6
+    $('sWt').value = view.wt; $('vWt').textContent = wtLabel(view.wt);
     $('cHotOff').checked = +view.hot === 0; $('sHot').disabled = +view.hot === 0;
     if (+view.hot) $('sHot').value = view.hot;
     $('vHot').textContent = +view.hot ? view.hot + ' Hz' : '꺼짐';
@@ -996,7 +997,8 @@ function bindRange(id, show, commit) {
 })();
 bindRange('sBr', v => $('vBr').textContent = Math.round(v / 255 * 100) + '%', v => edit('br', v));
 bindRange('sVm', i => $('vVm').textContent = vmLabel(VM_STEPS[i]), i => edit('vm', VM_STEPS[i]));
-bindRange('sWt', v => $('vWt').textContent = (v / 10).toFixed(1) + '초', v => edit('wt', v));
+function wtLabel(v) { return +v === 0 ? '0초 (바로 측정)' : (v / 10).toFixed(1) + '초'; }
+bindRange('sWt', v => $('vWt').textContent = wtLabel(v), v => edit('wt', v));
 bindRange('sHot', v => $('vHot').textContent = v + ' Hz', v => edit('hot', v));
 $('cHotOff').onchange = () => edit('hot', $('cHotOff').checked ? 0 : (+$('sHot').value || 550));
 $('segMic').onclick = e => { const b = e.target.closest('button'); if (b) edit('mic', +b.dataset.v); };
@@ -1372,7 +1374,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-25w';
+const APP_BUILD = '2026-11-25x';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
