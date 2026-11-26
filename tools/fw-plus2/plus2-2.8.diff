@@ -1,0 +1,305 @@
+--- PanoTrio-2.6-backup.ino
++++ PanoTrio-plus2.ino
+@@ -1,5 +1,5 @@
+ /*
+-  파노체크 (PanoCheck)  -  motor "pano" checker for M5StickS3 (ESP32-S3)
++  파노체크 (PanoCheck)  -  motor "pano" checker for M5StickS3 (ESP32-S3) and M5StickC Plus2 (ESP32)
+ 
+   "Pano" = rotation frequency of the motor in Hz (rpm = pano x 60).
+   It is measured from the accelerometer (vibration) and/or the microphone (sound).
+@@ -32,8 +32,18 @@
+ #include "pano_act.h"
+ #include "pano_ota.h"
+ 
++// One source, two sticks: M5StickS3 (ESP32-S3, BMI270) and M5StickC Plus2 (ESP32-PICO-V3-02, MPU6886,
++// PDM microphone, CH9102 USB serial, no power-management chip). The Bluetooth protocol is the same;
++// INFO says HW=P2 on the Plus2 so the app picks the Plus2 firmware file for updates.
++#if CONFIG_IDF_TARGET_ESP32
++#define PANO_P2 1
++#else
++#define PANO_P2 0
++#endif
++
++
+ static const char* const APP_NAME = "PanoCheck";
+-static const char* const APP_VER  = "2.6";
++static const char* const APP_VER  = "2.8";
+ 
+ enum PanoMode  : uint8_t { MODE_VIB = 0, MODE_MIC = 1, MODE_BOTH = 2 };
+ enum PanoRange : uint8_t { RANGE_AUTO = 0, RANGE_LOW = 1, RANGE_WIDE = 2 };
+@@ -80,7 +90,7 @@
+ static bool     gSbOff  = true;                          // standby: true = screen off, false = dimmed
+ // motor direction relays on the Grove port (G9 + G10, both driven together; wired as a polarity swap):
+ // off = forward, on = reverse. Many relay boards switch on a LOW input, so the active level is a setting.
+-static const int RELAY_PIN_A = 9, RELAY_PIN_B = 10;
++static const int RELAY_PIN_A = PANO_P2 ? 32 : 9, RELAY_PIN_B = PANO_P2 ? 33 : 10;   // Grove: S3 G9/G10, Plus2 G32/G33
+ static bool     gRelayHigh = true;                       // true: relay on with HIGH input
+ // standby clock: the phone app sends its local time on every connection
+ static bool     gClk = true, gClk12 = false, gClkBat = false;
+@@ -119,7 +129,9 @@
+ static std::atomic<uint32_t> imuErrors{ 0 };
+ static std::atomic<float>    accFs{ 1600.0f };        // measured sample rate
+ static std::atomic<bool>     accFsValid{ false };
++static float accNom = 1600.0f;                        // nominal stored sample rate (S3 1600 Hz, Plus2 2000 Hz)
+ 
++#if !PANO_P2
+ static bool imuSetup() {
+   imuAddr = 0;
+   const uint8_t cand[2] = { 0x68, 0x69 };
+@@ -202,10 +214,137 @@
+   const bool have = accFsValid.load(std::memory_order_relaxed);
+   if ((!have && dt >= 3000000) || dt >= 15000000) {
+     float fs = (float)((double)(head - epochCount) * 1e6 / (double)dt);
+-    if (fs > 1300.0f && fs < 1900.0f) { accFs.store(fs); accFsValid.store(true); }
++    if (fs > accNom * 0.8f && fs < accNom * 1.2f) { accFs.store(fs); accFsValid.store(true); }
++  }
++  if (dt >= 120000000) { epochUs = now; epochCount = head; }
++}
++
++#else
++// ============================================================================ IMU (MPU6886, M5StickC Plus2)
++// The accelerometer runs with its digital filter bypassed (4 kHz output, ~1 kHz bandwidth) and is
++// read through the 1 KB FIFO every 10 ms. A half-band filter halves it to 2 kHz, which keeps the
++// 250-700 Hz motor range clear of the 1 kHz limit. Layout and rate of the FIFO are measured at start
++// (some MPU6886 lots add the temperature to every sample), so nothing depends on a guessed value.
++static uint8_t mpuPkt = 6;                            // bytes per FIFO sample
++static uint8_t mpuDec = 2;                            // 2 = 4 kHz -> 2 kHz, 1 = store as read
++static bool mpuW(uint8_t r, uint8_t v) { return M5.In_I2C.writeRegister8(imuAddr, r, v, IMU_I2C_HZ); }
++static uint32_t mpuCount() {
++  uint8_t c[2];
++  if (!M5.In_I2C.readRegister(imuAddr, 0x72, c, 2, IMU_I2C_HZ)) return 0xFFFF;
++  return ((uint32_t)(c[0] & 0x1F) << 8) | c[1];
++}
++static void mpuFifoReset() { mpuW(0x6A, 0x04); delayMicroseconds(200); mpuW(0x6A, 0x40); }
++
++// 7-tap half-band low-pass (-1 0 9 16 9 0 -1)/32, keeps every second output
++struct HalfBand2 {
++  int16_t h[7] = { 0 }; uint8_t ph = 0;
++  bool push(int16_t v, int16_t& out) {
++    memmove(h, h + 1, 6 * sizeof(int16_t)); h[6] = v;
++    if ((ph ^= 1) == 0) return false;
++    int32_t a = -(int32_t)h[0] + 9 * (int32_t)h[2] + 16 * (int32_t)h[3] + 9 * (int32_t)h[4] - (int32_t)h[6];
++    a = (a + 16) >> 5;
++    out = (int16_t)(a > 32767 ? 32767 : a < -32768 ? -32768 : a);
++    return true;
++  }
++};
++static HalfBand2 mpuHb[3];
++
++static bool imuSetup() {
++  imuAddr = 0;
++  const uint8_t cand[2] = { 0x68, 0x69 };
++  for (int i = 0; i < 2; ++i) {
++    if (M5.In_I2C.readRegister8(cand[i], 0x75, IMU_I2C_HZ) == 0x19) { imuAddr = cand[i]; break; }   // WHO_AM_I
++  }
++  if (!imuAddr) return false;
++  bool ok = true;
++  ok &= mpuW(0x6B, 0x01); delay(5);                   // PWR_MGMT_1 : awake, best clock
++  ok &= mpuW(0x6C, 0x07);                             // PWR_MGMT_2 : accelerometer on, gyro off
++  ok &= mpuW(0x38, 0x00);                             // INT_ENABLE : none
++  ok &= mpuW(0x1C, 0x08);                             // ACCEL_CONFIG : +-4 g (8192 LSB/g)
++  ok &= mpuW(0x1D, 0x08);                             // ACCEL_CONFIG2: filter bypassed -> 4 kHz
++  ok &= mpuW(0x23, 0x08);                             // FIFO_EN : accelerometer
++  if (!ok) return false;
++  delay(20);
++
++  // learn sample size (6 or 8 bytes) and rate: fill for ~20 ms, the right size gives a smooth signal
++  mpuFifoReset();
++  const int64_t t0 = esp_timer_get_time();
++  delay(20);
++  const uint32_t cnt = mpuCount();
++  const int64_t t1 = esp_timer_get_time();
++  uint8_t b[96];
++  if (cnt == 0xFFFF || cnt < sizeof(b) || !M5.In_I2C.readRegister(imuAddr, 0x74, b, sizeof(b), IMU_I2C_HZ)) return false;
++  float best = 1e30f; uint8_t bestP = 6;
++  static const uint8_t kPkt[2] = { 6, 8 };
++  for (uint8_t P : kPkt) {
++    const int n = sizeof(b) / P; float d = 0;
++    for (int k = 1; k < n; ++k)
++      for (int a = 0; a < 3; ++a) {
++        const int16_t v0 = (int16_t)((b[(k - 1) * P + a * 2] << 8) | b[(k - 1) * P + a * 2 + 1]);
++        const int16_t v1 = (int16_t)((b[k * P + a * 2] << 8) | b[k * P + a * 2 + 1]);
++        d += fabsf((float)v1 - (float)v0);
++      }
++    d /= (float)(n - 1);
++    if (d < best) { best = d; bestP = P; }
++  }
++  mpuPkt = bestP;
++  const float raw = (float)cnt / (float)mpuPkt * 1e6f / (float)(t1 - t0);
++  mpuDec = raw > 2800.0f ? 2 : 1;                     // 4 kHz expected; if the FIFO runs at 1 kHz keep every sample
++  accNom = mpuDec == 2 ? 2000.0f : 1000.0f;
++  accFs.store(accNom);
++  if (Serial) Serial.printf("MPU6886 fifo %u B/sample, %.0f Hz raw, stored %.0f Hz\n", mpuPkt, raw, accNom);
++  mpuFifoReset();
++  return true;
++}
++
++// One FIFO read. Called every 10 ms from imuTask.
++static void imuService() {
++  static uint8_t  buf[1008];                          // multiple of 6 and 8
++  static int64_t  epochUs = 0;
++  static uint32_t epochCount = 0;
++  static bool     epochSet = false;
++
++  uint32_t len = mpuCount();
++  if (len == 0xFFFF) { imuErrors++; return; }
++  if (len >= 1000) {                                  // the 1 KB FIFO ran full: samples were lost
++    mpuFifoReset();
++    imuOverruns++; epochSet = false;
++    return;
++  }
++  len -= len % mpuPkt;
++  if (len == 0) return;
++  if (len > sizeof(buf)) len = sizeof(buf) - sizeof(buf) % mpuPkt;
++  if (!M5.In_I2C.readRegister(imuAddr, 0x74, buf, len, IMU_I2C_HZ)) { imuErrors++; mpuFifoReset(); epochSet = false; return; }
++  const int64_t now = esp_timer_get_time();
++
++  uint32_t head = accHead.load(std::memory_order_relaxed);
++  const uint32_t mask = accCap - 1;
++  for (uint32_t i = 0; i + mpuPkt <= len; i += mpuPkt) {
++    const uint8_t* p = buf + i;
++    const int16_t v[3] = { (int16_t)((p[0] << 8) | p[1]), (int16_t)((p[2] << 8) | p[3]), (int16_t)((p[4] << 8) | p[5]) };
++    int16_t* d = accRing + (size_t)(head & mask) * 3;
++    if (mpuDec == 2) {
++      int16_t o[3]; bool out = false;
++      for (int a = 0; a < 3; ++a) out = mpuHb[a].push(v[a], o[a]);
++      if (!out) continue;
++      d[0] = o[0]; d[1] = o[1]; d[2] = o[2];
++    } else {
++      d[0] = v[0]; d[1] = v[1]; d[2] = v[2];
++    }
++    ++head;
++  }
++  accHead.store(head, std::memory_order_release);
++  // real stored sample rate, measured against the ESP32 clock
++  if (!epochSet) { epochUs = now; epochCount = head; epochSet = true; return; }
++  const int64_t dt = now - epochUs;
++  const bool have = accFsValid.load(std::memory_order_relaxed);
++  if ((!have && dt >= 3000000) || dt >= 15000000) {
++    float fs = (float)((double)(head - epochCount) * 1e6 / (double)dt);
++    if (fs > accNom * 0.8f && fs < accNom * 1.2f) { accFs.store(fs); accFsValid.store(true); }
+   }
+   if (dt >= 120000000) { epochUs = now; epochCount = head; }
+ }
++#endif
+ 
+ static void imuTask(void*) {
+   TickType_t last = xTaskGetTickCount();
+@@ -949,12 +1088,21 @@
+   M5.Power.powerOff();                                   // returns only if the stick stays powered (USB)
+   gRedrawAll = true;
+ }
++// USB power present? S3: VBUS voltage. Plus2 has no power chip: a battery above 4.18 V is taken as charging
++// (it reads 4.20-4.25 V while charging; a full battery off USB sinks below 4.18 V within minutes).
++static bool usbPowered() {
++#if PANO_P2
++  return M5.Power.getBatteryVoltage() > 4180;
++#else
++  return M5.Power.getVBUSVoltage() > 4000;
++#endif
++}
+ static void powerService(uint32_t now) {
+   if (motorRunning(now)) gActiveMs = now;
+   const int32_t sinceActive = (int32_t)(now - gActiveMs);   // activity can be newer than 'now' (set during this loop)
+   const uint32_t idle = sinceActive > 0 ? (uint32_t)sinceActive : 0;
+   static uint32_t lastUsb = 0;                                // on USB power the stick never switches itself off
+-  if (lastUsb == 0 || now - lastUsb > 3000) { lastUsb = now ? now : 1; usb = M5.Power.getVBUSVoltage() > 4000; }
++  if (lastUsb == 0 || now - lastUsb > 3000) { lastUsb = now ? now : 1; usb = usbPowered(); }
+   const bool dim = gDimS && idle >= (uint32_t)gDimS * 1000u;
+   if (dim != gDimmed) { gDimmed = dim; M5.Display.setBrightness(dim ? (gSbOff ? 0 : (gBright < 20 ? gBright : 20)) : gBright); }
+   setSlow(gSave && !motorRunning(now) && idle >= 5000);
+@@ -1037,8 +1185,8 @@
+ // "ID=3F2A91C4;ACT=1;VER=0.4;RES=OK"
+ static void bleUpdateInfo(bool notify) {
+   if (!bleInfo) return;
+-  char s[280]; snprintf(s, sizeof(s), "ID=%s;ACT=%d;VER=%s;RES=%s;BR=%u;VM=%.0f;WT=%lu;HOT=%.0f;DIM=%u;OFF=%u;PS=%d;SB=%d;BAT=%d;USB=%d;LCK=%d;UNL=%d;RV=%d;DIR=%d;RLY=%d;OTA=1;CND=1;CK=%d;C12=%d;CB=%d;CBR=%u;MIC=%.0f", gDevId, gActivated ? 1 : 0, APP_VER, gActResult,
+-                        gBright, VIB_MIN_MG, (unsigned long)(gWaitMs / 100), gHotHz, gDimS, gOffMin, (int)gSave, (int)gSbOff, gBatt, (int)usb, (int)(gLockKey != 0), (int)gUnlocked, gRvkLv, (int)gDir, (int)gRelayHigh, (int)gClk, (int)gClk12, (int)gClkBat, gClkBr, gMicAmp * 10.0f);
++  char s[280]; snprintf(s, sizeof(s), "ID=%s;ACT=%d;VER=%s;RES=%s;BR=%u;VM=%.0f;WT=%lu;HOT=%.0f;DIM=%u;OFF=%u;PS=%d;SB=%d;BAT=%d;USB=%d;LCK=%d;UNL=%d;RV=%d;DIR=%d;RLY=%d;OTA=1;CND=1;CK=%d;C12=%d;CB=%d;CBR=%u;MIC=%.0f%s", gDevId, gActivated ? 1 : 0, APP_VER, gActResult,
++                        gBright, VIB_MIN_MG, (unsigned long)(gWaitMs / 100), gHotHz, gDimS, gOffMin, (int)gSave, (int)gSbOff, gBatt, (int)usb, (int)(gLockKey != 0), (int)gUnlocked, gRvkLv, (int)gDir, (int)gRelayHigh, (int)gClk, (int)gClk12, (int)gClkBat, gClkBr, gMicAmp * 10.0f, PANO_P2 ? ";HW=P2" : "");
+   bleInfo->setValue((uint8_t*)s, strlen(s));
+   if (notify) bleInfo->notify();
+ }
+@@ -1116,7 +1264,7 @@
+   float mic = (strchr(sM, '.') && !strstr(sM, "---")) ? numAfter(sM) : 0.0f;
+   float mg = numAfter(sVl); if (mg < 0) mg = 0; if (mg > 65535) mg = 65535;
+   float db = strstr(sMl, "dB") ? numAfter(sMl) : 0.0f; if (db < -127) db = -127; if (db > 0) db = 0;
+-  const char* x = strstr(sMl, " x"); int harm = x ? atoi(x + 2) : 0;
++  const char* x = strstr(sMl, " x"); int harm = x ? numAtoi(x + 2) : 0;
+   p[0] = 1; p[1] = gMode; p[2] = gRange; p[3] = colourCode(cStatus);
+   memcpy(p + 4, &big, 4); memcpy(p + 8, &vib, 4); memcpy(p + 12, &mic, 4);
+   uint16_t mgi = (uint16_t)lroundf(mg); memcpy(p + 16, &mgi, 2);
+@@ -1333,6 +1481,30 @@
+   if (b64urlDecode(code, b, sizeof(b)) == 64) tryActivate(b);
+   else { strcpy(gActResult, "BAD"); if (Serial) Serial.printf("ACTIVATION WRONG CODE\n"); bleUpdateInfo(true); }
+ }
++// Small number readers for the text commands. sscanf / strtoul / atoi would pull more C-library code into
++// IRAM, and the Plus2 build (ESP32 + PSRAM keeps the C library in IRAM) has no room left for it.
++static bool numRead(const char*& p, long& v) {
++  while (*p == ' ' || *p == '	') ++p;
++  bool neg = false;
++  if (*p == '-' || *p == '+') neg = (*p++ == '-');
++  if (*p < '0' || *p > '9') return false;
++  unsigned long x = 0;
++  while (*p >= '0' && *p <= '9') x = x * 10 + (unsigned long)(*p++ - '0');
++  v = neg ? -(long)x : (long)x;
++  return true;
++}
++static long numAtoiL(const char* p) { long v = 0; return numRead(p, v) ? v : 0; }
++static int numAtoi(const char* p) { return (int)numAtoiL(p); }
++static int numScan(const char* p, unsigned* out, int n) {        // like sscanf "%u %u ..."
++  int k = 0; long v = 0;
++  while (k < n && numRead(p, v)) out[k++] = (unsigned)v;
++  return k;
++}
++static int numScan(const char* p, int* out, int n) {             // like sscanf "%d %d ..."
++  int k = 0; long v = 0;
++  while (k < n && numRead(p, v)) out[k++] = (int)v;
++  return k;
++}
+ // serial commands (PC, 115200 baud):  ID   |   MODE 0|1|2   |   RANGE 0|1|2   |   ACT <code>   |   RVK <level> <code>   |   DIR 0|1   |   SET <id> <value>  (same ids as the app)   |   SCORE <grade> <score>  (test)
+ static void serialService() {
+   static char line[200]; static int n = 0;
+@@ -1342,25 +1514,25 @@
+       line[n] = 0;
+       if (n > 0 && strcmp(line, "ID") == 0 && Serial) Serial.printf("ID %s %s %s activated=%d\n", gDevId, APP_NAME, APP_VER, (int)gActivated);
+       else if (strncmp(line, "ACT ", 4) == 0) tryActivateText(line + 4);
+-      else if (strncmp(line, "DIR ", 4) == 0) { if (gActivated) applyDir(atoi(line + 4) != 0); }
++      else if (strncmp(line, "DIR ", 4) == 0) { if (gActivated) applyDir(numAtoi(line + 4) != 0); }
+       else if (strncmp(line, "CND ", 4) == 0) {             // CND <grade> <score> <hz*10> <mA> <tag>  (test)
+         unsigned a[5] = { 0 };
+-        if (sscanf(line + 4, "%u %u %u %u %u", &a[0], &a[1], &a[2], &a[3], &a[4]) == 5) {
++        if (numScan(line + 4, a, 5) == 5) {
+           gCnd[0] = a[0]; gCnd[1] = a[1]; gCnd[2] = a[2] & 0xFF; gCnd[3] = a[2] >> 8; gCnd[4] = a[3] & 0xFF; gCnd[5] = a[3] >> 8; gCnd[6] = a[4]; gCndPending = true;
+         }
+       }
+       else if (strncmp(line, "SCORE ", 6) == 0) {           // SCORE <grade> <score>  (test: same as the app's live 'g')
+-        unsigned g = 0, sc = 0;
+-        if (sscanf(line + 6, "%u %u", &g, &sc) == 2) { onLiveScore((uint8_t)g, (uint8_t)sc); if (Serial) Serial.printf("SCORE g=%u s=%u\n", g, sc); }
++        unsigned gs[2] = { 0 }; const unsigned& g = gs[0]; const unsigned& sc = gs[1];
++        if (numScan(line + 6, gs, 2) == 2) { onLiveScore((uint8_t)g, (uint8_t)sc); if (Serial) Serial.printf("SCORE g=%u s=%u\n", g, sc); }
+       }
+-      else if (strncmp(line, "TIME ", 5) == 0) { gTimeIn = (uint32_t)strtoul(line + 5, nullptr, 10); gTimePending = true; }
++      else if (strncmp(line, "TIME ", 5) == 0) { gTimeIn = (uint32_t)(unsigned long)numAtoiL(line + 5); gTimePending = true; }
+       else if (strncmp(line, "RVK ", 4) == 0) {             // RVK <level> <code>
+-        const int lv = atoi(line + 4); const char* sp = strchr(line + 4, ' '); uint8_t b[64];
++        const int lv = numAtoi(line + 4); const char* sp = strchr(line + 4, ' '); uint8_t b[64];
+         if (sp && b64urlDecode(sp + 1, b, sizeof(b)) == 64) tryRevoke(b, lv); else if (Serial) Serial.printf("REMOVAL ignored\n");
+       }
+-      else if (strncmp(line, "MODE ", 5) == 0) { const int md = atoi(line + 5); if (md >= 0 && md < 3) { applyMode((PanoMode)md); if (Serial) Serial.printf("MODE %s\n", kModeNames[gMode]); } }
+-      else if (strncmp(line, "RANGE ", 6) == 0) { const int rg = atoi(line + 6); if (rg >= 0 && rg < 3) { applyRange((PanoRange)rg); if (Serial) Serial.printf("RANGE %s\n", kRanges[gRange].name); } }
+-      else if (strncmp(line, "SET ", 4) == 0) { int id = 0, val = 0; if (sscanf(line + 4, "%d %d", &id, &val) == 2) applySetting(id, val); }
++      else if (strncmp(line, "MODE ", 5) == 0) { const int md = numAtoi(line + 5); if (md >= 0 && md < 3) { applyMode((PanoMode)md); if (Serial) Serial.printf("MODE %s\n", kModeNames[gMode]); } }
++      else if (strncmp(line, "RANGE ", 6) == 0) { const int rg = numAtoi(line + 6); if (rg >= 0 && rg < 3) { applyRange((PanoRange)rg); if (Serial) Serial.printf("RANGE %s\n", kRanges[gRange].name); } }
++      else if (strncmp(line, "SET ", 4) == 0) { int iv[2] = { 0 }; if (numScan(line + 4, iv, 2) == 2) applySetting(iv[0], iv[1]); }
+       n = 0;
+     } else if (n < (int)sizeof(line) - 1) line[n++] = (char)c;
+   }
+@@ -1499,7 +1671,7 @@
+                            (int)psramFound(), (unsigned long)ESP.getFreeHeap());
+   if (!imuOk || !micOk) {                                  // a sensor is missing: show why instead of the picture
+     M5.Display.fillScreen(TFT_BLACK);
+-    bootLine(0, imuOk ? "IMU  ok (1600 Hz)" : "IMU  NOT FOUND", imuOk ? TFT_WHITE : TFT_RED);
++    { char t[24]; snprintf(t, sizeof(t), "IMU  ok (%.0f Hz)", accNom); bootLine(0, imuOk ? t : "IMU  NOT FOUND", imuOk ? TFT_WHITE : TFT_RED); }
+     bootLine(1, micOk ? "MIC  ok" : "MIC  NOT FOUND", micOk ? TFT_WHITE : TFT_RED);
+     bootLine(2, psramFound() ? "RAM  PSRAM" : "RAM  internal", TFT_WHITE);
+     delay(2500);
