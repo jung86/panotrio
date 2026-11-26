@@ -19,9 +19,25 @@ function cors(req) {
 function json(obj, status = 200, extra = {}) {
   return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extra } });
 }
-function authed(req, env) {
+// The maker's phone signs in without a password: the app there holds the activation signing key (never leaves the phone)
+// and signs "PanoCheck|usage|v1|<expiry ms>". Only the public half is here. Expiry at most 13 h ahead.
+const OWNER_PUB = { kty: 'EC', crv: 'P-256', x: 'B-MuKw43LQL2NyuufJfEKH_V0w-LkACSFlJPqlxgp9Y', y: '-pZN7IeNwOK9mTi3DDk4lTnkjqO-Zt0AaEK5YeL95rE' };
+let ownerKey = null;
+const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+async function sigOk(v) {
+  const m = /^(\d{13})\.([A-Za-z0-9_-]{80,90})$/.exec(v); if (!m) return false;
+  const exp = +m[1], now = Date.now();
+  if (exp < now || exp > now + 13 * 3600e3) return false;
+  try {
+    ownerKey = ownerKey || await crypto.subtle.importKey('jwk', OWNER_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, ownerKey, b64u(m[2]), new TextEncoder().encode('PanoCheck|usage|v1|' + exp));
+  } catch (e) { return false; }
+}
+async function authed(req, env) {
+  const h = req.headers.get('Authorization') || '';
+  if (/^Sig\s+/i.test(h)) return sigOk(h.replace(/^Sig\s+/i, ''));
   const want = env.ADMIN_TOKEN || '';
-  const got = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  const got = h.replace(/^Bearer\s+/i, '');
   if (want.length < 8 || got.length !== want.length) return false;
   let d = 0; for (let i = 0; i < want.length; i++) d |= want.charCodeAt(i) ^ got.charCodeAt(i);
   return d === 0;
@@ -87,7 +103,7 @@ async function route(req, env) {
       if (p === '/p' && req.method === 'POST') return await ping(req, env);
       if (p === '/admin' || p === '/') return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
       if (p.startsWith('/api/')) {
-        if (!authed(req, env)) return json({ error: 'auth' }, 401);
+        if (!(await authed(req, env))) return json({ error: 'auth' }, 401);
         if (p === '/api/sticks' && req.method === 'GET') return await sticks(env);
         if (p === '/api/people' && req.method === 'POST') return await setPeople(req, env);
         if (p === '/api/note' && req.method === 'POST') {
@@ -155,10 +171,10 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 function ago(t,now){const m=Math.floor((now-t)/60000);if(m<1)return'방금';if(m<60)return m+'분 전';const h=Math.floor(m/60);if(h<24)return h+'시간 전';return Math.floor(h/24)+'일 전'}
 function dt(t){const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 const fid=id=>id.slice(0,4)+'-'+id.slice(4);
-async function api(p,body){const r=await fetch(p,{method:body?'POST':'GET',headers:Object.assign({Authorization:'Bearer '+tk},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});if(r.status===401)throw new Error('auth');if(!r.ok)throw new Error('서버 오류 '+r.status);return r.json()}
+async function api(p,body){const r=await fetch(p,{method:body?'POST':'GET',headers:Object.assign({Authorization:/^Sig /.test(tk)?tk:'Bearer '+tk},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});if(r.status===401)throw new Error('auth');if(!r.ok)throw new Error('서버 오류 '+r.status);return r.json()}
 let pending=null;
-function readHash(){try{const m=/^#p=([A-Za-z0-9_-]+)$/.exec(location.hash);if(m){let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';pending=JSON.parse(decodeURIComponent(escape(atob(b))))}}catch(e){pending=null}}
-readHash();addEventListener('hashchange',()=>{readHash();if(pending&&tk)load()});
+function readHash(){try{const q=new URLSearchParams(location.hash.slice(1)),sg=q.get('s');if(sg&&/^\\d{13}\\.[A-Za-z0-9_-]+$/.test(sg))tk='Sig '+sg;const pv=q.get('p');const m=pv&&/^[A-Za-z0-9_-]+$/.test(pv)?[0,pv]:null;if(m){let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';pending=JSON.parse(decodeURIComponent(escape(atob(b))))}}catch(e){pending=null}}
+readHash();if(/^Sig /.test(tk))history.replaceState(null,'',location.pathname);addEventListener('hashchange',()=>{readHash();if(/^Sig /.test(tk))history.replaceState(null,'',location.pathname);if(tk)load()});
 let latest={};
 async function loadLatest(){for(const [k,u] of [['app','https://jung86.github.io/panotrio/app.html'],['s3','https://jung86.github.io/panotrio/fw/latest.json'],['p2','https://jung86.github.io/panotrio/fw/latest-plus2.json']]){try{const r=await fetch(u,{cache:'no-store'});if(!r.ok)continue;const t=await r.text();if(k==='app'){const m=/const APP_BUILD = '([^']+)'/.exec(t);if(m)latest.app=m[1]}else latest[k]=JSON.parse(t).ver}catch(e){}}}
 async function load(){
@@ -166,7 +182,7 @@ async function load(){
   try{
     if(pending){const r=await api('/api/people',{people:pending});pending=null;history.replaceState(null,'',location.pathname);$('msg').textContent='앱의 허락 목록 '+r.n+'명을 맞췄습니다';}
     d=await api('/api/sticks');
-  }catch(e){if(e.message==='auth'){$('err').textContent='비밀번호가 맞지 않습니다';show(false);try{localStorage.removeItem('pc-admin')}catch(_){};return}$('err').textContent=e.message;show(false);return}
+  }catch(e){if(e.message==='auth'){$('err').textContent=/^Sig /.test(tk)?'열쇠 확인 시간이 지났습니다. 앱에서 다시 열거나 비밀번호를 넣어 주세요':'비밀번호가 맞지 않습니다';tk='';show(false);try{localStorage.removeItem('pc-admin')}catch(_){};return}$('err').textContent=e.message;show(false);return}
   show(true);const now=d.now,S=d.sticks,P={};(d.people||[]).forEach(p=>P[p.id]=p);
   const byId={};S.forEach(s=>byId[s.id]=s);
   const rows=S.filter(s=>s.id!=='NOSTICK').map(s=>({s,p:P[s.id]}));
@@ -194,6 +210,6 @@ async function load(){
 function show(on){$('login').style.display=on?'none':'';$('view').style.display=on?'':'none'}
 $('f').onsubmit=e=>{e.preventDefault();tk=$('tk').value.trim();try{localStorage.setItem('pc-admin',tk)}catch(_){};$('err').textContent='';load()};
 $('re').onclick=load;$('out').onclick=()=>{tk='';try{localStorage.removeItem('pc-admin')}catch(_){};show(false)};
-if(pending)$('err').textContent='비밀번호를 넣으면 앱의 허락 목록('+pending.length+'명)을 맞춥니다';
+if(pending&&!tk)$('err').textContent='비밀번호를 넣으면 앱의 허락 목록('+pending.length+'명)을 맞춥니다';
 loadLatest().then(()=>{if(tk)load()});
 </script></body></html>`;
