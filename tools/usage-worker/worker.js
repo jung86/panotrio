@@ -3,6 +3,7 @@
 //   GET  /admin      관리자 화면 (비밀번호 입력)
 //   GET  /api/sticks 스틱별 현황 (Authorization: Bearer <ADMIN_TOKEN>)
 //   POST /api/note   스틱 메모 {id, note}  (같은 인증)
+//   (/api/는 앱 주소 jung86.github.io에서도 비밀번호와 함께 읽을 수 있음: 앱 「허락한 사람」 목록에 버전 표시)
 //   POST /api/people 앱의 「허락한 사람」 목록 통째로 바꾸기 {people:[[id, 이름, 상태, 만든 시각], ...]}  (같은 인증)
 // 개인 정보는 받지 않음: 스틱 ID, 앱·펌웨어 버전, 스틱 종류, 폰 종류(안드로이드/아이폰/PC)만.
 // ADMIN_TOKEN은 코드에 없음: `npx wrangler secret put ADMIN_TOKEN`으로 넣음.
@@ -79,11 +80,10 @@ async function sticks(env) {
   return json({ now, sticks: r.results || [], people: pp.results || [] });
 }
 
-export default {
-  async fetch(req, env) {
+async function route(req, env) {
     const url = new URL(req.url), p = url.pathname;
     try {
-      if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: { ...cors(req), 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' } });
+      if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' } });
       if (p === '/p' && req.method === 'POST') return await ping(req, env);
       if (p === '/admin' || p === '/') return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
       if (p.startsWith('/api/')) {
@@ -106,6 +106,14 @@ export default {
     } catch (e) {
       return new Response('', { status: 500, headers: cors(req) });
     }
+}
+export default {
+  async fetch(req, env) {                            // the app's admin screen (jung86.github.io) may read /api/ too, with the password
+    const res = await route(req, env), h = cors(req);
+    if (!h['Access-Control-Allow-Origin'] || !new URL(req.url).pathname.startsWith('/api/')) return res;
+    const r = new Response(res.body, res);
+    for (const k in h) r.headers.set(k, h[k]);
+    return r;
   },
 };
 
