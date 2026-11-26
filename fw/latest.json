@@ -1,8 +1,9 @@
 {
- "ver": "2.8",
+ "ver": "2.9",
  "size": 1054880,
- "sha256": "3d5ea392004c2885aab06dcd99c6455bed377a8cea9ed15325a1b40ab92cc39b",
- "sig": "P-wqwwOu5n07NNPgyjheJE0mkSGdPJ8Lk8Q8-9qpZThq7NrMLEOx7EdRVize7awFaabdC1QC9KaprvpVvkWfsA",
- "bin": "fw/PanoCheck-2.8.app.bin",
- "note": "2.7의 스틱 버튼 기능을 빼고 2.6과 같은 조작으로 되돌림"
+ "sha256": "ec47a59e3a4488742981b201bb78981cc9c7332565905bfac20be532c2464e39",
+ "sig": "EQg2JMa5wvh1a3_IKsZdXA2V8kBYtONO9LURE3LfBDwpNo12HeX4t0I7S1XAQ3LaADLfsB-7PfzfI_4Q8EnVhA",
+ "bin": "fw/PanoCheck-2.9.app.bin",
+ "note": "진동+마이크 모드: 파노가 조금(약 ±7%) 흔들려도 다시 재지 않음",
+ "min": "2.9"
 }

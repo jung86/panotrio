@@ -393,6 +393,7 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
   <h1>파노체크</h1>
   <span id="homeConn" class="pill">스틱 연결 안 됨</span>
   <button id="btnConnect2" class="primary" style="margin-top:14px">스틱 연결 (블루투스)</button>
+  <button id="errBadge" style="display:none;margin-top:12px;width:100%;padding:12px;font-weight:700;background:#2a1012;border:1px solid #e03131;color:#ff8787;border-radius:4px"></button>
   <div id="fwBox" style="display:none;margin-top:14px;background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
   <div class="tiles">
     <div class="tile" id="tileMeasure" role="button">
@@ -514,10 +515,22 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div id="pplList" class="ppl"></div>
     <div class="tools" style="margin-top:10px"><button id="btnPplExport">⬇ 내보내기</button><button id="btnPplImport">⬆ 가져오기</button><button id="btnPplSync">↻ 새로고침</button></div>
     <button id="btnPplUsage" style="width:100%;margin-top:8px">사용 현황 보기</button>
+    <div id="pplUsageMsg" class="help" style="margin-top:4px"></div>
+    <div id="pplErr" style="margin-top:10px"></div>
     <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
     <div class="help" style="margin-top:6px">링크를 만들 때마다 여기에 자동으로 기록됩니다. 목록은 이 휴대폰에만 저장되니 가끔 내보내기로 백업하세요.</div>
   </div>
-  <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
+  <div class="card" id="admViewers" style="display:none">
+    <div class="ttl" style="display:flex;align-items:center;gap:8px">보기 전용 관리자 <span id="avCount" class="help" style="margin:0"></span></div>
+    <div id="avList" class="ppl"></div>
+    <button id="btnAvAdd" style="width:100%;margin-top:8px">＋ 관리자 추가 (신청 코드 붙여넣기)</button>
+    <div class="help" style="margin-top:6px">추가한 사람은 사용 현황과 오류만 볼 수 있어요. 스틱 활성화나 서명은 못 해요. 그 사람은 앱 홈의 로고를 5번 눌러 신청 코드를 만들어요.</div>
+  </div>
+  <div class="card" id="admView" style="display:none">
+    <div class="ttl" id="vwTtl">보기 전용 관리자 신청</div>
+    <div id="vwBody"></div>
+  </div>
+  <p class="help" id="admFoot">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
 </div></div>
 <div id="clean" data-mode="clean"><div class="inner">
   <header>
@@ -895,6 +908,7 @@ function beep(freqs) {
   }
 }
 function notify(text, good) {
+  try { if (typeof diag === 'function') diag((good ? '' : '⚠ ') + text); } catch (e) {}
   const el = $('toast'); el.textContent = text; el.className = good ? 'show' : 'show bad';
   clearTimeout(toastT); toastT = setTimeout(() => { el.className = good ? '' : 'bad'; }, 2500);
   if (appSet.vib) try { navigator.vibrate && navigator.vibrate(good ? 150 : [120, 90, 120]); } catch (e) {}
@@ -1030,7 +1044,7 @@ async function connect() {
     device.addEventListener('gattserverdisconnected', onDisconnected);
     await openGatt();
   } catch (e) {
-    if (e.name !== 'NotFoundError') $('hint').textContent = '연결 실패: ' + e.message;
+    if (e.name !== 'NotFoundError') { $('hint').textContent = '연결 실패: ' + e.message; errAuto('스틱 연결 실패: ' + e.name + ': ' + e.message, e); }
   }
 }
 async function openGatt() {
@@ -1407,21 +1421,40 @@ $('tileFw').onclick = async () => {
     '<div style="font-size:13px;color:#8d8d93;margin-top:6px">펌웨어 2.0 이상이 깔린 스틱만 됩니다.</div></div>' +
     '<div style="background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-top:12px"><div style="font-weight:700;margin-bottom:6px">최초 설치 (USB)</div>' + usb +
     '<div style="font-size:13px;color:#8d8d93;margin-top:6px">처음 쓰는 스틱, 또는 블루투스 업데이트가 안 될 때.</div></div>' +
+    '<button id="fmReport" style="margin-top:12px;width:100%">문제 보내기</button>' +
+    '<div style="font-size:12px;color:#8d8d93;margin-top:12px;text-align:center;line-height:1.5">업데이트 관리와 오류 수정을 위해 사용 중인 앱·펌웨어 버전과<br>오류 내용이 전송되며, 관리자만 확인할 수 있어요. 양해 부탁드립니다.</div>' +
     '<button id="fmClose" style="margin-top:14px;width:100%">닫기</button></div>';
   document.body.appendChild(ov);
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
   $('fmClose').onclick = () => ov.remove();
   if ($('fmConn')) $('fmConn').onclick = () => { ov.remove(); unlockAudio(); connect(); };
   if ($('fmUp')) $('fmUp').onclick = () => { ov.remove(); fwStart(); };
+  $('fmReport').onclick = () => { ov.remove(); reportOpen(); };
 };
 const REPORT_KAKAO = 'https://qr.kakao.com/talk/KAoG3jvpyh58RB7NFy4KUi7kl2I-';   // maker's KakaoTalk profile
-$('tileReport').onclick = async () => {               // copy app/stick info first, then open the maker's KakaoTalk
+$('tileReport').onclick = () => reportOpen();
+// [카톡으로 보내기]: the note + versions + stick ID + what went wrong, handed to the share sheet (pick KakaoTalk → the maker).
+// The stick ID in it is what the maker needs to answer with an activation link in the same chat. Also kept on the usage server.
+function reportText(memo) {
   const id = $('infoId') ? $('infoId').textContent : '', info = $('infoTxt') ? $('infoTxt').textContent : '';
-  const t = '[파노체크 오류·문의]\n내용: \n\n앱 ' + APP_BUILD + (info && info.indexOf('펌웨어') >= 0 ? '\n' + info : '') + (id && !id.startsWith('-') ? '\n스틱 ID ' + id : '') +
-    '\n' + (IOS ? '아이폰' : /Android/i.test(navigator.userAgent) ? '안드로이드' : 'PC') + (dps.link ? ' · ' + dpsName() + ' 연결' : '');
-  try { await navigator.clipboard.writeText(t); notify('앱 정보를 복사했습니다 · 카톡 대화창에 붙여넣고 내용을 적어 주세요', true); } catch (e) {}
-  setTimeout(() => { location.href = REPORT_KAKAO; }, 700);
-};
+  const fw = (info.match(/펌웨어\s*[\d.]+/) || [''])[0];
+  let st = ''; try { st = errState().split('\n').filter(l => /^(스틱|전원공급기|화면):/.test(l)).join('\n'); } catch (e) {}
+  const recent = diagLog.slice(-6).map(l => '· ' + l).join('\n');
+  return '[파노체크 오류·문의]\n' + (memo ? '내용: ' + memo + '\n' : '내용: \n') +
+    '\n앱 ' + APP_BUILD + (fw ? ' · ' + fw : '') + (id && !id.startsWith('-') ? '\n스틱 ID ' + id : (() => { let l = null; try { l = JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) {} return l && l.id ? '\n스틱 ID ' + l.id.slice(0, 4) + '-' + l.id.slice(4) + ' (마지막 연결)' : '\n스틱 ID (연결 안 됨)'; })()) +
+    '\n' + (IOS ? '아이폰' : /Android/i.test(navigator.userAgent) ? '안드로이드' : 'PC') +
+    (errLastMsg ? '\n오류: ' + errLastMsg : '') + (st ? '\n' + st : '') + (recent ? '\n최근 메시지:\n' + recent : '');
+}
+async function reportKakaoSend(memo) {
+  const t = reportText(memo);
+  try { errSend('user', memo ? memo.split('\n')[0].slice(0, 120) : '카톡으로 보낸 문의', errState() + '\n\n최근 화면 메시지:\n' + diagLog.slice(-40).join('\n'), (memo ? memo + ' ' : '') + '(카톡)'); } catch (e) {}
+  // copy + open the maker's KakaoTalk profile (works even if they are not Kakao friends yet); share sheet only when copying is blocked
+  let copied = false; try { await navigator.clipboard.writeText(t); copied = true; } catch (e) {}
+  if (!copied && navigator.share) { try { await navigator.share({ text: t }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  if (!copied) await askText('아래 내용을 길게 눌러 복사한 뒤 확인을 누르세요. 카톡이 열리면 붙여 넣어 보내 주세요.', t);
+  else notify('내용을 복사했습니다 · 열리는 카톡 대화창에 붙여 넣어 보내 주세요', true);
+  setTimeout(() => { location.href = REPORT_KAKAO; }, copied ? 900 : 0);
+}
 if (location.hash === '#manual') history.replaceState(null, '', location.pathname + '#home');
 $('btnHome').onclick = goHome;
 $('btnClose').onclick = goHome;
@@ -1598,7 +1631,9 @@ async function adminShow() {
   $('admOpen').style.display = admKey ? 'none' : '';
   $('admMake').style.display = admKey ? '' : 'none';
   $('admPeople').style.display = admKey ? '' : 'none';
+  $('admViewers').style.display = admKey ? '' : 'none';
   if (admKey) pplRender(true);
+  vwShow();
   if (admKey && actState && !actState.act && !$('aId').value) $('aId').value = actState.id.slice(0, 4) + '-' + actState.id.slice(4);
 }
 const ub64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
@@ -1736,7 +1771,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26y';
+const APP_BUILD = '2026-11-27g';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1778,6 +1813,75 @@ function usageMeas() {                               // one measurement saved: s
     if (usageMeasTimer) return;
     usageMeasTimer = setTimeout(() => { const n = usageMeasN; usageMeasN = 0; usageMeasTimer = 0; usageSend('meas', null, n); }, 10000);
   } catch (e) {}
+}
+// ---------------------------------------------------------------- error reports (to the maker's usage server)
+// Automatic: uncaught errors and failed stick / power-supply connections and updates, each kind once per opening, at most 10.
+// By hand: [문제 보내기] (home 「오류·문의 신고」 or the update window) with a short note.
+// Sent: the message, where in the code, app / firmware version, stick ID and model, phone kind, browser, connection state,
+// the last measurement and the app's recent on-screen messages. Nothing else. A failed send is ignored.
+var diagLog = [], errSentMsg = {}, errAutoN = 0;
+function diag(s) { try { diagLog.push(new Date().toTimeString().slice(0, 8) + ' ' + String(s).slice(0, 200)); if (diagLog.length > 60) diagLog.shift(); } catch (e) {} }
+function errState() {
+  const L = [];
+  try { L.push('스틱: ' + (typeof cmdChar !== 'undefined' && cmdChar ? '연결됨 ' + ((device && device.name) || '') + (stickBat && stickBat.pct >= 0 ? ' · 배터리 ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '') : '') : '연결 안 됨')); } catch (e) {}
+  try { const st = dps.st || {}; L.push('전원공급기: ' + (dps.link ? dpsName() + ' · ' + (st.on ? '출력 ON' : '출력 OFF') + (st.t ? ' · ' + (+st.v || 0).toFixed(2) + ' V ' + (+st.i || 0).toFixed(3) + ' A' : '') + (st.prot ? ' · ' + st.prot : '') : '연결 안 됨')); } catch (e) {}
+  try { if (cur) L.push('지금 측정: ' + (+cur.big || 0).toFixed(1) + ' Hz · 모드 ' + cur.mode); } catch (e) {}
+  try { const r = recs && recs[0]; if (r) L.push('마지막 기록: ' + new Date(r.t).toLocaleString('ko-KR') + ' · ' + r.big + ' Hz' + (r.volt ? ' · ' + r.volt + ' V ' + r.amp + ' A' : '') + (r.cond !== undefined ? ' · ' + r.cond + '점' : '') + (r.condBad ? ' · 불안정' : '')); } catch (e) {}
+  try { L.push('화면: ' + (location.hash || '#home') + ' · 작업: ' + (cl && cl.run ? '클리닝/길들이기 실행 중' : '없음')); } catch (e) {}
+  try { L.push('브라우저: ' + navigator.userAgent); } catch (e) {}
+  return L.join('\n');
+}
+function errSend(k, msg, detail, memo) {
+  try {
+    if (!USAGE_URL || navigator.onLine === false) return Promise.resolve(false);
+    const s = usageLast || (() => { try { return JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) { return null; } })() || {};
+    const body = JSON.stringify({ k, id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), msg: String(msg || '').slice(0, 300), detail: String(detail || '').slice(0, 12000), memo: String(memo || '').slice(0, 500) });
+    return fetch(USAGE_URL + '/e', { method: 'POST', body, keepalive: body.length < 60000, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).then(r => r.ok).catch(() => false);
+  } catch (e) { return Promise.resolve(false); }
+}
+var errLastMsg = '';
+function errAuto(msg, err) {
+  try {
+    msg = String(msg || '').replace(/\s+/g, ' ').slice(0, 300);
+    if (!msg || errSentMsg[msg] || errAutoN >= 10) return;
+    errSentMsg[msg] = 1; errAutoN++; errLastMsg = msg;
+    diag('오류: ' + msg);
+    const where = err && err.stack ? String(err.stack).slice(0, 3000) : '';
+    errSend('auto', msg, (where ? '위치:\n' + where + '\n\n' : '') + errState() + '\n\n최근 화면 메시지:\n' + diagLog.slice(-25).join('\n'));
+  } catch (e) {}
+}
+addEventListener('error', e => { try { const m = e.message || ''; if (!m || m === 'Script error.') return; errAuto(m + (e.filename ? ' @' + String(e.filename).split('/').pop() + ':' + e.lineno + ':' + e.colno : ''), e.error); } catch (x) {} });
+addEventListener('unhandledrejection', e => {
+  try {
+    const r = e.reason, name = r && r.name;
+    if (name === 'NotFoundError' || name === 'AbortError' || name === 'NotAllowedError') return;   // the user closed a chooser / permission
+    errAuto('처리 안 된 오류: ' + ((r && (name ? name + ': ' : '') + (r.message || '')) || String(r)), r);
+  } catch (x) {}
+});
+function reportOpen() {                              // [문제 보내기]: a short note + the same details as above
+  if ($('repOv')) return;
+  const ov = document.createElement('div'); ov.id = 'repOv';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #222225;border-radius:6px;padding:20px;line-height:1.5;color:#f1f1f1">' +
+    '<div style="font-size:20px;font-weight:700;text-align:center">문제 보내기</div>' +
+    '<div style="color:#8d8d93;font-size:14px;text-align:center;margin:4px 0 12px">어떤 문제가 있었는지 짧게 적어 주세요. 앱 상태와 함께 제작자에게 보냅니다.</div>' +
+    '<textarea id="repMemo" maxlength="500" placeholder="예: 측정 중에 스틱 연결이 자꾸 끊겨요" style="width:100%;height:96px;font:15px/1.4 Pretendard,system-ui;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#f1f1f1;resize:vertical"></textarea>' +
+    '<button id="repSend" class="primary" style="width:100%;margin-top:10px">보내기</button>' +
+    '<button id="repKakao" style="width:100%;margin-top:8px;font-weight:700">카톡으로 보내기</button>' +
+    '<button id="repClose" style="width:100%;margin-top:8px">닫기</button>' +
+    '<div style="font-size:12px;color:#8d8d93;margin-top:12px;text-align:center;line-height:1.5">앱·펌웨어 버전, 스틱 ID, 연결 상태, 최근 측정과 화면 메시지가 함께 전송되며, 관리자만 확인할 수 있어요.</div></div>';
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) close(); };
+  $('repClose').onclick = close;
+  $('repKakao').onclick = async () => { const memo = $('repMemo').value.trim(); close(); await reportKakaoSend(memo); };
+  $('repSend').onclick = async () => {
+    const memo = $('repMemo').value.trim();
+    $('repSend').disabled = true; $('repSend').textContent = '보내는 중…';
+    const ok = await errSend('user', memo ? memo.split('\n')[0].slice(0, 120) : '사용자 문제 보고', errState() + '\n\n최근 화면 메시지:\n' + diagLog.slice(-40).join('\n'), memo);
+    if (ok) { close(); notify('보냈습니다 · 고맙습니다. 확인 후 고쳐 드릴게요', true); }
+    else { $('repSend').disabled = false; $('repSend').textContent = '다시 보내기'; notify('보내지 못했습니다 · 인터넷을 확인하거나 카톡으로 문의해 주세요', false); }
+  };
 }
 setTimeout(() => {                                   // app opened but no stick connected in 20 s: count it for this phone's last stick
   try {
@@ -1869,6 +1973,7 @@ async function fwCheck() {
 // When the stick connects and is older, ask once (per app opening and version) with a big popup.
 // Never silently: an update stops measuring for 2-5 minutes. Not while cleaning / break-in / DPS output is running.
 function fwAutoAsk() {
+  if (fwMust()) return fwForce();
   if (fwBusy || !fwNewer() || !stickOta || !otaChar || !cmdChar) return;
   if (fwAsked === fwLatest.ver || $('fwAsk') || $('fwOv')) return;
   if (cl.run || cl.busy || (dps.link && dps.st.on) || document.hidden) return;
@@ -1886,13 +1991,44 @@ function fwAutoAsk() {
   $('fwAskNo').onclick = () => ov.remove();
 }
 function fwNewer() { return fwLatest && stickVer && verNum(fwLatest.ver) > verNum(stickVer); }
+// Required update: fw/latest.json "min" = the oldest firmware that may still be used ("" or missing = none).
+// A connected stick older than that cannot be used until it is updated: a full-screen window without [나중에]
+// (the maker's phone may skip it once, for testing). It goes away when the stick disconnects and comes back after.
+function fwMust() { return !!(fwLatest && fwLatest.min && stickVer && cmdChar && verNum(stickVer) < verNum(fwLatest.min)); }
+var fwSkipFor = fwSkipFor || '';
+function fwForce() {
+  if (fwBusy || $('fwOv') || $('fwAsk') || document.hidden) return;
+  if (fwSkipFor && fwSkipFor === fwLatest.ver + '|' + connGen) return;
+  const ota = !!(stickOta && otaChar);
+  const ov = document.createElement('div'); ov.id = 'fwAsk'; ov.dataset.must = '1';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:89;background:rgba(10,12,16,.96);display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:6px;padding:22px;text-align:center;line-height:1.5">' +
+    '<div style="display:inline-block;padding:2px 8px;border:1px solid var(--acc);color:var(--acc);border-radius:3px;font-size:13px;font-weight:700">필수 업데이트</div>' +
+    `<div style="margin-top:8px;font-size:20px;font-weight:700">업데이트 후 사용할 수 있어요</div>` +
+    `<div style="margin-top:6px;color:#c9d1dc">지금 스틱 ${esc(stickVer)} → 새 버전 ${esc(fwLatest.ver)}${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}</div>` +
+    (ota
+      ? '<div style="margin-top:10px;font-size:14px;color:#8d8d93">2~5분 걸립니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜지고, 다시 연결하면 이어서 합니다.</div>' +
+        '<button id="fwAskGo" class="primary" style="margin-top:14px;width:100%">지금 업데이트</button>'
+      : '<div style="margin-top:10px;font-size:14px;color:#8d8d93">이 스틱은 한 번만 컴퓨터(또는 안드로이드 크롬)에서 USB로 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.</div>' +
+        '<a href="index.html" class="primary" style="display:block;margin-top:14px;text-align:center;padding:12px;border-radius:4px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기</a>') +
+    (admKey ? '<button id="fwAskSkip" style="margin-top:8px;width:100%;font-size:13px">관리자: 이번 연결만 넘기기</button>' : '') + '</div>';
+  document.body.appendChild(ov);
+  if ($('fwAskGo')) $('fwAskGo').onclick = async () => {
+    if (cl.run || cl.busy) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
+    if (dps.link && dps.st.on) { try { await dpsOutput(false); dps.st.on = false; await dpsUnguard(); } catch (e) {} try { psuRender(); } catch (e) {} }
+    ov.remove(); fwStart(true);
+  };
+  if ($('fwAskSkip')) $('fwAskSkip').onclick = () => { fwSkipFor = fwLatest.ver + '|' + connGen; ov.remove(); };
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => { if (fwMust()) fwForce(); }, 600); });
 function fwRender(msg) {
   const box = $('fwBox'); if (!box) return;
   if (fwBusy) return;
+  { const a = $('fwAsk'); if (a && a.dataset.must && !fwMust()) a.remove(); }
   if (!cmdChar || !fwNewer()) { box.style.display = 'none'; return; }
   box.style.display = '';
   if (stickOta && otaChar) {
-    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}` +
+    box.innerHTML = (fwMust() ? '<b style="color:var(--acc)">필수 업데이트</b> ' : '') + `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}` +
       `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
     $('btnFw').onclick = fwStart;
   } else {
@@ -1941,7 +2077,8 @@ async function fwStart(asked) {
   fwShow(0, '펌웨어 받는 중…');
   $('fwBtn').onclick = () => { fwCancel = true; };
   const end = (msg, ok) => {
-    fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); };
+    if (!ok) errAuto('펌웨어 업데이트 실패: ' + String(msg).replace(/<[^>]+>/g, ' '));
+    fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); if (fwMust()) fwForce(); };
     if (ok) $('fwBar').style.background = 'var(--acc)';
     fwBusy = false; try { wake && wake.release(); } catch (e) {}
   };
@@ -2088,6 +2225,7 @@ async function renameMotor(old) {
 }
 function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
+  if (fwMust() && !fwSkipFor) return;                // required update not done: no records
   recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot(), condSnapshot()));
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs(); usageMeas();
@@ -2391,7 +2529,7 @@ async function dpsConnect(opt) {
     dpsConnecting = false;
     if (silent) { dpsMsg(''); dpsRender(); return; }
     if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 전원공급기가 없습니다.</b>' + DPS_HELP);
-    else dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP);
+    else { dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP); errAuto('전원공급기 연결 실패: ' + (e.name || '') + ': ' + (e.message || ''), e); }
     dpsRender();
   }
 }
@@ -2917,8 +3055,7 @@ $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mo
   $('appBuild').addEventListener('click', () => {
     const now = Date.now(); n = now - t < 700 ? n + 1 : 1; t = now;
     if (n < 5 || !USAGE_URL) return;
-    n = 0; const u = usageAdminUrl();
-    try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
+    n = 0; usageOpenAdmin();
   });
 })();
 
@@ -3396,9 +3533,208 @@ function pplStatus(e, id) {                          // from the GitHub removal 
   if (lv > 0) return ['re', '다시 허락'];
   return ['ok', '허락'];
 }
+// app / firmware version and last use of each person, from the usage server (needs its admin password, kept on this phone only)
+var pplUse = null, pplUseAt = 0, pplUseBusy = false, pplUseErr = '';
+// No password on the maker's phone: the activation signing key there signs a pass for the usage server (valid 12 h).
+async function usagePass() {
+  if (!admKey) return '';
+  const exp = Date.now() + 12 * 3600e3;
+  try { return exp + '.' + await admSign('PanoCheck|usage|v1|' + exp); } catch (e) { return ''; }
+}
+function pplAgo(t) { const m = Math.floor((Date.now() - t) / 60000); if (m < 1) return '방금'; if (m < 60) return m + '분 전'; const h = Math.floor(m / 60); if (h < 24) return h + '시간 전'; return Math.floor(h / 24) + '일 전'; }
+function pplUsageLine(id) {
+  if (!pplUse) return '';
+  const u = pplUse.sticks[id];
+  if (!u) return '<div class="meta" style="color:var(--mute)">사용 기록 없음</div>';
+  const fwNew = u.hw === 'P2' ? pplUse.fwP2 : pplUse.fwS3, old = 'color:var(--accent,#f76707)';
+  const app = u.app ? '앱 ' + esc(u.app.replace(/^\d{4}-/, '')) : '앱 -', fw = '펌웨어 ' + esc(u.fw || '-');
+  return '<div class="meta" style="color:var(--ink)">' + (u.app && u.app < APP_BUILD ? `<span style="${old}">${app}</span>` : app) + ' · ' +
+    (fwNew && u.fw && u.fw !== fwNew ? `<span style="${old}">${fw}</span>` : fw) + ' · ' + pplAgo(u.last_seen) + '</div>';
+}
+function pplErrText(e) {
+  return '[파노체크 오류 #' + e.n + ']\n사람: ' + (e.name || '-') + ' (' + (e.stick === 'NOSTICK' ? '스틱 없음' : fmtId(e.stick)) + ')\n시각: ' + new Date(e.first).toLocaleString('ko-KR') +
+    (e.cnt > 1 ? ' ~ ' + new Date(e.t).toLocaleString('ko-KR') + ' (' + e.cnt + '회)' : '') + '\n앱 ' + (e.app || '-') + ' · 펌웨어 ' + (e.fw || '-') + ' · ' + (e.hw === 'P2' ? 'Plus2' : 'S3') + ' · ' + (e.plat || '-') +
+    '\n종류: ' + (e.k === 'user' ? '사용자가 보냄' : '자동 보고') + (e.memo ? '\n사용자 메모: ' + e.memo : '') + '\n내용: ' + e.msg + (e.detail ? '\n\n자세히:\n' + e.detail : '');
+}
+// Maker's phone only: a red 「새 오류 N건」 button on home when error reports are waiting (not marked 해결).
+var errBadgeAt = 0;
+function errBadgeShow(n) {
+  const b = $('errBadge'); if (!b) return;
+  b.style.display = n > 0 ? '' : 'none'; b.textContent = '새 오류 ' + n + '건 · 확인하기';
+}
+async function errBadgeCheck(force) {
+  if (!USAGE_URL || (!force && Date.now() - errBadgeAt < 5 * 60e3)) return;
+  errBadgeAt = Date.now();
+  const A = await authHdr(); if (!A) { errBadgeShow(0); return; }
+  try {
+    const r = await fetch(USAGE_URL + '/api/errors', { headers: { Authorization: A }, cache: 'no-store' });
+    if (r.ok) errBadgeShow(((await r.json()).errors || []).filter(e => !e.done).length);
+  } catch (e) {}
+}
+$('errBadge').onclick = () => { location.hash = '#admin'; setTimeout(() => { const el = admKey ? $('pplErr') : $('vwErr'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 900); };
+setTimeout(() => errBadgeCheck(true), 4000);
+setInterval(() => { if (document.visibilityState === 'visible') errBadgeCheck(); }, 10 * 60e3);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(errBadgeCheck, 1500); });
+// ---- view-only admins: their own key (made on their phone, never leaves it); the maker adds the public half on the usage server.
+// Their app signs "PanoCheck|view|v1|<kid>|<expiry>" and may read usage and errors, and get Telegram alerts. No activation, no signing.
+var vw = null, vwState = '';
+async function vwLoad() { if (vw === null) { try { vw = await idb(st => st.get('view')) || false; } catch (e) { vw = false; } } return vw; }
+const b64uOf = u8 => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function vwHdr() {
+  if (!(await vwLoad())) return '';
+  const exp = Date.now() + 12 * 3600e3;
+  try { const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, vw.key, new TextEncoder().encode('PanoCheck|view|v1|' + vw.kid + '|' + exp)); return 'Sig2 ' + vw.kid + '.' + exp + '.' + b64uOf(new Uint8Array(sig)); } catch (e) { return ''; }
+}
+async function authHdr() {                           // maker's key first, else a view-only admin's key
+  if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
+  if (admKey) { const p = await usagePass(); return p ? 'Sig ' + p : ''; }
+  return vwHdr();
+}
+async function vwMake() {
+  const name = ($('vwName').value || '').trim().slice(0, 30); if (!name) { notify('이름을 넣어 주세요', false); return; }
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+  const j = await crypto.subtle.exportKey('jwk', kp.publicKey);
+  const kid = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(j.x + '.' + j.y)))].map(v => v.toString(16).padStart(2, '0')).join('').slice(0, 12);
+  vw = { key: kp.privateKey, kid, name, code: 'PCV1.' + b64uOf(new TextEncoder().encode(name)) + '.' + j.x + '.' + j.y, made: Date.now() };
+  try { await idb(st => st.put(vw, 'view')); } catch (e) { notify('이 휴대폰에 저장하지 못했습니다', false); vw = null; return; }
+  vwState = 'wait'; $('admOpen').style.display = 'none'; vwRender();
+}
+async function vwCheck() {
+  const A = await vwHdr(); if (!A || !USAGE_URL) return;
+  try {
+    const r = await fetch(USAGE_URL + '/api/errors', { headers: { Authorization: A }, cache: 'no-store' });
+    if (r.status === 401) { vwState = 'wait'; vwRender(); return false; }
+    if (!r.ok) throw 0;
+    const d = await r.json(); vwState = 'ok'; vwRender(d); errBadgeShow((d.errors || []).filter(e => !e.done).length); return true;
+  } catch (e) { if ($('vwMsg')) $('vwMsg').textContent = '서버에 연결하지 못했습니다 (인터넷 확인)'; }
+}
+function vwRender(d) {
+  const B = $('vwBody'); if (!B) return;
+  if (!vw) {
+    $('vwTtl').textContent = '보기 전용 관리자 신청';
+    B.innerHTML = '<div class="set-help" style="margin:0 0 8px">제작자가 추가해 주면 이 휴대폰에서 사용 현황과 오류를 볼 수 있어요.</div><input id="vwName" type="text" maxlength="30" placeholder="내 이름" autocomplete="off"><button id="vwMake" class="primary" style="width:100%;margin-top:10px">신청 코드 만들기</button>';
+    $('vwMake').onclick = vwMake; return;
+  }
+  if (vwState !== 'ok') {
+    $('vwTtl').textContent = '보기 전용 관리자 신청 · ' + vw.name;
+    B.innerHTML = '<div class="set-help" style="margin:0 0 6px">이 코드를 제작자에게 보내 주세요. 제작자가 추가한 뒤 [확인]을 누르면 돼요.</div><textarea readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#cfe">' + esc(vw.code) + '</textarea>' +
+      '<div class="tools" style="margin-top:8px"><button id="vwShare" class="primary">보내기 (카톡)</button><button id="vwCopy">복사</button><button id="vwOk">확인</button></div><div id="vwMsg" class="help" style="margin-top:6px"></div><button id="vwDrop" style="width:100%;margin-top:10px;font-size:14px">신청 취소</button>';
+    $('vwCopy').onclick = async () => { try { await navigator.clipboard.writeText(vw.code); notify('신청 코드를 복사했습니다', true); } catch (e) { await askText('이 코드를 복사하세요', vw.code); } };
+    $('vwShare').onclick = async () => { const t = '파노체크 보기 전용 관리자 신청 코드 (' + vw.name + ')\n' + vw.code; try { if (navigator.share) { await navigator.share({ text: t }); return; } } catch (e) { if (e && e.name === 'AbortError') return; } try { await navigator.clipboard.writeText(t); notify('복사했습니다 · 카톡에 붙여 넣으세요', true); } catch (e) { await askText('이 코드를 복사하세요', vw.code); } };
+    $('vwOk').onclick = async () => { $('vwMsg').textContent = '확인 중…'; const ok = await vwCheck(); if (ok === false) $('vwMsg').textContent = '아직 추가되지 않았어요. 제작자에게 코드를 보냈는지 확인해 주세요.'; };
+    $('vwDrop').onclick = vwDrop; return;
+  }
+  $('vwTtl').textContent = '보기 전용 관리자 · ' + vw.name;
+  const tg = (d && d.tg) || {}, list = (d && d.errors) || [], open = list.filter(e => !e.done);
+  B.innerHTML = '<button id="vwUsage" class="primary" style="width:100%">사용 현황 보기</button>' +
+    '<div class="help" style="margin:10px 0 6px">텔레그램 오류 알림: ' + (!tg.token ? '제작자가 아직 켜지 않았어요' : !tg.chat ? '<button id="vwTg">텔레그램 연결</button>' : (tg.on ? '켜짐 <button id="vwTgOff">끄기</button>' : '꺼짐 <button id="vwTgOn">켜기</button>')) + '</div><div id="vwMsg" class="help"></div>' +
+    '<div id="vwErr"><div style="font-weight:700;margin:8px 0 4px">오류 <span class="help" style="margin:0">' + (open.length ? '해결 안 된 것 ' + open.length + '개' : '새 오류 없음') + '</span></div>' +
+    open.slice(0, 15).map(e => `<div class="row" data-n="${e.n}" style="grid-template-columns:1fr auto"><div style="min-width:0"><div class="meta">${esc(e.name || (e.stick === 'NOSTICK' ? '스틱 없음' : fmtId(e.stick)))} · ${pplAgo(e.t)} · 앱 ${esc((e.app || '-').replace(/^\d{4}-/, ''))} · 펌웨어 ${esc(e.fw || '-')} · ${e.k === 'user' ? '사용자' : '자동'}${e.cnt > 1 ? ' · ' + e.cnt + '회' : ''}</div><div style="font-weight:700;word-break:break-all">${esc(e.msg)}</div>${e.memo && e.memo !== e.msg ? '<div class="meta" style="color:var(--ink)">' + esc(e.memo) + '</div>' : ''}</div><div class="acts"><button data-vc="${e.n}">복사</button></div></div>`).join('') + '</div>' +
+    '<button id="vwDrop" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 빼기</button>';
+  $('vwDrop').onclick = vwDrop;
+  $('vwUsage').onclick = async () => { const w = window.open('about:blank', '_blank'); const A = await vwHdr(); const u = USAGE_URL + '/admin#v=' + A.replace(/^Sig2 /, ''); if (w) { try { w.opener = null; w.location.href = u; return; } catch (e) {} } location.href = u; };
+  B.querySelectorAll('[data-vc]').forEach(b => b.onclick = async () => { const e = list.find(x => x.n == b.dataset.vc); const t = pplErrText(e); try { await navigator.clipboard.writeText(t); notify('오류 내용을 복사했습니다', true); } catch (x) { await askText('이 내용을 복사하세요', t); } });
+  const post = async (p, body) => (await fetch(USAGE_URL + p, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await vwHdr() }, body: JSON.stringify(body || {}) })).json();
+  if ($('vwTg')) $('vwTg').onclick = async () => {
+    try { const r = await post('/api/tg/link');
+      if (r.ok) { notify('텔레그램 알림을 연결했습니다', true); vwCheck(); }
+      else if (r.link) { $('vwMsg').innerHTML = '텔레그램에서 <b>[시작]</b>을 누른 뒤, 이 화면으로 돌아와 [텔레그램 연결]을 한 번 더 눌러 주세요.'; window.open(r.link, '_blank'); }
+      else notify('연결하지 못했습니다', false);
+    } catch (e) { notify('연결하지 못했습니다 (인터넷 확인)', false); } };
+  for (const [id, on] of [['vwTgOff', false], ['vwTgOn', true]]) if ($(id)) $(id).onclick = async () => { try { await post('/api/me/tg', { on }); vwCheck(); } catch (e) { notify('바꾸지 못했습니다', false); } };
+}
+async function vwDrop() {
+  if (!(await askConfirm('이 휴대폰의 보기 전용 관리자 열쇠를 지울까요?\n(다시 하려면 새로 신청해야 해요)'))) return;
+  try { await idb(st => st.delete('view')); } catch (e) {}
+  vw = false; vwState = ''; errBadgeShow(0); vwRender(); $('admOpen').style.display = '';
+}
+async function vwShow() {
+  const card = $('admView'); if (!card) return;
+  if (admKey) { card.style.display = 'none'; $('admFoot').style.display = ''; return; }
+  await vwLoad();
+  card.style.display = ''; $('admOpen').style.display = vw ? 'none' : ''; $('admFoot').style.display = vw ? 'none' : '';
+  vwRender(); if (vw) vwCheck();
+}
+// maker's phone: the list of view-only admins
+async function avLoad() {
+  if (!admKey || !USAGE_URL) return;
+  const A = await authHdr(); if (!A) return;
+  try {
+    const r = await fetch(USAGE_URL + '/api/admins', { headers: { Authorization: A }, cache: 'no-store' });
+    if (!r.ok) { $('avList').innerHTML = '<div class="help">' + (r.status === 404 ? '사용 현황 서버 업데이트가 필요해요' : '목록을 읽지 못했습니다') + '</div>'; return; }
+    const L = (await r.json()).admins || [];
+    $('avCount').textContent = L.length ? L.length + '명' : '';
+    $('avList').innerHTML = L.length ? L.map(a => `<div class="row" data-k="${esc(a.kid)}"><div style="min-width:0"><div class="nm">${esc(a.name || '(이름 없음)')}</div><div class="meta">${a.last ? '마지막 사용 ' + pplAgo(a.last) : '아직 안 씀'} · 텔레그램 ${a.chat ? (a.tg ? '켜짐' : '꺼짐') : '연결 안 함'}</div></div>
+      <div class="acts">${a.chat ? `<button data-av="${a.tg ? 'off' : 'on'}">${a.tg ? '알림 끄기' : '알림 켜기'}</button>` : ''}<button data-av="del">빼기</button></div></div>`).join('') : '<div class="help" style="padding:6px 0">아직 없어요</div>';
+    $('avList').onclick = async ev => {
+      const b = ev.target.closest('button'), row = ev.target.closest('.row'); if (!b || !row) return;
+      const a = L.find(x => x.kid === row.dataset.k); if (!a) return;
+      if (b.dataset.av === 'del' && !(await askConfirm((a.name || '이 사람') + '을(를) 관리자에서 뺄까요?'))) return;
+      try { await fetch(USAGE_URL + (b.dataset.av === 'del' ? '/api/admins/del' : '/api/admins/tg'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ kid: a.kid, on: b.dataset.av === 'on' }) }); } catch (e) { notify('바꾸지 못했습니다 (인터넷 확인)', false); }
+      avLoad();
+    };
+  } catch (e) { $('avList').innerHTML = '<div class="help">목록을 읽지 못했습니다 (인터넷 확인)</div>'; }
+}
+$('btnAvAdd').onclick = async () => {
+  const code = await askText('받은 신청 코드를 붙여 넣으세요 (PCV1.로 시작)', ''); if (!code) return;
+  const c = (code.match(/PCV1\.[A-Za-z0-9_.-]+/) || [''])[0];
+  try {
+    const r = await (await fetch(USAGE_URL + '/api/admins/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ code: c }) })).json();
+    notify(r.ok ? (r.name || '관리자') + '을(를) 추가했습니다' : r.error === 'full' ? '관리자는 20명까지예요' : '신청 코드가 맞지 않습니다', !!r.ok);
+  } catch (e) { notify('추가하지 못했습니다 (인터넷 확인)', false); }
+  avLoad();
+};
+function pplErrRender(list, H, tgs) {                // maker's phone: newest error reports not marked done, with [복사] for Claude
+  const open = list.filter(e => !e.done).slice(0, 15);
+  errBadgeShow(list.filter(e => !e.done).length);
+  tgs = tgs || {};
+  const tgLine = '<div class="help" style="margin:0 0 6px">텔레그램 알림: ' + (!tgs.token ? '꺼짐 (서버 설정 필요)' : tgs.chat ? '켜짐' : '봇에게 아무 말이나 보낸 뒤 <button data-ea="tg" style="padding:4px 10px">텔레그램 연결</button>') + '</div>';
+  $('pplErr').innerHTML = '<div style="font-weight:700;margin-bottom:4px">오류 <span class="help" style="margin:0">' + (open.length ? '안 본 것 ' + list.filter(e => !e.done).length + '개' : '새 오류 없음') + '</span></div>' + tgLine +
+    open.map(e => `<div class="row" data-n="${e.n}" style="grid-template-columns:1fr auto"><div style="min-width:0"><div class="meta">${esc(e.name || (e.stick === 'NOSTICK' ? '스틱 없음' : fmtId(e.stick)))} · ${pplAgo(e.t)} · 앱 ${esc((e.app || '-').replace(/^\d{4}-/, ''))} · 펌웨어 ${esc(e.fw || '-')} · ${e.k === 'user' ? '사용자' : '자동'}${e.cnt > 1 ? ' · ' + e.cnt + '회' : ''}</div>
+      <div style="font-weight:700;word-break:break-all">${esc(e.msg)}</div>${e.memo && e.memo !== e.msg ? '<div class="meta" style="color:var(--ink)">' + esc(e.memo) + '</div>' : ''}</div>
+      <div class="acts"><button data-ea="copy">복사</button><button data-ea="done">해결</button></div></div>`).join('');
+  $('pplErr').onclick = async ev => {
+    const b = ev.target.closest('button'), row = ev.target.closest('.row');
+    if (b && b.dataset.ea === 'tg') {
+      try { const r = await (await fetch(USAGE_URL + '/api/tg/link', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: '{}' })).json();
+        notify(r.ok ? '텔레그램 알림을 연결했습니다' : r.error === 'nomsg' ? '텔레그램에서 봇에게 먼저 아무 말이나 보내 주세요' : '연결하지 못했습니다', !!r.ok); if (r.ok) pplErrRender(list, H, { token: true, chat: true }); } catch (x) { notify('연결하지 못했습니다 (인터넷 확인)', false); }
+      return;
+    }
+    if (!b || !row) return;
+    const e = list.find(x => x.n == row.dataset.n); if (!e) return;
+    if (b.dataset.ea === 'copy') { const t = pplErrText(e); try { await navigator.clipboard.writeText(t); notify('오류 내용을 복사했습니다 · Claude에게 붙여 넣으세요', true); } catch (x) { await askText('이 내용을 복사하세요', t); } }
+    else { try { await fetch(USAGE_URL + '/api/errors/done', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: JSON.stringify({ id: e.n, done: true }) }); e.done = 1; pplErrRender(list, H, tgs); } catch (x) { notify('표시하지 못했습니다 (인터넷 확인)', false); } }
+  };
+}
+async function pplUsageFetch(force) {
+  if (!admKey || !USAGE_URL || pplUseBusy || (!force && Date.now() - pplUseAt < 60000)) return;
+  pplUseBusy = true;
+  try {
+    const pass = await usagePass(); if (!pass) throw new Error('sign');
+    const H = { Authorization: 'Sig ' + pass };
+    try {                                            // keep the server's name list the same as this phone's
+      const o = pplAll(), list = Object.keys(o).map(id => { let st = 'ok'; try { st = pplStatus(o[id], id)[0]; } catch (e) {} return [id, (o[id].name || '').slice(0, 30), st, o[id].made || 0]; });
+      await fetch(USAGE_URL + '/api/people', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: JSON.stringify({ people: list }) });
+    } catch (e) {}
+    const r = await fetch(USAGE_URL + '/api/sticks', { headers: H, cache: 'no-store' });
+    if (r.status === 401) { pplUseErr = '사용 현황 서버가 이 휴대폰의 관리자 열쇠를 받지 않았습니다 (서버 업데이트 필요)'; pplUse = null; }
+    else if (r.ok) {
+      const d = await r.json(), m = {}; (d.sticks || []).forEach(x => m[x.id] = x);
+      let fwS3 = '', fwP2 = '';
+      try { fwS3 = fwLatest ? fwLatest.ver : (await (await fetch('fw/latest.json', { cache: 'no-cache' })).json()).ver; } catch (e) {}
+      try { const q = await fetch('fw/latest-plus2.json', { cache: 'no-cache' }); if (q.ok) fwP2 = (await q.json()).ver; } catch (e) {}
+      pplUse = { sticks: m, fwS3, fwP2 }; pplUseErr = ''; pplUseAt = Date.now();
+      try { const q = await fetch(USAGE_URL + '/api/errors', { headers: H, cache: 'no-store' }); if (q.ok) { const d = await q.json(); pplErrRender(d.errors || [], H, d.tg); } } catch (e) {}
+      avLoad();
+    } else pplUseErr = '사용 현황을 읽지 못했습니다 (' + r.status + ')';
+  } catch (e) { pplUseErr = '사용 현황을 읽지 못했습니다 (인터넷 확인)'; }
+  pplUseBusy = false;
+  $('pplUsageMsg').textContent = pplUseErr || (pplUse ? '버전·마지막 사용은 사용 현황 서버에서 읽었습니다 · 주황은 최신이 아닌 버전' : '');
+  if (pplUse || pplUseErr) pplRender();
+}
 async function pplRender(fetchList) {
   if (!$('pplList')) return;
-  if (fetchList) { await loadRvkList(true); }
+  if (fetchList) { await loadRvkList(true); pplUsageFetch(true); }
   const o = pplAll(), q = ($('pplQ').value || '').trim().toUpperCase().replace(/-/g, '');
   const ids = Object.keys(o).sort((a, b) => (o[b].made || 0) - (o[a].made || 0));
   const shown = ids.filter(id => !q || id.includes(q) || (o[id].name || '').toUpperCase().includes(q));
@@ -3410,7 +3746,7 @@ async function pplRender(fetchList) {
     const d = e.made ? new Date(e.made) : null;
     const when = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '';
     return `<div class="row" data-id="${id}"><div style="min-width:0"><div class="nm">${esc(e.name || '(이름 없음)')}<span class="pst ${cls}">${txt}</span></div>
-      <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div></div>
+      <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div>${pplUsageLine(id)}</div>
       <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">삭제</button></div></div>`;
   }).join('') : '<div class="help" style="padding:10px 0">' + (ids.length ? '검색 결과가 없습니다' : '아직 기록이 없습니다') + '</div>';
 }
@@ -3446,12 +3782,16 @@ $('pplFile').onchange = async () => {
     pplStore(o); pplRender(); notify(`${n}명을 가져왔습니다`, true);
   } catch (e) { notify('가져오지 못했습니다: ' + e.message, false); }
 };
-$('btnPplUsage').onclick = async () => {
+$('btnPplUsage').onclick = () => usageOpenAdmin();
+async function usageOpenAdmin() {                    // admin page; on the maker's phone it signs in by itself (signed pass in the # part)
   if (!USAGE_URL) return;
+  const w = admKey ? window.open('about:blank', '_blank') : null;     // opened during the tap (pop-up rules); filled in below
   try { await loadRvkList(true); } catch (e) {}
-  const u = usageAdminUrl();
+  const pass = await usagePass();
+  const u = usageAdminUrl().replace('/admin#p=', '/admin#' + (pass ? 's=' + pass + '&' : '') + 'p=').replace(/\/admin$/, '/admin' + (pass ? '#s=' + pass : ''));
+  if (w) { try { w.opener = null; w.location.href = u; return; } catch (e) {} }
   try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
-};
+}
 $('btnPplSync').onclick = async () => { await pplRender(true); notify(rvkList ? '취소 상태를 새로 확인했습니다' : '취소 목록을 읽지 못했습니다 (인터넷 확인)', !!rvkList); };
 
 // ---------------------------------------------------------------- app close / open: tidy up what this app holds
