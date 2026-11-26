@@ -113,6 +113,12 @@
   .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
   .ckBox { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
   .ckBox .seg button { min-height:40px; }
+  .ckGo { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .ckGo button { min-height:72px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; line-height:1.2; }
+  .ckGo button b { font-size:20px; } .ckGo button small { font-size:13px; color:var(--mute); font-weight:600; }
+  .ckGo .ckWide { grid-column:1 / -1; min-height:52px; flex-direction:row; gap:6px; } .ckGo .ckWide b { font-size:17px; }
+  .ckGo button.sel2 { border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc); }
+  .ckGo button.stop { background:var(--red); border-color:var(--red); color:#fff; } .ckGo button.stop small { color:#fff; }
   .ckBar { height:6px; border-radius:3px; background:#232a33; margin-top:6px; overflow:hidden; } .ckBar i { display:block; height:100%; background:var(--acc); }
   .ckRes { display:flex; align-items:center; gap:12px; margin-top:8px; }
   .ckRes .condScore { font-size:38px; white-space:nowrap; flex-shrink:0; min-width:0; }
@@ -535,6 +541,9 @@
     <div class="ttl">앱 설정</div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aVib"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aSnd"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 음성 안내</span><div class="set-def">기본값: 켜짐</div><div class="set-help">컨디션 측정이 끝나면 "92점, 좋음"처럼 소리 내어 읽어 줍니다.</div></span><input type="checkbox" id="aSay"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 진동</span><div class="set-def">기본값: 켜짐</div><div class="set-help">좋음 1번, 보통 2번, 점검 필요·다시 재기 3번 울립니다.</div></span><input type="checkbox" id="aRVib"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">앱 열면 스틱 자동 연결</span><div class="set-def">기본값: 켜짐</div><div class="set-help">한 번 연결한 스틱이 켜져 있으면 앱을 열 때 바로 붙습니다 (브라우저가 지원할 때). 전원공급기는 늘 자동으로 다시 붙습니다.</div></span><input type="checkbox" id="aAuto"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aHot"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">스틱 Grove 포트에 릴레이 보드를 달았을 때만 켜세요. 꺼져 있으면 역방향을 쓰지 않습니다.</div></span><input type="checkbox" id="aRelay"></label></div>
@@ -610,9 +619,9 @@
     <div id="condRows" class="condRows"></div>
     <div class="ckBox">
       <div class="ttl" style="margin:0">⏱ 컨디션 측정 <small style="color:var(--mute);font-weight:600">같은 전압으로 일정 시간 돌려서 점수 내기</small></div>
-      <div class="seg" id="ckTag"><button data-t="0" class="sel2">일반</button><button data-t="1">청소 전</button><button data-t="2">청소 후</button></div>
-      <div class="prow" style="margin-top:6px"><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select></div>
-      <div class="help" style="margin-top:6px">전원공급기 출력을 켜면 3초 뒤 자동으로 잽니다. 다시 재려면 출력을 껐다 켜세요.</div>
+      <div class="ckGo" id="ckTag"><button data-t="1" class="ckBig"><b>🧽 청소 전</b><small>측정</small></button><button data-t="2" class="ckBig"><b>✨ 청소 후</b><small>측정</small></button><button data-t="0" class="ckWide"><b>▶ 그냥 측정</b><small>(일반)</small></button></div>
+      <div class="prow" style="margin-top:8px;align-items:center"><span class="help" style="flex:1">측정 시간</span><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select></div>
+      <div id="ckHow" class="help" style="margin-top:6px">버튼 하나만 누르면 출력 켜기 → 측정 → 점수 → 출력 끄기까지 알아서 합니다. 출력을 직접 켜도 3초 뒤 자동으로 잽니다.</div>
       <div id="ckLive" class="help" style="margin-top:6px"></div>
       <div id="ckRes"></div>
       <div id="ckCmp"></div>
@@ -701,7 +710,11 @@ $('autoRec').onchange = () => { try { localStorage.setItem('panotrio-auto', $('a
 
 // ---------------------------------------------------------------- connection notice (vibration, sound, banner)
 let audio = null, toastT = 0;
-function unlockAudio() { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch (e) {} }
+function unlockAudio() {
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch (e) {}
+  if (!unlockAudio.sp && window.speechSynthesis) { unlockAudio.sp = 1; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }   // iPhone: speech works only after a tap
+}
+document.addEventListener('pointerdown', () => unlockAudio(), { capture: true, once: true });
 function beep(freqs) {
   if (!audio) return;
   let t = audio.currentTime;
@@ -877,6 +890,7 @@ async function openGatt() {
   notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
+  try { if (device.id) localStorage.setItem('panocheck-stick', device.id); } catch (e) {}   // for connecting by itself next time
 }
 async function sendTime() {                          // the stick's standby clock uses the phone's local time
   const ch = cmdChar; if (!ch) return;
@@ -887,7 +901,7 @@ async function sendTime() {                          // the stick's standby cloc
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   notify('블루투스 연결 끊김', false);
-  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; stickBtnSeq = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
 }
@@ -906,6 +920,31 @@ async function reconnect() {
   } finally { reconnecting = false; }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && device && !cmdChar) { $('conn').textContent = '다시 연결 중…'; reconnect(); } });
+// App opened: connect by itself to the stick this phone used last time, when the browser allows it
+// (Chrome with getDevices). Waits for the stick to advertise (it may be off), up to 2 minutes.
+async function stickAuto() {
+  if (device || appSet.auto === false || !navigator.bluetooth || !navigator.bluetooth.getDevices) return;
+  let list = [], id = '';
+  try { list = await navigator.bluetooth.getDevices(); } catch (e) { return; }
+  try { id = localStorage.getItem('panocheck-stick') || ''; } catch (e) {}
+  list = list.filter(d => /^(PanoTrio|파노체크)/.test(d.name || '') || d.id === id);
+  const d = list.find(x => x.id === id) || (list.length === 1 ? list[0] : null);
+  if (!d || device) return;
+  let done = false;
+  const go = async () => {
+    if (done || device || cmdChar) return; done = true;
+    device = d; d.addEventListener('gattserverdisconnected', onDisconnected);
+    try { await openGatt(); }
+    catch (e) { if (!cmdChar && device === d) { d.removeEventListener('gattserverdisconnected', onDisconnected); try { d.gatt.disconnect(); } catch (e2) {} device = null; $('conn').textContent = '연결 안 됨'; $('conn').className = 'conn'; } }
+  };
+  if (d.watchAdvertisements) {
+    const ac = new AbortController();
+    d.addEventListener('advertisementreceived', () => { try { ac.abort(); } catch (e) {} go(); }, { once: true });
+    try { await d.watchAdvertisements({ signal: ac.signal }); if (!device) $('conn').textContent = '스틱 찾는 중…'; setTimeout(() => { try { ac.abort(); } catch (e) {} if (!device && !done) $('conn').textContent = '연결 안 됨'; }, 120000); }
+    catch (e) { go(); }
+  } else go();
+}
+setTimeout(stickAuto, 700);
 async function send(kind, val) {
   if (!cmdChar) return;
   if (lockedOut()) { notify('잠긴 스틱이라 바꿀 수 없습니다', false); return; }
@@ -921,7 +960,7 @@ const APPSET_KEY = 'panotrio-appset', MYSET_KEY = 'panotrio-myset';
 const DEFAULTS = { br: 170, vm: 40, wt: 25, hot: 550, mic: 40, dim: 30, off: 10, ps: 1, sb: 1, ck: 1, c12: 0, cb: 0, cbr: 40 };
 const SET_IDS = { br: 1, vm: 2, wt: 3, hot: 4, mic: 5, dim: 6, off: 7, ps: 8, sb: 10, ck: 12, c12: 13, cb: 14, cbr: 15 };
 const SET_NAMES = { br: '화면 밝기', vm: '진동 감도', wt: '측정 대기 시간', hot: '빨간 숫자 기준', mic: '소리 감도', dim: '대기 모드 진입 시간', off: '자동 꺼짐', ps: '대기 중 절전', sb: '대기 모드 화면', ck: '대기 시계', c12: '시계 표시 방식', cb: '시계 표시 조건', cbr: '시계 밝기' };
-let appSet = { vib: true, snd: true, hot: true, wake: false, relay: false };
+let appSet = { vib: true, snd: true, hot: true, wake: false, relay: false, say: true, rvib: true, auto: true };
 try { Object.assign(appSet, JSON.parse(localStorage.getItem(APPSET_KEY) || '{}')); } catch (e) {}
 function saveAppSet() { try { localStorage.setItem(APPSET_KEY, JSON.stringify(appSet)); } catch (e) {} }
 let stickSet = null, hotHz = HOT_HZ, infoChar = null, dragging = false, syncOnConnect = false, saving = false;
@@ -999,7 +1038,7 @@ function renderSettings() {
     : lockedOut() ? '🔒 다른 휴대폰으로 잠겨 있습니다' : stickLock.lck ? '🔒 이 휴대폰으로 잠겨 있습니다' : '잠금 꺼짐 · 누구나 바꿀 수 있음';
   lk.style.color = lockedOut() ? '#ff6b6b' : 'var(--mute)';
   btn.classList.toggle('go', has && d.length > 0);
-  $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake; $('aRelay').checked = !!appSet.relay; if ($('cRelayOn')) $('cRelayOn').checked = !!appSet.relay;
+  $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake; $('aSay').checked = appSet.say !== false; $('aRVib').checked = appSet.rvib !== false; $('aAuto').checked = appSet.auto !== false; $('aRelay').checked = !!appSet.relay; if ($('cRelayOn')) $('cRelayOn').checked = !!appSet.relay;
 }
 async function readInfoNow() {                     // read the stick's settings and wait for the answer
   const ch = infoChar; if (!ch) return null;
@@ -1092,8 +1131,8 @@ bindRange('sCbr', v => $('vCbr').textContent = Math.round(v / 255 * 100) + '%', 
 $('btnStickSave').onclick = () => saveToStick(false);
 $('cLock').onchange = () => { sendKey('L', $('cLock').checked ? myKey : 0); };
 $('btnDefaults').onclick = async () => { if (await askConfirm('설정을 기본값으로 바꿀까요? (스틱에 저장을 눌러야 스틱에 들어갑니다)')) { mySet = Object.assign({}, DEFAULTS); saveMySet(); renderSettings(); } };
-for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake'], ['aRelay', 'relay']])
-  $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'relay') relaySetChanged(); if (key === 'hot' && cur) render(); };
+for (const [id, key] of [['aVib', 'vib'], ['aSnd', 'snd'], ['aHot', 'hot'], ['aWake', 'wake'], ['aRelay', 'relay'], ['aSay', 'say'], ['aRVib', 'rvib'], ['aAuto', 'auto']])
+  $(id).onchange = $(id).onclick = () => { appSet[key] = $(id).checked; saveAppSet(); if (key === 'wake') applyWake(); if (key === 'relay') relaySetChanged(); if (key === 'hot' && cur) render(); if (key === 'say' && appSet.say) ckSay('음성 안내를 켰습니다', -1); };
 let wakeLock = null;
 async function applyWake() {
   try {
@@ -1465,7 +1504,7 @@ showView();
 checkReqHash();
 // App updates: the installed app keeps running in the background, so look for a new version whenever it comes
 // back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26i';
+const APP_BUILD = '2026-11-26j';
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloading = false, pendingReload = false;
@@ -1501,6 +1540,24 @@ function onInfo(dv, whole) {
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
   stickVer = kv.VER || ''; stickOta = kv.OTA === '1'; fwCheck();
   stickCnd = kv.CND === '1' || verNum(stickVer) >= 2004;      // stick can show the condition score (firmware 2.4+)
+  if (kv.BTN !== undefined) {                                  // stick button event (firmware 2.7+): BTN=seq.kind
+    const [sq, k] = kv.BTN.split('.').map(Number);
+    if (stickBtnSeq !== null && sq !== stickBtnSeq) stickButton(k);
+    stickBtnSeq = sq;
+  }
+}
+// Stick buttons while connected (firmware 2.7+): A held 1 s = start / stop measuring, B held 1 s = forward / reverse
+var stickBtnSeq = null;
+function stickButton(k) {
+  if (k === 1) {
+    if (!$('ckTag')) return;
+    if (!dps.link) { notify('스틱 버튼: 전원공급기가 연결되어 있지 않습니다', false); ckSay('전원공급기를 연결하세요', 2); return; }
+    ckGo(ckTag);
+  } else if (k === 2) {
+    if (!relayReady()) { notify('스틱 버튼: 릴레이가 연결되어 있지 않습니다 (설정에서 켜기)', false); return; }
+    if (cl.run || cl.busy) { notify('모터클리닝·길들이기 실행 중에는 방향을 바꿀 수 없습니다', false); return; }
+    psuDir(stickDir === 1 ? 0 : 1);
+  }
 }
 
 // ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)
@@ -2675,10 +2732,11 @@ function ckTick() {
   if (cur && now - cur.t < 1500 && cur.big > 0 && cur.t !== ck.lastHz) { ck.lastHz = cur.t; ck.hz.push(cur.big); }
   if (now - ck.t0 >= ck.dur * 1000) ckFinish(); else ckRender();
 }
-function ckEnd(msg) { if (ck) clearInterval(ck.timer); ck = null; $('ckLive').innerHTML = msg ? '<b style="color:#ffd43b">' + esc(msg) + '</b>' : ''; ckRender(); }
+function ckEnd(msg) { if (ck) clearInterval(ck.timer); ck = null; $('ckLive').innerHTML = msg ? '<b style="color:#ffd43b">' + esc(msg) + '</b>' : ''; ckOneDone(); ckRender(); }
 function ckFinish() {
   const c = ck; clearInterval(c.timer); ck = null;
-  if (c.v.length < 8 || c.hz.length < 6) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">값이 충분히 들어오지 않았습니다 (전압 ' + c.v.length + '개, 파노 ' + c.hz.length + '개). 스틱 위치를 확인하고 다시 해 주세요.</b>'; ckRender(); return; }
+  ckOneDone();                                       // one-press run: output off again
+  if (c.v.length < 8 || c.hz.length < 6) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">값이 충분히 들어오지 않았습니다 (전압 ' + c.v.length + '개, 파노 ' + c.hz.length + '개). 스틱 위치를 확인하고 다시 해 주세요.</b>'; ckSay('값이 부족합니다. 다시 해 주세요', 2); ckRender(); return; }
   // drop the first fifth of pano values (the stick settles after the start)
   // the stick sometimes locks onto a wrong line (2x harmonic at low speed): keep values near the median,
   // and when too many fall outside, call it a measuring problem instead of taking points off the motor
@@ -2714,6 +2772,7 @@ function ckFinish() {
   const g = ckGrade(r);
   beep(r.unstable || g[2] === 2 ? [440, 330] : [880, 1320]);
   notify('컨디션 측정 끝: ' + (r.unstable ? g[0] : r.score + '점 ' + g[0]), !r.unstable && g[2] < 2);
+  ckSay(r.unstable ? g[0] + '. 다시 재 주세요' : r.score + '점, ' + g[0], g[2]);
   $('ckLive').textContent = '';
   recs.unshift(Object.assign({ t: r.t, memo: '⏱ ' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
     volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? (r.measBad ? { condBad: 1, measBad: 1 } : { condBad: 1 }) : { cond: r.score }));
@@ -2759,14 +2818,60 @@ function ckCompare(r) {                               // latest 청소 전 vs th
 }
 function ckRender() {
   if (!$('ckDur')) return;
-  $('ckDur').disabled = !!ck;
-  [...$('ckTag').children].forEach(b => { b.classList.toggle('sel2', +b.dataset.t === ckTag); b.disabled = !!ck; });
+  const busy = !!(ck || ckOne);
+  $('ckDur').disabled = busy;
+  [...$('ckTag').children].forEach(b => {
+    const t = +b.dataset.t, me = t === ckTag, lbl = ['▶ 그냥 측정', '🧽 청소 전', '✨ 청소 후'][t];
+    b.classList.toggle('sel2', me && !busy); b.classList.toggle('stop', me && busy);
+    b.querySelector('b').textContent = me && busy ? '■ 멈추기' : lbl;
+    b.querySelector('small').textContent = me && busy ? CK_TAGS[t] + ' 측정 중' : t ? '측정' : '(일반)';
+    b.disabled = busy && !me;
+  });
   if (ck) {
     const el = (Date.now() - ck.t0) / 1000, left = Math.max(0, Math.ceil(ck.dur - el)), st = dps.st || {};
     $('ckLive').innerHTML = `측정 중… ${left}초 남음 · ${(+st.v || 0).toFixed(2)} V ${(+st.i || 0).toFixed(3)} A · 파노 ${ck.hz.length}개${st.cc ? ' · <b style="color:#ffd43b">CC</b>' : ''}<div class="ckBar"><i style="width:${Math.min(100, el / ck.dur * 100)}%"></i></div>`;
   }
 }
-$('ckTag').onclick = e => { const b = e.target.closest('button'); if (b && !ck) { ckTag = +b.dataset.t; ckRender(); } };
+$('ckTag').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) ckGo(+b.dataset.t); };
+// One press: connect what is missing, output on, measure (auto start below), score, output off.
+// The browser shows only one device list per press, so when both the stick and the power supply
+// still need their list, the second press does the rest.
+var ckOne = ckOne || null;                           // { tag, wasOn, t } while a one-press run is going
+async function ckGo(tag) {
+  unlockAudio();
+  if (ck || ckOne) { ckOneStop('멈췄습니다'); return; }
+  if (cl.run || cl.busy) { $('ckLive').innerHTML = '<b style="color:#ff6b6b">모터클리닝·길들이기 실행 중에는 측정할 수 없습니다.</b>'; return; }
+  ckTag = tag; ckRender();
+  const say = h => { $('ckLive').innerHTML = h; };
+  if (!cmdChar) {
+    if (device && reconnecting) { say('스틱에 다시 연결하는 중입니다. 잠시 뒤 다시 누르세요.'); return; }
+    say('① 스틱을 연결합니다. 목록에서 파노체크를 고르세요.'); await connect();
+    if (!cmdChar) { say('<b style="color:#ff6b6b">스틱이 연결되지 않았습니다.</b> 스틱을 켜고 다시 누르세요.'); return; }
+  }
+  if (!dps.link) {
+    say('② 전원공급기를 연결합니다…');
+    try { await dpsConnect(); } catch (e) {}
+    if (!dps.link) { say('<b style="color:#ffd43b">전원공급기가 아직 연결되지 않았습니다.</b> 한 번 더 누르면 전원공급기 목록이 나옵니다 (휴대폰 ↔ DPS 데이터선).'); return; }
+    for (let i = 0; i < 20 && !(dps.st && dps.st.t); i++) await sleep(150);
+  }
+  if (!(dps.st && dps.st.t)) { say('<b style="color:#ff6b6b">전원공급기가 응답하지 않습니다.</b>'); return; }
+  ckOne = { tag, wasOn: !!dps.st.on, t: Date.now() };
+  if (ckOne.wasOn) { ckArm.on = true; ckRearm(); return; }       // already running: just measure now
+  await psuToggle();
+  if (!dps.st.on) { ckOne = null; ckRender(); return; }
+  ckOne.t = Date.now(); ckRender();
+}
+async function ckOneDone() {                          // a one-press run ended: put the output back as it was
+  const o = ckOne; ckOne = null; if (!o) return;
+  if (!o.wasOn && dps.link && dps.st && dps.st.on) { try { await dpsOutput(false); dps.st.on = false; await dpsUnguard(); } catch (e) {} psuRender(); }
+  ckRender();
+}
+function ckOneStop(msg) { ckArm.done = true; ckArm.msg = false; if (ck) ckEnd(msg); else { $('ckLive').innerHTML = '<b style="color:#ffd43b">' + esc(msg) + '</b>'; ckOneDone(); } }
+// Spoken / vibrated result, so the phone can stay on the bench (settings: 결과 음성 안내 / 결과 진동)
+function ckSay(text, grade) {
+  if (appSet.say !== false && window.speechSynthesis) try { const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+  if (appSet.rvib !== false) setTimeout(() => { try { navigator.vibrate && grade >= 0 && navigator.vibrate(grade === 0 ? [250] : grade === 1 ? [200, 120, 200] : [400, 150, 400, 150, 400]); } catch (e) {} }, 300);
+}
 function ckShowLast() { if (ck) return; const last = ckLoad().find(b => b.motor === curMotor); if (last) ckShow(last); else { $('ckRes').innerHTML = ''; $('ckCmp').innerHTML = ''; } }
 // auto start: once per motor run (output ON). Waits 3 s for the motor to settle and for pano to come in.
 var ckArm = ckArm || { on: false, t: 0, done: false };
@@ -2776,13 +2881,17 @@ function ckAutoTick() {
   if (on && !ckArm.on) { ckArm.t = now; ckArm.done = false; }
   ckArm.on = on;
   if (!on && ckArm.msg && !ck) { ckArm.msg = false; $('ckLive').textContent = ''; }
+  if (!on && ckOne && !ck && !psuBusy) { ckOne = null; ckRender(); }
   if (!on || !ckAutoOn || ck || ckArm.done || psuBusy || cl.run || cl.busy) return;
   ckArm.msg = true;
   if (now - ckArm.t < 3000) { $('ckLive').textContent = '모터가 자리 잡으면 자동으로 측정합니다…'; return; }
-  if (ckWhyNot()) { $('ckLive').textContent = '파노가 들어오면 자동으로 측정합니다 (스틱을 모터에 대 주세요)'; return; }
+  if (ckWhyNot()) {
+    if (ckOne && now - ckArm.t > 20000) { ckOneStop('20초 동안 파노가 안 들어와서 출력을 껐습니다. 스틱을 모터에 대고 다시 누르세요.'); ckSay('파노가 안 들어옵니다', 2); return; }
+    $('ckLive').textContent = '파노가 들어오면 자동으로 측정합니다 (스틱을 모터에 대 주세요)'; return;
+  }
   ckArm.msg = false; ckStart(true);
 }
-function ckRearm() { if (ck && ck.auto) { clearInterval(ck.timer); ck = null; } if (ckArm.on) { ckArm.t = Date.now(); ckArm.done = false; } if (!ck) { ckArm.msg = true; $('ckLive').textContent = '모터가 자리 잡으면 자동으로 측정합니다…'; } ckRender(); }
+function ckRearm() { if (ck && ck.auto) { clearInterval(ck.timer); ck = null; } if (ckOne) ckOne.t = Date.now(); if (ckArm.on) { ckArm.t = Date.now(); ckArm.done = false; } if (!ck) { ckArm.msg = true; $('ckLive').textContent = '모터가 자리 잡으면 자동으로 측정합니다…'; } ckRender(); }
 setInterval(ckAutoTick, 500);
 window.ckReady = true; ckShowLast(); ckRender();
 
