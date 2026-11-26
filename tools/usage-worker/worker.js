@@ -9,6 +9,8 @@
 //   POST /api/people 앱의 「허락한 사람」 목록 통째로 바꾸기 {people:[[id, 이름, 상태, 만든 시각], ...]}  (같은 인증)
 // 개인 정보는 받지 않음: 스틱 ID, 앱·펌웨어 버전, 스틱 종류, 폰 종류(안드로이드/아이폰/PC)만.
 // ADMIN_TOKEN은 코드에 없음: `npx wrangler secret put ADMIN_TOKEN`으로 넣음.
+// 텔레그램 알림(선택): `npx wrangler secret put TG_TOKEN`(BotFather가 준 봇 토큰). 봇에게 아무 말이나 보낸 뒤 관리 화면 [텔레그램 연결]을 누르면
+//   대화 번호를 찾아 kv 표에 저장(POST /api/tg/link), 새 오류 줄이 생길 때마다 그 대화로 알림. GET /api/tg 상태, POST /api/tg/test 시험.
 
 const ORIGINS = ['https://jung86.github.io', 'http://localhost', 'http://127.0.0.1'];
 const clip = (v, n) => String(v == null ? '' : v).replace(/[^\w.\-+ ]/g, '').slice(0, n);
@@ -63,7 +65,7 @@ async function ping(req, env) {
     env.DB.prepare(`INSERT INTO daily (id, day, opens, meas) VALUES (?1, ?2, ?3, ?4)
       ON CONFLICT(id, day) DO UPDATE SET opens = opens + ?3, meas = meas + ?4`).bind(id, day, o, m),
   ]);
-  return new Response('', { status: 204, headers: h });
+  return new Response(null, { status: 204, headers: h });
 }
 
 let errorsReady = false;
@@ -73,8 +75,51 @@ async function errorsTable(env) {
     k TEXT, msg TEXT, detail TEXT, memo TEXT, cnt INTEGER DEFAULT 1, done INTEGER DEFAULT 0)`).run();
   errorsReady = true;
 }
+let kvReady = false;
+async function kvGet(env, k) {
+  if (!kvReady) { await env.DB.prepare('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)').run(); kvReady = true; }
+  const r = await env.DB.prepare('SELECT v FROM kv WHERE k = ?1').bind(k).first(); return r ? r.v : '';
+}
+async function kvSet(env, k, v) { await kvGet(env, k); await env.DB.prepare('INSERT OR REPLACE INTO kv (k, v) VALUES (?1, ?2)').bind(k, String(v)).run(); }
+async function tg(env, method, body) {
+  const r = await fetch('https://api.telegram.org/bot' + env.TG_TOKEN + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  return r.json().catch(() => ({ ok: false }));
+}
+async function tgSend(env, text) {
+  if (!env.TG_TOKEN) return false;
+  const chat = env.TG_CHAT || await kvGet(env, 'tg_chat'); if (!chat) return false;
+  const r = await tg(env, 'sendMessage', { chat_id: chat, text: text.slice(0, 3500), disable_web_page_preview: true });
+  return !!r.ok;
+}
+async function tgError(env, req, e) {               // one message per new error line; at most 20 an hour so a broken release cannot flood the phone
+  try {
+    if (!env.TG_TOKEN) return;
+    const hr = await env.DB.prepare('SELECT COUNT(*) AS c FROM errors WHERE first > ?1').bind(Date.now() - 3600e3).first();
+    if (hr && hr.c > 21) return;
+    await peopleTable(env);
+    const p = e.stick === 'NOSTICK' ? null : await env.DB.prepare('SELECT name FROM people WHERE id = ?1').bind(e.stick).first();
+    const who = (p && p.name ? p.name + ' ' : '') + (e.stick === 'NOSTICK' ? '(스틱 없음)' : '(' + e.stick.slice(0, 4) + '-' + e.stick.slice(4) + ')');
+    const t = new Date(Date.now() + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ').replace('-', '/');
+    let m = '[파노체크 오류] ' + (e.k === 'user' ? '사용자가 보냄' : '자동 보고') + '\n' + who + ' · ' + t + '\n' + e.msg +
+      (e.memo && e.memo !== e.msg ? '\n메모: ' + e.memo : '') + '\n앱 ' + (e.app || '-') + ' · 펌웨어 ' + (e.fw || '-') + ' · ' + (e.plat || '-') +
+      '\n' + new URL(req.url).origin + '/admin';
+    if (hr && hr.c === 21) m = '[파노체크] 1시간에 오류가 20개 넘게 들어와서 알림을 잠시 멈춥니다. 관리 화면에서 확인해 주세요.\n' + new URL(req.url).origin + '/admin';
+    await tgSend(env, m);
+  } catch (x) {}
+}
+async function tgLink(env) {                         // find the chat of whoever last wrote to the bot, keep it, say hello there
+  if (!env.TG_TOKEN) return json({ error: 'token' });
+  const u = await tg(env, 'getUpdates', { limit: 50 });
+  if (!u.ok) return json({ error: 'badtoken' });
+  const ms = (u.result || []).map(x => x.message || x.edited_message || x.channel_post).filter(Boolean);
+  const m = ms[ms.length - 1]; if (!m) return json({ error: 'nomsg' });
+  await kvSet(env, 'tg_chat', m.chat.id);
+  const ok = await tgSend(env, '파노체크 오류 알림이 연결됐어요. 앞으로 새 오류가 들어오면 여기로 알려 드릴게요.');
+  return json({ ok, name: m.chat.first_name || m.chat.title || '' });
+}
+async function tgState(env) { return { token: !!env.TG_TOKEN, chat: !!(env.TG_CHAT || (env.TG_TOKEN && await kvGet(env, 'tg_chat'))) }; }
 const txt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, n);
-async function errReport(req, env) {
+async function errReport(req, env, ctx) {
   const h = cors(req);
   if (!h['Access-Control-Allow-Origin'] && req.headers.get('Origin')) return new Response('', { status: 403 });
   const raw = await req.text(); if (raw.length > 40000) return new Response('', { status: 413, headers: h });
@@ -87,15 +132,17 @@ async function errReport(req, env) {
   const app = clip(b.app, 24), vals = [now, id, clip(b.hw, 8), app, clip(b.fw, 12), clip(b.plat, 8), k, msg, txt(b.detail, 12000), txt(b.memo, 500)];
   if (k === 'auto') {                                // same error again within a day: count it on the same line
     const same = await env.DB.prepare('SELECT n FROM errors WHERE k = \'auto\' AND stick = ?1 AND msg = ?2 AND app = ?3 AND t > ?4 ORDER BY n DESC LIMIT 1').bind(id, msg, app, now - 864e5).first();
-    if (same) { await env.DB.prepare('UPDATE errors SET cnt = cnt + 1, t = ?2, done = 0 WHERE n = ?1').bind(same.n, now).run(); return new Response('', { status: 204, headers: h }); }
+    if (same) { await env.DB.prepare('UPDATE errors SET cnt = cnt + 1, t = ?2, done = 0 WHERE n = ?1').bind(same.n, now).run(); return new Response(null, { status: 204, headers: h }); }
   }
   await env.DB.prepare('INSERT INTO errors (t, first, stick, hw, app, fw, plat, k, msg, detail, memo) VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)').bind(...vals).run();
-  return new Response('', { status: 204, headers: h });
+  const note = tgError(env, req, { stick: id, k, msg, memo: vals[9], app, fw: vals[4], plat: vals[5] });
+  if (ctx && ctx.waitUntil) ctx.waitUntil(note); else await note;
+  return new Response(null, { status: 204, headers: h });
 }
 async function errList(env) {
   await errorsTable(env); await peopleTable(env);
   const r = await env.DB.prepare('SELECT e.*, p.name AS name FROM errors e LEFT JOIN people p ON p.id = e.stick ORDER BY e.t DESC LIMIT 200').all();
-  return json({ now: Date.now(), errors: r.results || [] });
+  return json({ now: Date.now(), errors: r.results || [], tg: await tgState(env) });
 }
 let peopleReady = false;
 async function peopleTable(env) {                    // made on first use, so no separate migration step
@@ -129,18 +176,21 @@ async function sticks(env) {
   return json({ now, sticks: r.results || [], people: pp.results || [] });
 }
 
-async function route(req, env) {
+async function route(req, env, ctx) {
     const url = new URL(req.url), p = url.pathname;
     try {
-      if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' } });
+      if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' } });
       if (p === '/p' && req.method === 'POST') return await ping(req, env);
-      if (p === '/e' && req.method === 'POST') return await errReport(req, env);
+      if (p === '/e' && req.method === 'POST') return await errReport(req, env, ctx);
       if (p === '/admin' || p === '/') return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
       if (p.startsWith('/api/')) {
         if (!(await authed(req, env))) return json({ error: 'auth' }, 401);
         if (p === '/api/sticks' && req.method === 'GET') return await sticks(env);
         if (p === '/api/people' && req.method === 'POST') return await setPeople(req, env);
         if (p === '/api/errors' && req.method === 'GET') return await errList(env);
+        if (p === '/api/tg' && req.method === 'GET') return json(await tgState(env));
+        if (p === '/api/tg/link' && req.method === 'POST') return await tgLink(env);
+        if (p === '/api/tg/test' && req.method === 'POST') return json({ ok: await tgSend(env, '[파노체크] 시험 알림이에요. 잘 왔으면 준비 끝!') });
         if (p === '/api/errors/done' && req.method === 'POST') { const b = await req.json(); await errorsTable(env); await env.DB.prepare('UPDATE errors SET done = ?2 WHERE n = ?1').bind(+b.id || 0, b.done ? 1 : 0).run(); return json({ ok: true }); }
         if (p === '/api/errors/delete' && req.method === 'POST') { const b = await req.json(); await errorsTable(env); await env.DB.prepare('DELETE FROM errors WHERE n = ?1').bind(+b.id || 0).run(); return json({ ok: true }); }
         if (p === '/api/note' && req.method === 'POST') {
@@ -161,8 +211,8 @@ async function route(req, env) {
     }
 }
 export default {
-  async fetch(req, env) {                            // the app's admin screen (jung86.github.io) may read /api/ too, with the password
-    const res = await route(req, env), h = cors(req);
+  async fetch(req, env, ctx) {                            // the app's admin screen (jung86.github.io) may read /api/ too, with the password
+    const res = await route(req, env, ctx), h = cors(req);
     if (!h['Access-Control-Allow-Origin'] || !new URL(req.url).pathname.startsWith('/api/')) return res;
     const r = new Response(res.body, res);
     for (const k in h) r.headers.set(k, h[k]);
@@ -206,7 +256,8 @@ button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);c
 <div class="mute" style="margin-top:10px">이름은 앱의 「허락한 사람」 목록에서 옵니다(앱 관리자 화면의 [사용 현황 보기]로 열면 맞춰짐). 주황 글씨는 최신이 아닌 버전입니다. 목록에 없는 스틱은 이름 칸에 직접 메모할 수 있습니다.</div></div>
 <div class="card" id="errCard"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="flex:1">오류 <span class="mute" id="errCount"></span></b><label class="mute"><input type="checkbox" id="errAll" style="vertical-align:-2px"> 해결한 것도 보기</label></div>
 <div id="errList"></div>
-<div class="mute" style="margin-top:8px">[복사]를 누르면 오류 내용이 통째로 복사됩니다. Claude에게 붙여 넣으면 고칠 수 있습니다.</div></div>
+<div class="mute" style="margin-top:8px">[복사]를 누르면 오류 내용이 통째로 복사됩니다. Claude에게 붙여 넣으면 고칠 수 있습니다.</div>
+<div id="tgBox" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a2e"><b>텔레그램 알림</b> <span class="mute" id="tgSt"></span><div class="acts" style="margin-top:6px"><button id="tgLink">텔레그램 연결</button><button id="tgTest">시험 알림</button></div><div class="mute" id="tgMsg"></div></div></div>
 </div></main>
 <script>
 const $=id=>document.getElementById(id);let tk='';try{tk=localStorage.getItem('pc-admin')||''}catch(e){}
@@ -255,7 +306,7 @@ let errs=[];
 function errText(e){return '[파노체크 오류 #'+e.n+']\\n사람: '+(e.name||'-')+' ('+(e.stick==='NOSTICK'?'스틱 없음':fid(e.stick))+')\\n시각: '+new Date(e.first).toLocaleString('ko-KR')+(e.cnt>1?' ~ '+new Date(e.t).toLocaleString('ko-KR')+' ('+e.cnt+'회)':'')+'\\n앱 '+(e.app||'-')+' · 펌웨어 '+(e.fw||'-')+' · '+(e.hw==='P2'?'Plus2':'S3')+' · '+(e.plat||'-')+'\\n종류: '+(e.k==='user'?'사용자가 보냄':'자동 보고')+(e.memo?'\\n사용자 메모: '+e.memo:'')+'\\n내용: '+e.msg+(e.detail?'\\n\\n자세히:\\n'+e.detail:'')}
 async function loadErrors(){
   let d;try{d=await api('/api/errors')}catch(e){$('errList').innerHTML='<div class="mute">오류 목록을 읽지 못했습니다</div>';return}
-  errs=d.errors||[];const all=$('errAll').checked,open=errs.filter(e=>!e.done).length,shown=errs.filter(e=>all||!e.done);
+  tgShow(d.tg);errs=d.errors||[];const all=$('errAll').checked,open=errs.filter(e=>!e.done).length,shown=errs.filter(e=>all||!e.done);
   $('errCount').textContent=open?'· 안 본 것 '+open+'개':'· 새 오류 없음';
   $('errList').innerHTML=shown.map(e=>'<div class="err'+(e.done?' done':'')+'"><div class="mute">'+esc(e.name||(e.stick==='NOSTICK'?'스틱 없음':fid(e.stick)))+' · '+ago(e.t,d.now)+' · 앱 '+esc((e.app||'-').replace(/^\\d{4}-/,''))+' · 펌웨어 '+esc(e.fw||'-')+'<span class="tag'+(e.k==='user'?' no':'')+'">'+(e.k==='user'?'사용자':'자동')+'</span>'+(e.cnt>1?'<span class="tag">'+e.cnt+'회</span>':'')+'</div>'+
     '<div class="em">'+esc(e.msg)+'</div>'+(e.memo?'<div>메모: '+esc(e.memo)+'</div>':'')+'<pre id="ed'+e.n+'">'+esc(errText(e))+'</pre>'+
@@ -266,6 +317,9 @@ async function loadErrors(){
   document.querySelectorAll('[data-edone]').forEach(b=>b.onclick=async()=>{const e=byN(b.dataset.edone);await api('/api/errors/done',{id:e.n,done:!e.done});loadErrors()});
   document.querySelectorAll('[data-edel]').forEach(b=>b.onclick=async()=>{if(!confirm('이 오류를 지울까요?'))return;await api('/api/errors/delete',{id:+b.dataset.edel});loadErrors()});
 }
+function tgShow(t){t=t||{};$('tgSt').textContent=!t.token?'· 꺼짐 (서버에 봇 토큰 없음)':t.chat?'· 켜짐':'· 봇에게 아무 말이나 보낸 뒤 [텔레그램 연결]';$('tgLink').style.display=t.token?'':'none';$('tgTest').style.display=t.chat?'':'none'}
+$('tgLink').onclick=async()=>{$('tgMsg').textContent='연결 중…';try{const r=await api('/api/tg/link',{});$('tgMsg').textContent=r.ok?'연결됐어요. 텔레그램에 인사 메시지가 왔는지 보세요.':r.error==='nomsg'?'봇에게 먼저 아무 말이나 보내고 다시 눌러 주세요':r.error==='badtoken'?'봇 토큰이 맞지 않아요':'연결하지 못했어요';loadErrors()}catch(e){$('tgMsg').textContent='연결하지 못했어요'}};
+$('tgTest').onclick=async()=>{try{const r=await api('/api/tg/test',{});$('tgMsg').textContent=r.ok?'보냈어요':'보내지 못했어요'}catch(e){$('tgMsg').textContent='보내지 못했어요'}};
 function show(on){$('login').style.display=on?'none':'';$('view').style.display=on?'':'none'}
 $('f').onsubmit=e=>{e.preventDefault();tk=$('tk').value.trim();try{localStorage.setItem('pc-admin',tk)}catch(_){};$('err').textContent='';load()};
 $('re').onclick=load;$('errAll').onchange=loadErrors;$('out').onclick=()=>{tk='';try{localStorage.removeItem('pc-admin')}catch(_){};show(false)};
