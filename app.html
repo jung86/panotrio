@@ -1743,7 +1743,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27d';
+const APP_BUILD = '2026-11-27e';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1935,6 +1935,7 @@ async function fwCheck() {
 // When the stick connects and is older, ask once (per app opening and version) with a big popup.
 // Never silently: an update stops measuring for 2-5 minutes. Not while cleaning / break-in / DPS output is running.
 function fwAutoAsk() {
+  if (fwMust()) return fwForce();
   if (fwBusy || !fwNewer() || !stickOta || !otaChar || !cmdChar) return;
   if (fwAsked === fwLatest.ver || $('fwAsk') || $('fwOv')) return;
   if (cl.run || cl.busy || (dps.link && dps.st.on) || document.hidden) return;
@@ -1952,13 +1953,44 @@ function fwAutoAsk() {
   $('fwAskNo').onclick = () => ov.remove();
 }
 function fwNewer() { return fwLatest && stickVer && verNum(fwLatest.ver) > verNum(stickVer); }
+// Required update: fw/latest.json "min" = the oldest firmware that may still be used ("" or missing = none).
+// A connected stick older than that cannot be used until it is updated: a full-screen window without [나중에]
+// (the maker's phone may skip it once, for testing). It goes away when the stick disconnects and comes back after.
+function fwMust() { return !!(fwLatest && fwLatest.min && stickVer && cmdChar && verNum(stickVer) < verNum(fwLatest.min)); }
+var fwSkipFor = fwSkipFor || '';
+function fwForce() {
+  if (fwBusy || $('fwOv') || $('fwAsk') || document.hidden) return;
+  if (fwSkipFor && fwSkipFor === fwLatest.ver + '|' + connGen) return;
+  const ota = !!(stickOta && otaChar);
+  const ov = document.createElement('div'); ov.id = 'fwAsk'; ov.dataset.must = '1';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:89;background:rgba(10,12,16,.96);display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:6px;padding:22px;text-align:center;line-height:1.5">' +
+    '<div style="display:inline-block;padding:2px 8px;border:1px solid var(--acc);color:var(--acc);border-radius:3px;font-size:13px;font-weight:700">필수 업데이트</div>' +
+    `<div style="margin-top:8px;font-size:20px;font-weight:700">업데이트 후 사용할 수 있어요</div>` +
+    `<div style="margin-top:6px;color:#c9d1dc">지금 스틱 ${esc(stickVer)} → 새 버전 ${esc(fwLatest.ver)}${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}</div>` +
+    (ota
+      ? '<div style="margin-top:10px;font-size:14px;color:#8d8d93">2~5분 걸립니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜지고, 다시 연결하면 이어서 합니다.</div>' +
+        '<button id="fwAskGo" class="primary" style="margin-top:14px;width:100%">지금 업데이트</button>'
+      : '<div style="margin-top:10px;font-size:14px;color:#8d8d93">이 스틱은 한 번만 컴퓨터(또는 안드로이드 크롬)에서 USB로 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.</div>' +
+        '<a href="index.html" class="primary" style="display:block;margin-top:14px;text-align:center;padding:12px;border-radius:4px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기</a>') +
+    (admKey ? '<button id="fwAskSkip" style="margin-top:8px;width:100%;font-size:13px">관리자: 이번 연결만 넘기기</button>' : '') + '</div>';
+  document.body.appendChild(ov);
+  if ($('fwAskGo')) $('fwAskGo').onclick = async () => {
+    if (cl.run || cl.busy) { notify('모터클리닝을 멈춘 뒤 업데이트하세요', false); return; }
+    if (dps.link && dps.st.on) { try { await dpsOutput(false); dps.st.on = false; await dpsUnguard(); } catch (e) {} try { psuRender(); } catch (e) {} }
+    ov.remove(); fwStart(true);
+  };
+  if ($('fwAskSkip')) $('fwAskSkip').onclick = () => { fwSkipFor = fwLatest.ver + '|' + connGen; ov.remove(); };
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => { if (fwMust()) fwForce(); }, 600); });
 function fwRender(msg) {
   const box = $('fwBox'); if (!box) return;
   if (fwBusy) return;
+  { const a = $('fwAsk'); if (a && a.dataset.must && !fwMust()) a.remove(); }
   if (!cmdChar || !fwNewer()) { box.style.display = 'none'; return; }
   box.style.display = '';
   if (stickOta && otaChar) {
-    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}` +
+    box.innerHTML = (fwMust() ? '<b style="color:var(--acc)">필수 업데이트</b> ' : '') + `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}` +
       `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
     $('btnFw').onclick = fwStart;
   } else {
@@ -2008,7 +2040,7 @@ async function fwStart(asked) {
   $('fwBtn').onclick = () => { fwCancel = true; };
   const end = (msg, ok) => {
     if (!ok) errAuto('펌웨어 업데이트 실패: ' + String(msg).replace(/<[^>]+>/g, ' '));
-    fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); };
+    fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); if (fwMust()) fwForce(); };
     if (ok) $('fwBar').style.background = 'var(--acc)';
     fwBusy = false; try { wake && wake.release(); } catch (e) {}
   };
@@ -2155,6 +2187,7 @@ async function renameMotor(old) {
 }
 function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
+  if (fwMust() && !fwSkipFor) return;                // required update not done: no records
   recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot(), condSnapshot()));
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs(); usageMeas();
