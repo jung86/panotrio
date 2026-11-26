@@ -13,16 +13,16 @@
   :root { --bg:#111418; --card:#1b2028; --ink:#eef1f6; --mute:#8e98aa; --line:#2b323e; --acc:#e8590c;
           --grey:#5c6370; --green:#2f9e44; --yellow:#e0b000; --orange:#e8590c; --red:#e03131; --cyan:#1098ad; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif; word-break:keep-all; overflow-wrap:break-word; }
   main { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
   header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   header h1 { font-size:20px; margin:0; }
   .conn { font-size:13px; color:var(--mute); }
   .conn.on { color:#69db7c; }
-  button { font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; cursor:pointer; }
+  button { font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer; }
   button:disabled { opacity:.4; }
   .primary { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; width:100%; padding:16px; font-size:18px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin:12px 0; }
   .big { text-align:center; padding:18px 10px 8px; }
   .big .hz { font-size:76px; font-weight:800; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
   .big .unit { font-size:20px; color:var(--mute); font-weight:600; }
@@ -36,8 +36,8 @@
   @keyframes hotFlash { 0%{color:#ff2d2d; text-shadow:0 0 18px #ff000099} 100%{color:#ff7a1a; text-shadow:0 0 30px #ff5a00cc} }
   @keyframes cardGlow { from{box-shadow:0 0 8px #ff000055} to{box-shadow:0 0 28px #ff2d2dbb} }
   @media (prefers-reduced-motion: reduce) { .big.hot .hz, .big.hot { animation:none; } }
-  #toast { position:fixed; left:50%; top:14px; transform:translate(-50%,calc(-100% - 30px)); z-index:70; padding:12px 18px; border-radius:12px;
-           font-weight:800; font-size:16px; color:#fff; background:#1971c2; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
+  #toast { position:fixed; left:50%; top:14px; transform:translate(-50%,calc(-100% - 30px)); z-index:70; padding:12px 18px; border-radius:8px;
+           font-weight:800; font-size:16px; color:var(--ink); background:#2a313c; border:1px solid #3a4250; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
   #toast.show { transform:translate(-50%,0); }
   #toast.bad { background:#c92a2a; }
   .hdr-r { display:flex; align-items:center; gap:10px; }
@@ -47,12 +47,14 @@
   #home .inner { max-width:560px; margin:0 auto; padding:26px 18px 40px; text-align:center; }
   #home .logo { width:132px; height:132px; border-radius:26px; box-shadow:0 8px 28px #000a; }
   #home h1 { font-size:30px; margin:14px 0 4px; letter-spacing:1px; }
-  .pill { display:inline-block; font-size:13px; padding:4px 12px; border-radius:20px; background:#232a35; color:var(--mute); }
-  .pill.on { background:#16351f; color:#69db7c; }
-  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:22px; }
-  .tile { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px 10px 18px; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:pointer; }
+  .pill { display:inline-block; font-size:13px; padding:3px 10px; border-radius:6px; background:#232a35; color:var(--mute); }
+  .pill.on { background:#232a35; color:var(--ink); }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 10px 14px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; }
   .tile:active { transform:scale(.97); }
-  .tile svg { width:64px; height:64px; }
+  .tile svg { width:44px; height:44px; }
+  .tile .ts:empty, #hint:empty { display:none; }
+  #btnConnect2 { display:block; margin-left:auto; margin-right:auto; width:auto; min-width:62%; padding:13px 28px; font-size:17px; border-radius:8px; }
   .tile .tl { font-size:19px; font-weight:800; color:var(--ink); }
   .tile .ts { font-size:13px; color:var(--mute); min-height:18px; font-variant-numeric:tabular-nums; }
   .back { font-size:26px; padding:0 12px 2px; line-height:1.2; }
@@ -72,7 +74,7 @@
   .bhist { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
   .bhist .r { display:grid; grid-template-columns:52px 1fr 92px; gap:8px; align-items:center; font-variant-numeric:tabular-nums; font-size:14px; }
   .bhist .bar { height:10px; background:#0f1217; border-radius:6px; overflow:hidden; position:relative; }
-  .bhist .bar i { display:block; height:100%; background:#1c7ed6; }
+  .bhist .bar i { display:block; height:100%; background:var(--acc); }
   .bhist .r.ok .bar i { background:#2f9e44; }
   .bstages { display:flex; flex-direction:column; gap:10px; }
   .bstage { border:1px solid var(--line); border-radius:14px; padding:10px; background:#12161d; }
@@ -107,7 +109,7 @@
   .condTop { display:flex; align-items:center; gap:14px; }
   .condScore { font-size:44px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; min-width:84px; text-align:center; }
   .condScore small { font-size:15px; color:var(--mute); font-weight:600; }
-  .condGrade { font-size:13px; font-weight:800; border-radius:8px; padding:3px 10px; color:#000; display:inline-block; }
+  .condGrade { font-size:13px; font-weight:800; border-radius:4px; padding:2px 8px; color:#000; display:inline-block; }
   .condRows { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:14px; margin-top:10px; font-variant-numeric:tabular-nums; }
   .condRows .k { color:var(--mute); }
   .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
@@ -142,7 +144,7 @@
   .pst.ok { background:#2b8a3e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#1971c2; color:#fff; }
   .tile.wide { grid-column:1 / -1; flex-direction:row; justify-content:flex-start; padding:16px 20px; gap:16px; }
   .tiles3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
-  .tiles3 .tile { padding:14px 4px 12px; gap:6px; border-radius:16px; }
+  .tiles3 .tile { padding:12px 4px 10px; gap:6px; border-radius:10px; }
   .tiles3 .tile svg { width:36px; height:36px; }
   .tiles3 .tile .tl { font-size:14px; text-align:center; line-height:1.25; }
   .tiles3 .tile .ts { display:none; }
@@ -183,7 +185,7 @@
   input[type=range] { width:100%; margin:0; accent-color:var(--acc); height:28px; }
   .stepper { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
   .stepper input { flex:1; min-width:0; }
-  .stp { width:44px; height:40px; flex:0 0 44px; padding:0; font-size:24px; font-weight:700; line-height:1; border-radius:12px; user-select:none; touch-action:manipulation; }
+  .stp { width:44px; height:40px; flex:0 0 44px; padding:0; font-size:24px; font-weight:700; line-height:1; border-radius:8px; user-select:none; touch-action:manipulation; }
   .stp:active { background:var(--acc); border-color:var(--acc); color:#fff; }
   .nstep { display:flex; align-items:stretch; gap:4px; }
   .nstep .stp { width:38px; height:auto; min-height:44px; flex:0 0 38px; font-size:22px; }
@@ -204,7 +206,7 @@
   .seg button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
   .lbl { font-size:13px; color:var(--mute); margin-top:14px; }
   .ttl { font-size:13px; font-weight:700; color:var(--mute); letter-spacing:.5px; margin:0 0 8px; }
-  .reset { width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; color:#ffd8a8; border-color:#5c3d1e; background:#221a12; }
+  .reset { width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; }
   canvas { width:100%; height:180px; display:block; }
   .legend { display:flex; gap:14px; font-size:13px; color:var(--mute); margin-top:6px; }
   .legend i { display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:5px; }
@@ -222,15 +224,17 @@
   .rec .hz { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; min-width:78px; }
   .rec .mid { flex:1; min-width:0; }
   .rec .meta { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .rec .memo { font-size:14px; color:#74c0fc; text-decoration:none; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rec .memo { font-size:14px; color:var(--ink); text-decoration:none; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .mrow { display:flex; gap:8px; align-items:center; margin:10px 0 4px; }
   .mrow select { flex:1; font:600 16px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
   .fchips { display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; }
-  .fchips button { padding:5px 12px; border-radius:16px; font-size:13px; white-space:nowrap; }
+  .fchips button { padding:5px 12px; border-radius:6px; font-size:13px; white-space:nowrap; }
   .fchips button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
   .msum { font-size:13px; color:var(--mute); padding:4px 2px; min-height:18px; }
-  .mtag { font-size:11px; color:#ffd8a8; background:#3a2a1a; border-radius:5px; padding:1px 5px; margin-right:4px; }
-  .chip { font-size:11px; font-weight:700; color:#000; border-radius:6px; padding:2px 6px; background:var(--grey); white-space:nowrap; }
+  .mtag { font-size:11px; color:var(--ink); background:#2a313c; border-radius:4px; padding:1px 5px; margin-right:4px; }
+  .chip { font-size:11px; font-weight:700; color:#000; border-radius:4px; padding:2px 6px; background:var(--grey); white-space:nowrap; }
+  .chip.st { background:transparent !important; color:var(--mute); border:1px solid var(--line); font-weight:600; }
+  .recMore { width:100%; margin-top:8px; font-size:14px; color:var(--mute); }
   .chip.cchip { text-align:center; line-height:1.25; padding:3px 7px; margin-right:4px; } .chip.cchip b { font-size:15px; }
   #splash { position:fixed; inset:0; z-index:99; background:#111418; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
   #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
@@ -286,8 +290,8 @@
   <img class="logo" src="splash.jpg" alt="">
   <h1>파노체크</h1>
   <span id="homeConn" class="pill">스틱 연결 안 됨</span>
-  <button id="btnConnect2" class="primary" style="margin-top:18px">스틱 연결 (블루투스)</button>
-  <div id="fwBox" style="display:none;margin-top:14px;background:#13284a;border:1px solid #1971c2;border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
+  <button id="btnConnect2" class="primary" style="margin-top:14px">스틱 연결 (블루투스)</button>
+  <div id="fwBox" style="display:none;margin-top:14px;background:var(--card);border:1px solid var(--acc);border-radius:10px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
   <div class="tiles">
     <div class="tile" id="tileMeasure" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -298,18 +302,17 @@
         <path d="M6 54h52" stroke="#5c6370" stroke-width="3"/>
       </svg>
       <div class="tl">파노측정</div>
-      <div class="ts" id="tileHz">진동·소리로 회전수</div>
+      <div class="ts" id="tileHz"></div>
     </div>
     <div class="tile" id="tileClean" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <rect x="10" y="20" width="30" height="24" rx="5" stroke="#ffffff" stroke-width="4"/>
         <path d="M40 32h10M50 26v12" stroke="#ffffff" stroke-width="4"/>
         <path d="M24 24 18 33h9l-5 8" stroke="#e8590c" stroke-width="4"/>
-        <path d="M8 54c6-4 10 4 16 0s10 4 16 0 10 4 16 0" stroke="#74c0fc" stroke-width="3"/>
+        <path d="M8 54c6-4 10 4 16 0s10 4 16 0 10 4 16 0" stroke="#5c6370" stroke-width="3"/>
       </svg>
       <div class="tl">모터클리닝</div>
-      <div class="ts">전원공급기 자동 운전</div>
-    </div>
+          </div>
     <div class="tile" id="tileBreakin" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="32" cy="34" r="20" stroke="#ffffff" stroke-width="4"/>
@@ -317,16 +320,14 @@
         <path d="M26 8h12" stroke="#ffffff" stroke-width="4"/>
       </svg>
       <div class="tl">모터길들이기</div>
-      <div class="ts">목표 파노까지 자동</div>
-    </div>
+          </div>
     <div class="tile" id="tileSettings" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="32" cy="32" r="9" stroke="#ffffff" stroke-width="4"/>
         <path d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.7 5.7M44.7 44.7l5.7 5.7M13.6 50.4l5.7-5.7M44.7 19.3l5.7-5.7" stroke="#e8590c" stroke-width="5"/>
       </svg>
       <div class="tl">설정</div>
-      <div class="ts">밝기 · 감도 · 알림</div>
-    </div>
+          </div>
     <div class="tile wide" id="tileBook" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 54h48" stroke="#5c6370" stroke-width="3"/>
@@ -334,7 +335,7 @@
         <rect x="28" y="18" width="9" height="32" rx="2" stroke="#e8590c" stroke-width="4"/>
         <rect x="44" y="26" width="9" height="24" rx="2" stroke="#ffffff" stroke-width="4"/>
       </svg>
-      <div style="text-align:left"><div class="tl">기록 · 비교</div><div class="ts" id="tileBookSub">모터별 점수 변화 · 순위 · 공유</div></div>
+      <div style="text-align:left"><div class="tl">기록 · 비교</div><div class="ts" id="tileBookSub"></div></div>
     </div>
   </div>
   <div class="tiles3">
@@ -348,27 +349,27 @@
     <div class="tile" id="tileFw" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <rect x="18" y="6" width="28" height="52" rx="6" stroke="#ffffff" stroke-width="4"/>
-        <path d="M32 18v20M24 30l8 8 8-8" stroke="#1c7ed6" stroke-width="5"/>
+        <path d="M32 18v20M24 30l8 8 8-8" stroke="#e8590c" stroke-width="5"/>
         <path d="M26 48h12" stroke="#ffffff" stroke-width="4"/>
       </svg>
-      <div class="tl">설치 ·<br>업데이트</div><div class="ts" id="tileFwSub"></div>
+      <div class="tl">업데이트</div><div class="ts" id="tileFwSub"></div>
     </div>
     <div class="tile" id="tileReport" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M32 10C17 10 6 19 6 30c0 7 5 13 12 16l-3 10 11-7c2 0 4 1 6 1 15 0 26-9 26-20S47 10 32 10z" fill="#fee500" stroke="#fee500" stroke-width="3"/>
-        <path d="M32 20v12M32 39v1" stroke="#3c1e1e" stroke-width="5"/>
+        <path d="M32 10C17 10 6 19 6 30c0 7 5 13 12 16l-3 10 11-7c2 0 4 1 6 1 15 0 26-9 26-20S47 10 32 10z" stroke="#ffffff" stroke-width="4"/>
+        <path d="M32 20v12M32 39v1" stroke="#e8590c" stroke-width="5"/>
       </svg>
-      <div class="tl">오류·문의<br>신고</div>
+      <div class="tl">문의</div>
     </div>
   </div>
-  <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
-  <button id="btnShareInst" style="width:100%;margin-top:12px;padding:14px;font-weight:800;background:#fee500;color:#3c1e1e;border:0">📤 설치 페이지 공유하기</button>
+  <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">홈 화면에 앱 설치</button>
+  <button id="btnShareInst" style="width:100%;margin-top:12px;padding:14px;font-weight:700">설치 페이지 공유</button>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요. <span class="iosOnly">아이폰은 Bluefy 앱에서 스틱 측정만 됩니다.</span></p>
   <div class="card notAndroid" style="margin-top:10px;display:flex;align-items:center;gap:10px">
-    <div style="flex:1;font-size:14px;line-height:1.5">🍎 <b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요. (스틱 측정만 가능)</div>
+    <div style="flex:1;font-size:14px;line-height:1.5"><b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요. (스틱 측정만 가능)</div>
     <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
   </div>
-  <a href="download.html" style="display:block;text-align:center;margin-top:10px;color:#74c0fc;font-weight:700;text-decoration:none">📥 다른 휴대폰용 다운로드 안내</a>
+  <a href="download.html" style="display:block;text-align:center;margin-top:10px;color:var(--mute);font-weight:700;text-decoration:none">다른 휴대폰용 다운로드 안내</a>
 </div></div>
 <div id="admin"><div class="inner">
   <header>
@@ -433,8 +434,8 @@
   </div>
   <div class="card">
     <div class="ttl" id="cSetTtl">클리닝 설정</div>
-    <div class="prow only-clean" style="margin-top:0;margin-bottom:10px"><select id="cPre" aria-label="클리닝 프리셋"></select><button id="cPreSave">💾 저장</button><button id="cPreDel" aria-label="프리셋 삭제">🗑</button></div>
-    <div class="prow only-break" style="margin-top:0;margin-bottom:10px"><select id="bPre" aria-label="길들이기 프리셋"></select><button id="bPreSave">💾 저장</button><button id="bPreDel" aria-label="프리셋 삭제">🗑</button></div>
+    <div class="prow only-clean" style="margin-top:0;margin-bottom:10px"><select id="cPre" aria-label="클리닝 프리셋"></select><button id="cPreSave">저장</button><button id="cPreDel" aria-label="프리셋 삭제">삭제</button></div>
+    <div class="prow only-break" style="margin-top:0;margin-bottom:10px"><select id="bPre" aria-label="길들이기 프리셋"></select><button id="bPreSave">저장</button><button id="bPreDel" aria-label="프리셋 삭제">삭제</button></div>
     <div class="only-break" style="margin-bottom:10px">
       <div id="bStages" class="bstages"></div>
       <button id="bAddStage" style="width:100%;margin:8px 0 12px;font-weight:800">+ 구간 추가</button>
@@ -442,7 +443,7 @@
         <label>사이클 뒤 쉬기 (분)<span class="nstep"><button class="stp" data-for="bRestM" data-d="-1" aria-label="줄이기">−</button><input id="bRestM" type="number" inputmode="numeric" min="0" max="60" step="1"><button class="stp" data-for="bRestM" data-d="1" aria-label="늘리기">+</button></span></label>
         <label>쉬기 (초)<span class="nstep"><button class="stp" data-for="bRestS" data-d="-1" aria-label="줄이기">−</button><input id="bRestS" type="number" inputmode="numeric" min="0" max="55" step="5"><button class="stp" data-for="bRestS" data-d="1" aria-label="늘리기">+</button></span></label>
       </div>
-      <label class="sw" style="margin:2px 0 8px"><span><b>🎯 목표 파노</b> <span class="help">닿으면 자동으로 끝냄</span></span><input type="checkbox" id="bTgtOn"></label>
+      <label class="sw" style="margin:2px 0 8px"><span><b>목표 파노</b> <span class="help">닿으면 자동으로 끝냄</span></span><input type="checkbox" id="bTgtOn"></label>
       <div class="cgrid">
         <label>목표 파노 (Hz)<span class="nstep"><button class="stp" data-for="bTarget" data-d="-1" aria-label="줄이기">−</button><input id="bTarget" type="number" inputmode="decimal" min="50" max="2000" step="1"><button class="stp" data-for="bTarget" data-d="1" aria-label="늘리기">+</button></span></label>
         <label>측정 전압 (V)<span class="nstep"><button class="stp" data-for="bChk" data-d="-1" aria-label="줄이기">−</button><input id="bChk" type="number" inputmode="decimal" min="0.5" max="12" step="0.1"><button class="stp" data-for="bChk" data-d="1" aria-label="늘리기">+</button></span></label>
@@ -458,7 +459,7 @@
       <label><span id="cRepLbl">반복 (회)</span><span class="nstep"><button class="stp" data-for="cRep" data-d="-1" aria-label="줄이기">−</button><input id="cRep" type="number" inputmode="numeric" min="1" max="999" step="1"><button class="stp" data-for="cRep" data-d="1" aria-label="늘리기">+</button></span></label>
       <label>방향<select id="cDir"><option value="fwd">정방향</option><option value="rev">역방향</option><option value="alt">번갈아 (1회마다)</option></select></label>
     </div>
-    <div class="help only-clean" style="margin-top:6px">최소 → 최대 → 최소로 천천히 오르내리기를 반복합니다. 전압 범위 0~12 V.</div>
+    <div class="help only-clean" style="margin-top:6px">최소 → 최대 → 최소로 천천히 오르내립니다.</div>
     <div class="help only-break" style="margin-top:6px">1 사이클 = <b>구간 1 → 구간 2 → …</b> 차례로 돌리기 → <b>측정 전압</b>에서 정방향 파노 측정 (스틱 연결 시) → 쉬기. 목표 파노가 켜져 있으면 <b>닿는 순간 끝나고</b>, 꺼져 있으면 정한 횟수만큼 반복합니다.</div>
     <details style="margin-top:8px"><summary class="help">릴레이 보드 (역방향용)</summary>
       <div class="help" style="margin:6px 0">스틱 Grove 포트(G9·G10)에 2채널 릴레이를 연결해 극성을 바꿉니다. 보드의 트리거 방식을 고르세요.</div>
@@ -490,19 +491,19 @@
     <div class="hdr-l"><button id="btnBookBack" class="back" aria-label="메뉴로">‹</button><h1>기록 · 비교</h1></div>
   </header>
   <div class="card">
-    <div class="ttl">🏆 모터 순위 <small style="font-weight:600">최근 점수 순 · 눌러서 자세히</small></div>
+    <div class="ttl">모터 순위</div>
     <div class="fchips" id="bkV"></div>
     <div class="rank" id="bkRank"></div>
   </div>
   <div class="card" id="bkDet" style="display:none">
-    <div class="psuHead"><div class="ttl" id="bkName">📈</div><button id="bkRen" style="padding:6px 10px;font-size:14px">✎ 이름</button></div>
+    <div class="psuHead"><div class="ttl" id="bkName"></div><button id="bkRen" style="padding:6px 10px;font-size:14px">✎ 이름</button></div>
     <canvas id="bkChart" width="1040" height="400" style="width:100%"></canvas>
     <div class="bkLeg"><span><i style="background:#ff922b"></i>청소 전</span><span><i style="background:#51cf66"></i>청소 후</span><span><i style="background:#adb5bd"></i>일반</span></div>
     <div id="bkCmp" class="help" style="margin-top:8px"></div>
     <div class="bkList" id="bkList"></div>
-    <button id="bkShare" class="primary" style="margin-top:12px;background:#fee500;border-color:#fee500;color:#3c1e1e">📤 결과 카드 공유 (카톡 등)</button>
+    <button id="bkShare" style="width:100%;margin-top:12px;font-weight:700">결과 카드 공유</button>
   </div>
-  <p class="help" style="text-align:center">파노측정 화면에서 모터를 고르고 🧽 청소 전 · ✨ 청소 후 · ▶ 그냥 측정을 하면 여기에 모터별로 쌓입니다.</p>
+  <p class="help" style="text-align:center">파노측정 화면에서 모터를 고르고 청소 전 · 청소 후 · 그냥 측정을 하면 여기에 모터별로 쌓입니다.</p>
 </div></div>
 <div id="settings"><div class="inner">
   <header>
@@ -512,7 +513,7 @@
   <div class="card" id="stickSet">
     <div class="ttl">스틱 설정</div>
     <div id="stickRows">
-      <div class="set-help" style="margin-bottom:4px">스틱을 연결하면 <b>스틱에 저장된 설정을 불러옵니다</b>. 값을 바꾼 뒤 아래 <b>스틱에 저장</b>을 눌러야 스틱에 들어갑니다.</div>
+      <div class="set-help" style="margin-bottom:4px">값을 바꾼 뒤 <b>스틱에 저장</b>을 누르세요.</div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">화면 밝기</span><span class="set-val" id="vBr">-</span></div>
         <div class="set-def">기본값: 67%</div>
@@ -524,27 +525,27 @@
         <div class="set-def">기본값: 40 mg</div>
         <div class="stepper"><button class="stp" data-for="sVm" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sVm" min="0" max="10" step="1"><button class="stp" data-for="sVm" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span>민감</span><span>둔감</span></div>
-        <div class="set-help">민감할수록 약한 진동도 모터로 봅니다. 너무 민감하면 책상 떨림에도 측정이 시작될 수 있습니다.</div>
+        
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">소리 감도</span><span class="set-val" id="vMic">-</span></div>
         <div class="set-def">기본값: 보통</div>
         <div class="seg" id="segMic"><button data-v="25">높음</button><button data-v="40">보통</button><button data-v="70">낮음</button></div>
-        <div class="set-help">소리 값(M)이 잘 안 잡히면 높음, 엉뚱한 값이 잡히면 낮음.</div>
+        <div class="set-help">안 잡히면 높음, 엉뚱한 값이면 낮음.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">측정 대기 시간</span><span class="set-val" id="vWt">-</span></div>
         <div class="set-def">기본값: 2.5초</div>
         <div class="stepper"><button class="stp" data-for="sWt" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sWt" min="0" max="50" step="1"><button class="stp" data-for="sWt" data-d="1" aria-label="늘리기">+</button></div>
         <div class="set-ends"><span id="wtMinLbl">0초</span><span>5.0초</span></div>
-        <div class="set-help">진동을 인식한 뒤 측정하기까지 기다리는 시간.</div>
+        
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">빨간 숫자 기준</span><span class="set-val" id="vHot">-</span></div>
         <div class="set-def">기본값: 550 Hz (효과 켜짐)</div>
         <div class="stepper"><button class="stp" data-for="sHot" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sHot" min="300" max="900" step="5"><button class="stp" data-for="sHot" data-d="1" aria-label="늘리기">+</button></div>
         <label class="sw" style="margin-top:6px"><span class="set-help" style="margin:0">빨간 숫자 효과 끄기</span><input type="checkbox" id="cHotOff"></label>
-        <div class="set-help">이 값보다 빠르면 스틱과 앱의 숫자가 빨갛게 흔들립니다.</div>
+        
       </div>
       <div class="set-row">
         <div class="ttl" style="margin:4px 0 0">배터리 절약</div>
@@ -553,32 +554,32 @@
         <div class="set-top"><span class="set-name">대기 모드 진입 시간</span><span class="set-val" id="vDim">-</span></div>
         <div class="set-def">기본값: 30초</div>
         <div class="seg" id="segDim" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="15">15초</button><button data-v="30">30초</button><button data-v="60">1분</button><button data-v="180">3분</button></div>
-        <div class="set-help">모터가 안 돌고 조작이 없으면 이 시간 뒤 대기 모드로 들어갑니다. 버튼을 누르거나 모터가 돌면 바로 깨어납니다 (이때 첫 버튼은 화면만 켭니다).</div>
+        <div class="set-help">버튼을 누르거나 모터가 돌면 깨어납니다.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">대기 모드 화면</span><span class="set-val" id="vSb">-</span></div>
         <div class="set-def">기본값: 화면 끄기</div>
         <div class="seg" id="segSb" style="grid-template-columns:1fr 1fr"><button data-v="1">화면 끄기</button><button data-v="0">어둡게</button></div>
-        <div class="set-help">화면 끄기가 배터리를 가장 많이 아낍니다. 화면이 꺼져 있어도 스틱은 켜져 있습니다.</div>
+        
       </div>
       <div class="set-row" id="rowClk">
-        <div class="set-top"><span class="set-name">🕒 대기 모드 시계</span><span class="set-val" id="vClk">-</span></div>
+        <div class="set-top"><span class="set-name">대기 모드 시계</span><span class="set-val" id="vClk">-</span></div>
         <div class="set-def">기본값: 켜기 · 24시간 · <b>충전 중에만</b> · 밝기 16%</div>
         <div class="seg" id="segCk" style="grid-template-columns:1fr 1fr"><button data-v="1">켜기</button><button data-v="0">끄기</button></div>
         <div class="seg" id="segC12" style="grid-template-columns:1fr 1fr;margin-top:6px"><button data-v="0">24시간 (14:30)</button><button data-v="1">12시간 (2:30 PM)</button></div>
         <div class="seg" id="segCb" style="grid-template-columns:1fr 1fr;margin-top:6px"><button data-v="0">충전 중에만</button><button data-v="1">배터리일 때도</button></div>
         <div class="set-top" style="margin-top:10px"><span class="set-name" style="font-size:14px">시계 밝기</span><span class="set-val" id="vCbr">-</span></div>
         <div class="stepper"><button class="stp" data-for="sCbr" data-d="-1" aria-label="줄이기">−</button><input type="range" id="sCbr" min="10" max="255" step="5"><button class="stp" data-for="sCbr" data-d="1" aria-label="늘리기">+</button></div>
-        <div class="set-help">대기 모드가 되면 측정 화면 대신 시계를 보여줍니다. 시각은 앱과 연결할 때 휴대폰 시간으로 맞춥니다. 배터리일 때도 켜면 배터리를 조금 더 씁니다.</div>
+        <div class="set-help">시각은 앱과 연결할 때 휴대폰 시간으로 맞춥니다.</div>
       </div>
       <div class="set-row">
         <div class="set-top"><span class="set-name">자동 꺼짐</span><span class="set-val" id="vOff">-</span></div>
         <div class="set-def">기본값: 10분</div>
         <div class="seg" id="segOff" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="5">5분</button><button data-v="10">10분</button><button data-v="20">20분</button><button data-v="30">30분</button></div>
-        <div class="set-help">모터가 안 돌고 아무 조작이 없으면 스틱을 끕니다. 꺼지기 10초 전에 화면 아래에 알려줍니다. USB에 꽂혀 있으면 꺼지지 않습니다.</div>
+        <div class="set-help">USB에 꽂혀 있으면 꺼지지 않습니다.</div>
       </div>
       <div class="set-row">
-        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 스틱의 처리 속도를 낮춰 전기를 아낍니다. 모터가 돌기 시작하면 바로 원래 속도로 측정합니다.</div></span><input type="checkbox" id="cSave"></label>
+        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 처리 속도를 낮춥니다.</div></span><input type="checkbox" id="cSave"></label>
       </div>
       <div class="set-row">
         <button id="btnStickSave" style="width:100%;padding:14px;font-size:17px;font-weight:800">스틱에 저장</button>
@@ -591,7 +592,7 @@
   <div class="card" id="lockCard">
     <div class="ttl">블루투스 잠금</div>
     <div class="set-row"><label class="sw"><span><span class="set-name">이 휴대폰에서만 바꿀 수 있게 잠그기</span>
-      <div class="set-help">잠그면 다른 휴대폰은 값만 볼 수 있고, 모드·설정은 바꿀 수 없습니다. 휴대폰을 잃어버렸으면 스틱의 앞(A)·옆(B) 버튼을 함께 3초 누르면 잠금이 풀립니다.</div></span>
+      <div class="set-help">다른 휴대폰은 값만 봅니다. 풀기: 스틱 A·B 버튼 함께 3초.</div></span>
       <input type="checkbox" id="cLock"></label></div>
     <div id="lockState" class="set-help" style="text-align:center">&nbsp;</div>
   </div>
@@ -601,15 +602,15 @@
     <div class="set-row"><div class="ttl" style="margin:4px 0 0">알림</div></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aVib"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aSnd"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 음성 안내</span><div class="set-def">기본값: 켜짐</div><div class="set-help">컨디션 측정이 끝나면 "92점, 좋음"처럼 소리 내어 읽어 줍니다.</div></span><input type="checkbox" id="aSay"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 음성 안내</span><div class="set-def">기본값: 켜짐</div><div class="set-help">"92점, 좋음"처럼 읽어 줍니다.</div></span><input type="checkbox" id="aSay"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 진동</span><div class="set-def">기본값: 켜짐</div><div class="set-help">좋음 1번, 보통 2번, 점검 필요·다시 재기 3번 울립니다.</div></span><input type="checkbox" id="aRVib"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">이상 경고</span><div class="set-def">기본값: 켜짐</div><div class="set-help">돌리는 중 전류가 갑자기 뛰거나 파노가 크게 흔들리면 "베어링·브러시 점검"을 화면·소리로 알려 줍니다.</div></span><input type="checkbox" id="aWarn"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">이상 경고</span><div class="set-def">기본값: 켜짐</div><div class="set-help">전류가 갑자기 뛰거나 파노가 크게 흔들리면 알려 줍니다.</div></span><input type="checkbox" id="aWarn"></label></div>
     <div class="set-row"><div class="ttl" style="margin:4px 0 0">연결 · 화면</div></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">앱 열면 스틱 자동 연결</span><div class="set-def">기본값: 켜짐</div><div class="set-help">한 번 연결한 스틱이 켜져 있으면 앱을 열 때 바로 붙습니다 (브라우저가 지원할 때). 전원공급기는 늘 자동으로 다시 붙습니다.</div></span><input type="checkbox" id="aAuto"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">앱 열면 스틱 자동 연결</span><div class="set-def">기본값: 켜짐</div><div class="set-help">한 번 연결한 스틱이 켜져 있으면 바로 붙습니다.</div></span><input type="checkbox" id="aAuto"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-def">기본값: 꺼짐</div></span><input type="checkbox" id="aWake"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aHot"></label></div>
     <div class="set-row"><div class="ttl" style="margin:4px 0 0">장치</div></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">스틱 Grove 포트에 릴레이 보드를 달았을 때만 켜세요. 꺼져 있으면 역방향을 쓰지 않습니다.</div></span><input type="checkbox" id="aRelay"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">릴레이 보드를 달았을 때만 켜세요.</div></span><input type="checkbox" id="aRelay"></label></div>
   </div>
 
   <div class="card">
@@ -617,7 +618,7 @@
     <div style="display:flex;gap:8px;align-items:center;margin:4px 0 8px">
       <span style="flex:1"><span class="set-help">스틱 ID</span><br><span id="infoId" style="font:800 26px ui-monospace,Consolas,monospace;letter-spacing:2px">---- ----</span></span>
       <button id="btnInfoId">복사</button>
-      <button id="btnInfoShare">📨 카톡</button>
+      <button id="btnInfoShare">카톡</button>
     </div>
     <div class="set-help" id="infoTxt">스틱 연결 안 됨</div>
     <div class="set-help" id="appBuild" style="margin-top:4px"></div>
@@ -631,18 +632,18 @@
 
   <div id="connectBox" class="card">
     <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
-    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 해 보세요.</p>
+    <p id="hint" class="help" style="margin:8px 0 0"></p>
   </div>
 
   <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
-    <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
+    <b style="font-size:18px">활성화가 필요한 스틱입니다</b>
     <p class="help" style="margin:6px 0">① <b>활성화 요청 보내기</b>를 눌러 제작자에게 카톡으로 보내세요.<br>② 답장으로 온 <b>활성화 링크</b>를 누르면 끝입니다. (스틱은 켜 두세요)</p>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">---- ----</span>
       <button id="btnCopyId">ID 복사</button>
     </div>
-    <button id="btnReq" class="primary" style="margin-top:10px">📨 활성화 요청 보내기</button>
-    <button id="btnPasteAct" style="margin-top:8px;width:100%">📋 복사한 활성화 링크 붙여넣기</button>
+    <button id="btnReq" class="primary" style="margin-top:10px">활성화 요청 보내기</button>
+    <button id="btnPasteAct" style="margin-top:8px;width:100%">복사한 활성화 링크 붙여넣기</button>
     <details style="margin-top:10px"><summary class="help">링크 대신 코드를 직접 넣기</summary>
     <textarea id="actCode" placeholder="활성화 링크 또는 코드 붙여넣기" style="width:100%;height:70px;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fff"></textarea>
     <button id="btnAct" style="margin-top:10px;width:100%">활성화</button></details>
@@ -660,10 +661,16 @@
     <div id="status" class="status">대기</div>
   </div>
 
+  <div class="card">
+    <div class="ttl">최근 60초</div>
+    <canvas id="chart" width="1040" height="360"></canvas>
+    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#ff922b"></i>진동</span><span><i style="background:#3bc9db"></i>소리</span></div>
+  </div>
+
   <div class="card" id="psuCard">
-    <div class="psuHead"><div class="ttl">⚡ 전원공급기 · 정역</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
+    <div class="psuHead"><div class="ttl">전원공급기 · 정역</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
     <div id="psuBody">
-      <div class="prow"><select id="psuPre" aria-label="전원 프리셋"></select><button id="psuPreSave">💾 저장</button><button id="psuPreDel" aria-label="프리셋 삭제">🗑</button></div>
+      <div class="prow"><select id="psuPre" aria-label="전원 프리셋"></select><button id="psuPreSave">저장</button><button id="psuPreDel" aria-label="프리셋 삭제">삭제</button></div>
       <div class="dpsLive" style="margin-top:8px">
         <div><span id="pV">-.--</span><small>V</small></div>
         <div><span id="pA">-.---</span><small>A</small></div>
@@ -681,15 +688,15 @@
   <div class="card" id="condCard">
     <div class="condTop">
       <div id="condScore" class="condScore">--</div>
-      <div style="flex:1;min-width:0"><span class="ttl" style="margin:0 6px 0 0">🩺 모터 컨디션</span><span id="condGrade" class="condGrade" style="background:var(--grey)">대기</span><div id="condNote" class="help" style="margin-top:4px">전원공급기 출력을 켜고 모터를 돌리면 표시됩니다.</div></div>
+      <div style="flex:1;min-width:0"><span class="ttl" style="margin:0 6px 0 0">모터 컨디션</span><span id="condGrade" class="condGrade" style="background:var(--grey)">대기</span><div id="condNote" class="help" style="margin-top:4px">전원공급기 출력을 켜고 모터를 돌리면 표시됩니다.</div></div>
     </div>
     <div id="condRows" class="condRows"></div>
     <div id="condWarn" role="button"></div>
     <div class="ckBox">
-      <div class="ttl" style="margin:0">⏱ 컨디션 측정 <small style="color:var(--mute);font-weight:600">같은 전압으로 일정 시간 돌려서 점수 내기</small></div>
-      <div class="ckGo" id="ckTag"><button data-t="1" class="ckBig"><b>🧽 청소 전</b><small>측정</small></button><button data-t="2" class="ckBig"><b>✨ 청소 후</b><small>측정</small></button><button data-t="0" class="ckWide"><b>▶ 그냥 측정</b><small>(일반)</small></button></div>
+      <div class="ttl" style="margin:0">컨디션 측정</div>
+      <div class="ckGo" id="ckTag"><button data-t="1" class="ckBig"><b>청소 전</b><small>측정</small></button><button data-t="2" class="ckBig"><b>청소 후</b><small>측정</small></button><button data-t="0" class="ckWide"><b>▶ 그냥 측정</b><small>(일반)</small></button></div>
       <div class="prow" style="margin-top:8px;align-items:center"><span class="help" style="flex:1">측정 시간</span><select id="ckDur" aria-label="측정 시간"><option value="15">15초</option><option value="30" selected>30초 (기본)</option><option value="60">60초</option><option value="120">2분</option></select></div>
-      <div id="ckHow" class="help" style="margin-top:6px">버튼 하나만 누르면 출력 켜기 → 측정 → 점수 → 출력 끄기까지 알아서 합니다. 출력을 직접 켜도 3초 뒤 자동으로 잽니다.</div>
+      <div id="ckHow" class="help" style="margin-top:6px">누르면 출력 켜기부터 점수까지 자동으로 합니다.</div>
       <div id="ckLive" class="help" style="margin-top:6px"></div>
       <div id="ckRes"></div>
       <div id="ckCmp"></div>
@@ -697,7 +704,7 @@
   </div>
 
   <div class="card">
-    <button id="btnReset" style="margin-top:0" class="reset">↺ 측정 초기화 <small style="color:var(--mute)">지난 결과 지우고 다시 대기</small></button>
+    <button id="btnReset" style="margin-top:0" class="reset">측정 초기화</button>
     <div class="lbl">모드</div>
     <div class="seg" id="segMode">
       <button data-v="0">진동</button><button data-v="1">소리</button><button data-v="2">진동+소리</button>
@@ -708,11 +715,6 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="ttl">최근 60초</div>
-    <canvas id="chart" width="1040" height="360"></canvas>
-    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#ff922b"></i>진동</span><span><i style="background:#3bc9db"></i>소리</span></div>
-  </div>
 
   <div class="card">
     <div class="ttl">기록</div>
@@ -722,7 +724,7 @@
       <button id="btnClear">모두 지우기</button>
     </div>
     <div class="mrow"><span class="set-help" style="margin:0">모터</span><select id="motorSel"></select><button id="btnMotorEdit" style="padding:8px 12px">✎</button></div>
-    <label class="auto"><input type="checkbox" id="autoRec" checked> 확실한 결과가 나올 때마다 자동 기록 (선택한 모터로)</label>
+    <label class="auto"><input type="checkbox" id="autoRec" checked> 자동 기록</label>
     <div class="fchips" id="fchips"></div>
     <div class="msum" id="msum"></div>
     <div id="recs" style="margin-top:2px"></div>
@@ -1284,8 +1286,8 @@ $('tileFw').onclick = async () => {
   const linked = !!(cmdChar && stickVer);
   let bt;
   if (!linked) bt = `<div style="color:#c9d1dc">스틱을 먼저 블루투스로 연결하세요. 연결하면 버전을 확인합니다.</div><button id="fmConn" class="primary" style="margin-top:10px;width:100%">스틱 연결 (블루투스)</button>`;
-  else if (!fwNewer()) bt = `<div style="color:#8ce99a;font-weight:700">✅ 최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
-  else if (stickOta && otaChar) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b>${fwLatest.note ? '<br><span style="color:#a5d8ff;font-size:14px">' + esc(fwLatest.note) + '</span>' : ''}</div><button id="fmUp" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>`;
+  else if (!fwNewer()) bt = `<div style="color:#8ce99a;font-weight:700">최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
+  else if (stickOta && otaChar) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b>${fwLatest.note ? '<br><span style="color:var(--mute);font-size:14px">' + esc(fwLatest.note) + '</span>' : ''}</div><button id="fmUp" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>`;
   else bt = `<div>스틱 ${esc(stickVer)}은 블루투스 업데이트가 안 되는 버전입니다. 아래 <b>USB 설치</b>를 한 번 해 주세요.</div>`;
   const usb = ios
     ? '<div style="color:#ffa8a8">아이폰은 USB 설치가 안 됩니다. 안드로이드폰이나 컴퓨터(크롬·엣지)에서 설치 페이지를 여세요.</div>'
@@ -1296,9 +1298,9 @@ $('tileFw').onclick = async () => {
   ov.style.cssText = 'position:fixed;inset:0;z-index:88;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
   ov.innerHTML = '<div style="width:100%;max-width:440px;background:#1b1f27;border:1px solid #2c3340;border-radius:18px;padding:20px;line-height:1.5;color:#e8ebf1">' +
     `<div style="font-size:20px;font-weight:800;text-align:center">스틱 펌웨어</div><div style="text-align:center;color:#8a94a6;font-size:14px;margin-bottom:12px">최신 버전 ${esc(latest)}</div>` +
-    '<div style="background:#13284a;border:1px solid #1971c2;border-radius:14px;padding:12px 14px"><div style="font-weight:800;margin-bottom:6px">🔄 업데이트 (블루투스)</div>' + bt +
+    '<div style="background:#151a21;border:1px solid var(--line);border-radius:10px;padding:12px 14px"><div style="font-weight:800;margin-bottom:6px">업데이트 (블루투스)</div>' + bt +
     '<div style="font-size:13px;color:#8a94a6;margin-top:6px">펌웨어 2.0 이상이 깔린 스틱만 됩니다.</div></div>' +
-    '<div style="background:#2b1d12;border:1px solid #e8590c;border-radius:14px;padding:12px 14px;margin-top:12px"><div style="font-weight:800;margin-bottom:6px">🔌 최초 설치 (USB)</div>' + usb +
+    '<div style="background:#151a21;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px"><div style="font-weight:800;margin-bottom:6px">최초 설치 (USB)</div>' + usb +
     '<div style="font-size:13px;color:#8a94a6;margin-top:6px">처음 쓰는 스틱, 또는 블루투스 업데이트가 안 될 때.</div></div>' +
     '<button id="fmClose" style="margin-top:14px;width:100%">닫기</button></div>';
   document.body.appendChild(ov);
@@ -1324,7 +1326,7 @@ let stickBat = null, batWarned = 100;               // {pct, usb}; last warning 
 function shortName() { return ((device && device.name) || '').replace(/-[0-9A-F]{4,8}$/i, '') || '연결됨'; }
 function batText() {
   if (!stickBat || stickBat.pct < 0) return '';
-  return (stickBat.usb ? ' · ⚡' : ' · 🔋') + stickBat.pct + '%';
+  return ' · ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '');
 }
 function onBattery(pct, usb) {
   stickBat = { pct, usb };
@@ -1338,10 +1340,10 @@ function onBattery(pct, usb) {
 }
 function renderHome() {
   const on = !!cmdChar;
-  $('homeConn').textContent = on ? (device && device.name || '스틱') + (actState && !actState.act ? ' · 🔒 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
+  $('homeConn').textContent = on ? (device && device.name || '스틱') + (actState && !actState.act ? ' · 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
   $('homeConn').className = on ? 'pill on' : 'pill';
   $('btnConnect2').style.display = on ? 'none' : '';
-  $('tileHz').textContent = on && cur && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '진동·소리로 회전수';
+  $('tileHz').textContent = on && cur && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '';
 }
 // ---------------------------------------------------------------- activation (signed code per stick)
 // A link "app.html#act=<ID>.<code>" from the owner is remembered and sent when that stick connects.
@@ -1448,7 +1450,7 @@ $('btnInfoShare').onclick = async () => {
   const t = $('infoId').textContent; if (t.startsWith('-')) return;
   const msg = '파노체크 스틱 ID: ' + t;
   if (navigator.share) { try { await navigator.share({ title: '파노체크 스틱 ID', text: msg }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  try { await navigator.clipboard.writeText(msg); $('btnInfoShare').textContent = '복사됨'; setTimeout(() => $('btnInfoShare').textContent = '📨 카톡', 1200); } catch (e) {}
+  try { await navigator.clipboard.writeText(msg); $('btnInfoShare').textContent = '복사됨'; setTimeout(() => $('btnInfoShare').textContent = '카톡', 1200); } catch (e) {}
 };
 $('btnInfoId').onclick = async () => {
   const t = $('infoId').textContent; if (t.startsWith('-')) return;
@@ -1629,7 +1631,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26q';
+const APP_BUILD = '2026-11-26r';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
@@ -1728,9 +1730,9 @@ function fwAutoAsk() {
   fwAsked = fwLatest.ver;
   const ov = document.createElement('div'); ov.id = 'fwAsk';
   ov.style.cssText = 'position:fixed;inset:0;z-index:89;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:24px';
-  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #1971c2;border-radius:18px;padding:22px;text-align:center;line-height:1.5">' +
-    `<div style="font-size:20px;font-weight:800">🔄 스틱 새 버전 ${esc(fwLatest.ver)}</div>` +
-    `<div style="margin-top:6px;color:#c9d1dc">지금 스틱 ${esc(stickVer)}${fwLatest.note ? '<br><span style="color:#a5d8ff">' + esc(fwLatest.note) + '</span>' : ''}</div>` +
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:12px;padding:22px;text-align:center;line-height:1.5">' +
+    `<div style="font-size:20px;font-weight:800">스틱 새 버전 ${esc(fwLatest.ver)}</div>` +
+    `<div style="margin-top:6px;color:#c9d1dc">지금 스틱 ${esc(stickVer)}${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}</div>` +
     '<div style="margin-top:10px;font-size:14px;color:#8a94a6">2~5분 걸리고 그동안 측정은 멈춥니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜집니다.</div>' +
     '<button id="fwAskGo" class="primary" style="margin-top:14px;width:100%">지금 업데이트</button>' +
     '<button id="fwAskNo" style="margin-top:8px;width:100%">나중에 (홈 화면에서 할 수 있어요)</button></div>';
@@ -1745,12 +1747,12 @@ function fwRender(msg) {
   if (!cmdChar || !fwNewer()) { box.style.display = 'none'; return; }
   box.style.display = '';
   if (stickOta && otaChar) {
-    box.innerHTML = `<b>🔄 스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:#a5d8ff">' + esc(fwLatest.note) + '</span>' : ''}` +
+    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}` +
       `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
     $('btnFw').onclick = fwStart;
   } else {
-    box.innerHTML = `<b>🔄 스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 컴퓨터에서 USB로</b> 설치해야 합니다 (휴대폰으로는 안 됩니다). 그 다음부터는 블루투스로 업데이트됩니다.` +
-      `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:12px;background:#1971c2;color:#fff;text-decoration:none;font-weight:800">설치 페이지 열기 (컴퓨터 + USB)</a>`;
+    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 컴퓨터에서 USB로</b> 설치해야 합니다 (휴대폰으로는 안 됩니다). 그 다음부터는 블루투스로 업데이트됩니다.` +
+      `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:8px;background:var(--acc);color:#fff;text-decoration:none;font-weight:800">설치 페이지 열기 (컴퓨터 + USB)</a>`;
   }
 }
 const FW_ERR = { 1: '준비 정보가 빠졌습니다', 2: '스틱 배터리가 부족합니다 (25% 이상 또는 USB 연결)', 3: '잠긴 스틱입니다 (잠금 해제 후)', 4: '스틱이 준비하지 못했습니다',
@@ -1771,7 +1773,7 @@ function fwShow(pc, text, btn) {
     ov.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(10,12,16,.92);display:flex;align-items:center;justify-content:center;padding:24px';
     ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #2c3340;border-radius:18px;padding:22px;text-align:center">' +
       '<div style="font-size:20px;font-weight:800">스틱 업데이트</div><div id="fwPc" style="font-size:44px;font-weight:900;margin:10px 0">0%</div>' +
-      '<div style="height:14px;background:#0f1218;border-radius:8px;overflow:hidden"><div id="fwBar" style="height:100%;width:0;background:#1c7ed6"></div></div>' +
+      '<div style="height:14px;background:#0f1218;border-radius:8px;overflow:hidden"><div id="fwBar" style="height:100%;width:0;background:var(--acc)"></div></div>' +
       '<div id="fwTxt" style="margin-top:12px;line-height:1.5;color:#c9d1dc"></div><button id="fwBtn" style="margin-top:14px;width:100%"></button></div>';
     document.body.appendChild(ov);
   }
@@ -1868,9 +1870,9 @@ async function fwStart(asked) {
       end(`업데이트를 보냈습니다. 스틱이 다시 켜지면 버전을 확인하세요.`, true); return;
     }
     if (st.state !== 3) throw new Error(FW_ERR[st.err] || '실패 ' + st.err);
-    end(`✅ 업데이트 완료 (${esc(fwLatest.ver)})<br>스틱이 다시 켜지고 자동으로 다시 연결됩니다.`, true);
+    end(`업데이트 완료 (${esc(fwLatest.ver)})<br>스틱이 다시 켜지고 자동으로 다시 연결됩니다.`, true);
   } catch (e) {
-    end('❌ ' + esc(e.message || String(e)), false);
+    end( esc(e.message || String(e)), false);
   }
 }
 
@@ -1904,6 +1906,7 @@ function autoRecord() {
 }
 // ---------------------------------------------------------------- motors (records are kept per motor)
 let motors = [], curMotor = '', recFilter = '*';
+var recShow = recShow || 5;            // records list: show this many, [더 보기] adds more
 try { motors = JSON.parse(localStorage.getItem('panotrio-motors') || '[]'); curMotor = localStorage.getItem('panotrio-motor') || ''; } catch (e) {}
 function saveMotors() { try { localStorage.setItem('panotrio-motors', JSON.stringify(motors)); localStorage.setItem('panotrio-motor', curMotor); } catch (e) {} }
 function renderMotors() {
@@ -2000,18 +2003,20 @@ function renderRecs() {
   } else $('msum').textContent = '';
   if (!list.length) { box.innerHTML = '<div class="empty">기록이 없습니다</div>'; return; }
   const p2 = n => String(n).padStart(2, '0');
-  box.innerHTML = list.map(([r, i]) => {
+  const more = list.length - recShow;
+  box.innerHTML = list.slice(0, recShow).map(([r, i]) => {
     const d = new Date(r.t), tm = `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
     const st = (r.status || '').split('  ')[0], cb = condBand(r);
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
       <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
       <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
-      ${cb ? `<span class="chip cchip" style="background:${cb[1]}">${r.condBad ? (r.measBad ? '⚠ 측정<br>불안정' : '⚠ 전원<br>불안정') : `🩺 <b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip" style="background:${recColor(st)}">${esc(st)}</span>` : ''}
+      ${cb ? `<span class="chip cchip" style="background:${cb[1]}">${r.condBad ? (r.measBad ? '⚠ 측정<br>불안정' : '⚠ 전원<br>불안정') : `<b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip st">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
-  }).join('');
+  }).join('') + (more > 0 ? `<button class="recMore" data-more="1">이전 기록 ${more}개 더 보기</button>` : recShow > 5 && list.length > 5 ? '<button class="recMore" data-more="0">접기</button>' : '');
 }
-$('fchips').onclick = e => { const b = e.target.closest('button'); if (b) { recFilter = b.dataset.f; renderRecs(); } };
+$('fchips').onclick = e => { const b = e.target.closest('button'); if (b) { recFilter = b.dataset.f; recShow = 5; renderRecs(); } };
 $('recs').onclick = async e => {
+  if (e.target.dataset.more) { recShow = +e.target.dataset.more ? recShow + 20 : 5; renderRecs(); return; }
   const a = e.target.closest('[data-memo]'), m = a ? a.dataset.memo : undefined, d = e.target.dataset.del;
   if (m !== undefined) { e.preventDefault(); const v = await askText('메모 (예: 모터 이름, 전압)', recs[m].memo || ''); if (v !== null) { recs[m].memo = v; saveRecs(recs); renderRecs(); } }
   if (d !== undefined) { recs.splice(+d, 1); saveRecs(recs); renderRecs(); }
@@ -2587,7 +2592,7 @@ async function breakCheck() {                       // end of a cycle: measure (
     hz = done !== null ? Math.round(done * 10) / 10 : vals.length >= 3 ? Math.round(median(vals.slice(-8)) * 10) / 10 : 0;
     cl.hist.push({ k: cl.k, hz, t: Date.now() }); cleanHistRender();
   }
-  if (s.tgtOn && hz >= s.target) { cl.busy = false; await cleanStop(`🎯 목표 도달! ${cl.k}사이클 · ${hz.toFixed(1)} Hz (목표 ${s.target})`, true); return; }
+  if (s.tgtOn && hz >= s.target) { cl.busy = false; await cleanStop(`목표 도달! ${cl.k}사이클 · ${hz.toFixed(1)} Hz (목표 ${s.target})`, true); return; }
   if (cl.k >= s.rep) {
     cl.busy = false;
     if (s.tgtOn) { const best = Math.max(0, ...cl.hist.map(h => h.hz)); await cleanStop(`최대 ${s.rep}사이클을 마쳤습니다 · 최고 ${best > 0 ? best.toFixed(1) + ' Hz' : '측정 안 됨'} (목표 ${s.target})`, false); }
@@ -2823,7 +2828,7 @@ function condRender(force) {
   if (c.fr !== null) rows.push(['정/역 차이', c.fr.toFixed(1) + '%' + (c.fr > 3 ? ' (한쪽으로 치우침)' : '')]);
   $('condRows').innerHTML = rows.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('');
 }
-function condLiveGrade(c) { return c.cv === null ? ['재는 중', 'var(--cyan)', 4] : c.score >= 85 ? ['좋음', 'var(--green)', 0] : c.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
+function condLiveGrade(c) { return c.cv === null ? ['재는 중', 'var(--grey)', 4] : c.score >= 85 ? ['좋음', 'var(--green)', 0] : c.score >= 65 ? ['보통', 'var(--yellow)', 1] : ['점검 필요', 'var(--red)', 2]; }
 // Live score on the stick's measuring screen (firmware 2.4+): 'g'(0x67) grade score hz*10(u16 LE) flags; grade 255 = clear.
 var condLiveT = 0, condLiveKey = '';
 function condLiveStick(c) {
@@ -2950,7 +2955,7 @@ function ckShow(r) {
   $('ckRes').innerHTML = `<div class="ckRes"><div class="condScore">${r.unstable ? '--' : r.score + '<small>/100</small>'}</div><div><span class="condGrade" style="background:${g[1]}">${g[0]}</span> <span class="help">${esc(CK_TAGS[r.tag])} · ${r.dur}초${r.motor ? ' · ' + esc(r.motor) : ''}</span>` +
     `<div class="help" style="margin-top:4px">${note}${stickCnd ? ' · 스틱 화면에도 보냈습니다' : ''}</div></div></div>` +
     `<div class="condRows">${rows.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('')}</div>` +
-    (r.unstable ? '' : `<button id="ckShare" style="width:100%;margin-top:10px;background:#fee500;border-color:#fee500;color:#3c1e1e;font-weight:800">📤 결과 카드 공유</button>`);
+    (r.unstable ? '' : `<button id="ckShare" style="width:100%;margin-top:10px;font-weight:700">결과 카드 공유</button>`);
   if ($('ckShare')) $('ckShare').onclick = () => shareCard(r);
   ckCompare(r);
 }
@@ -2960,7 +2965,7 @@ function ckCompare(r) {                               // latest 청소 전 vs th
   if (!bef || !aft) { $('ckCmp').innerHTML = bef ? '<div class="help" style="margin-top:6px">청소 전 측정이 있습니다. 청소 후 [청소 후]로 다시 재면 비교해 드립니다.</div>' : ''; return; }
   const d = (a, b) => b ? (a - b) / b * 100 : 0, cell = (x, goodUp) => { x = Math.round(x * 10) / 10 || 0; return `<span class="${Math.abs(x) < 0.5 ? '' : (x > 0) === goodUp ? 'dn' : 'up'}">${x >= 0 ? '+' : ''}${x.toFixed(1)}</span>`; };
   const tr = (k, a, b, f, dd) => `<tr><td>${k}</td><td>${f(a)}</td><td>${f(b)}</td><td>${dd}</td></tr>`;
-  $('ckCmp').innerHTML = `<div class="ttl" style="margin:10px 0 0">🧽 청소 전·후 비교 <small style="color:var(--mute);font-weight:600">${bef.v.toFixed(1)} V</small></div><table class="ckCmp"><tr><th></th><th>청소 전</th><th>청소 후</th><th>변화</th></tr>` +
+  $('ckCmp').innerHTML = `<div class="ttl" style="margin:10px 0 0">청소 전·후 비교 <small style="color:var(--mute);font-weight:600">${bef.v.toFixed(1)} V</small></div><table class="ckCmp"><tr><th></th><th>청소 전</th><th>청소 후</th><th>변화</th></tr>` +
     tr('점수', bef.score, aft.score, x => x, cell(aft.score - bef.score, true).replace('.0<', '<') + '점') +
     tr('전류 (A)', bef.i, aft.i, x => x.toFixed(3), cell(d(aft.i, bef.i), false) + '%') +
     tr('회전 (rpm/V)', bef.rpv, aft.rpv, x => Math.round(x).toLocaleString(), cell(d(aft.rpv, bef.rpv), true) + '%') +
@@ -2972,7 +2977,7 @@ function ckRender() {
   const busy = !!(ck || ckOne);
   $('ckDur').disabled = busy;
   [...$('ckTag').children].forEach(b => {
-    const t = +b.dataset.t, me = t === ckTag, lbl = ['▶ 그냥 측정', '🧽 청소 전', '✨ 청소 후'][t];
+    const t = +b.dataset.t, me = t === ckTag, lbl = ['▶ 그냥 측정', '청소 전', '청소 후'][t];
     b.classList.toggle('sel2', me && !busy); b.classList.toggle('stop', me && busy);
     b.querySelector('b').textContent = me && busy ? '■ 멈추기' : lbl;
     b.querySelector('small').textContent = me && busy ? CK_TAGS[t] + ' 측정 중' : t ? '측정' : '(일반)';
@@ -3096,7 +3101,7 @@ function bookRender() {
   }).sort((x, y) => y.last.score - x.last.score || (y.last.hz || 0) - (x.last.hz || 0));
   if (bkSel !== null && !rows.some(r => r.m === bkSel)) bkSel = null;
   if (bkSel === null && rows.length) bkSel = rows[0].m;
-  const medal = ['🥇', '🥈', '🥉'];
+  const medal = [];
   $('bkRank').innerHTML = rows.length ? rows.map((r, k) => {
     const g = ckGrade({ score: r.last.score });
     return `<div class="r${r.m === bkSel ? ' sel' : ''}" data-m="${esc(r.m)}"><div class="no">${medal[k] || k + 1}</div>
@@ -3108,12 +3113,12 @@ function bookRender() {
 function bookDetail(a) {
   $('bkDet').style.display = bkSel === null ? 'none' : '';
   if (bkSel === null) return;
-  $('bkName').textContent = '📈 ' + (bkSel || '(이름 없음)') + ' · 점수 변화';
+  $('bkName').textContent = (bkSel || '(이름 없음)') + ' · 점수 변화';
   const p2 = n => String(n).padStart(2, '0'), tm = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
   const aft = a.find(p => p.tag === 2), bef = aft ? a.find(p => p.tag === 1 && p.t < aft.t) : a.find(p => p.tag === 1);
-  $('bkCmp').innerHTML = bef && aft ? `🧽 청소 전 <b>${bef.score}점</b> → ✨ 청소 후 <b>${aft.score}점</b> <b style="color:${aft.score >= bef.score ? '#69db7c' : '#ff8787'}">(${aft.score >= bef.score ? '+' : ''}${aft.score - bef.score})</b>` +
+  $('bkCmp').innerHTML = bef && aft ? `청소 전 <b>${bef.score}점</b> → 청소 후 <b>${aft.score}점</b> <b style="color:${aft.score >= bef.score ? '#69db7c' : '#ff8787'}">(${aft.score >= bef.score ? '+' : ''}${aft.score - bef.score})</b>` +
     (bef.i && aft.i ? ` · 전류 ${((aft.i - bef.i) / bef.i * 100).toFixed(1)}%` : '') + (bef.hz && aft.hz ? ` · 파노 ${aft.hz - bef.hz >= 0 ? '+' : ''}${(aft.hz - bef.hz).toFixed(1)} Hz` : '')
-    : bef ? '청소 전 점수가 있습니다. 청소 후 [✨ 청소 후]로 재면 여기서 비교합니다.' : '';
+    : bef ? '청소 전 점수가 있습니다. [청소 후]로 재면 여기서 비교합니다.' : '';
   $('bkList').innerHTML = a.slice(0, 8).map(p => { const g = ckGrade({ score: p.score });
     return `<div class="l"><span>${tm(p.t)}</span><span>${CK_TAGS[p.tag]}</span><span style="color:var(--mute)">${p.hz ? p.hz.toFixed(1) + ' Hz' : ''}${p.v ? ' · ' + p.v.toFixed(1) + ' V' : ''}${p.i ? ' ' + p.i.toFixed(2) + ' A' : ''}</span><b style="color:${g[1]}">${p.score}</b></div>`; }).join('');
   bookChart(a.slice(0, 40).reverse());
