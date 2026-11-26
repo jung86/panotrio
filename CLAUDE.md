@@ -16,7 +16,7 @@
 |---|---|
 | 스틱 펌웨어 | M5StickS3 (ESP32-S3), Arduino core 3.3.x + M5Unified. 모터 파노(Hz) 측정 |
 | 앱 | app.html, Web Bluetooth(스틱) + Web Serial(DPS-150) |
-| 설치 페이지 | https://jung86.github.io/panotrio/ (PC 크롬에서 USB로 펌웨어 설치) |
+| 설치 페이지 | https://jung86.github.io/panotrio/ (PC 크롬에서 USB로 펌웨어 설치, 안드로이드 크롬은 [폰으로 설치]: WebUSB) |
 | 앱 주소 | https://jung86.github.io/panotrio/app.html |
 | 저장소 | github.com/jung86/panotrio (GitHub Pages로 배포) |
 | 전원공급기 | FNIRSI DPS-150 (폰 USB-C ↔ DPS Micro USB 데이터선, DPS 전원은 PD 충전기) |
@@ -109,6 +109,7 @@
 - 앱을 고치면 app.html의 `APP_BUILD` 값을 올리고 push → GitHub Pages가 배포. 폰에서는 페이지를 닫았다 다시 열어야 반영.
 - app.html 초기화 중 `showView()`가 먼저 불리므로, 그 경로에서 쓰는 변수는 뒤에 `let/const`로 선언하지 말 것(TDZ). `var x = x || 기본값` 방식 사용.
 - 동적으로 만든 −/+ 버튼은 `bindSteppers(상자)`를 불러야 동작.
+- **폰으로 설치 (2026-11-26)**: 안드로이드 크롬에서 index.html이 ESP Web Tools 대신 `install/phone-flash.js`(esptool-js 0.5.4 + web-serial-polyfill 1.0.15 + spark-md5를 esbuild로 묶은 파일)를 씀. WebUSB로 VID 0x303A 장치를 골라 manifest.json의 네 조각을 그대로 씀(NVS 건드리지 않음, 115200, MD5 확인). 실제 폰 시험 전. 아이폰은 불가.
 - **USB 설치는 NVS(0x9000~0xE000, 활성화·설정)를 덮어쓰면 안 됨.** 병합 bin을 offset 0에 통째로 쓰면 NVS가 0xFF로 지워져 활성화가 풀림(2026-11-25 실제 발생). manifest.json은 `install/bootloader-X.Y.bin`(0), `install/partitions-X.Y.bin`(0x8000), `install/otadata-X.Y.bin`(0xE000), `fw/PanoCheck-X.Y.app.bin`(0x10000) 네 조각으로 씀. 병합 bin에서 잘라 만들면 됨.
 - 새 펌웨어 배포: 병합 bin → `PanoCheck-X.Y-M5StickS3.bin`(보관용, 설치 조각을 여기서 자름), 앱 bin → `fw/PanoCheck-X.Y.app.bin`, `fw/latest.json`(ver, size, sha256, sig, bin, note), `manifest.json`, index.html 제목, README 갱신, 이전 bin은 삭제.
 - 펌웨어 빌드·서명은 PC Remote Control에서: arduino-cli(IDE 내장) + `비공개` 폴더의 키로 로컬 서명, 결과는 `Documents\motorcleaner\panocheck-X.Y-out`. 공개 키는 pano_act.h의 kActPubKey(활성화·펌웨어 공용)로 검증.
