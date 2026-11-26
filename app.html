@@ -130,8 +130,8 @@
   .prow select { flex:1; min-width:0; font:600 15px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
   .prow button { padding:8px 11px; font-size:15px; white-space:nowrap; min-height:48px; }
   .prow select { min-height:48px; }
-  #psuPreSave, #cPreSave { min-width:108px; padding:10px 16px; font-size:18px; font-weight:800; background:var(--acc); border-color:var(--acc); color:#fff; }
-  #psuPreSave:active, #cPreSave:active { filter:brightness(1.15); }
+  #psuPreSave, #cPreSave, #bPreSave { min-width:96px; padding:10px 14px; font-size:16px; font-weight:800; background:var(--acc); border-color:var(--acc); color:#fff; }
+  #psuPreSave:active, #cPreSave:active, #bPreSave:active { filter:brightness(1.15); }
   .ppl { margin-top:8px; }
   .ppl .row { display:grid; grid-template-columns:1fr auto; gap:6px; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line); }
   .ppl .nm { font-weight:700; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -140,7 +140,13 @@
   .ppl .acts button { padding:7px 9px; font-size:13px; }
   .pst { font-size:12px; font-weight:800; border-radius:6px; padding:1px 6px; margin-left:6px; }
   .pst.ok { background:#2b8a3e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#1971c2; color:#fff; }
-  .tile.wide { grid-column:1 / -1; flex-direction:row; justify-content:center; padding:16px 10px; gap:12px; }
+  .tile.wide { grid-column:1 / -1; flex-direction:row; justify-content:flex-start; padding:16px 20px; gap:16px; }
+  .tiles3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+  .tiles3 .tile { padding:14px 4px 12px; gap:6px; border-radius:16px; }
+  .tiles3 .tile svg { width:36px; height:36px; }
+  .tiles3 .tile .tl { font-size:14px; text-align:center; line-height:1.25; }
+  .tiles3 .tile .ts { display:none; }
+  html.android .notAndroid { display:none !important; }
   .tile.wide svg { width:40px; height:40px; }
   #book { position:fixed; inset:0; z-index:58; background:var(--bg); overflow-y:auto; display:none; }
   #book.open { display:block; }
@@ -330,37 +336,39 @@
       </svg>
       <div style="text-align:left"><div class="tl">기록 · 비교</div><div class="ts" id="tileBookSub">모터별 점수 변화 · 순위 · 공유</div></div>
     </div>
-    <div class="tile wide" id="tileManual" role="button">
+  </div>
+  <div class="tiles3">
+    <div class="tile" id="tileManual" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 14c8-3 16-3 24 3v36c-8-6-16-6-24-3z" stroke="#ffffff" stroke-width="4"/>
         <path d="M56 14c-8-3-16-3-24 3v36c8-6 16-6 24-3z" stroke="#e8590c" stroke-width="4"/>
       </svg>
-      <div style="text-align:left"><div class="tl">설명서</div><div class="ts">그림으로 보는 사용 방법</div></div>
+      <div class="tl">설명서</div>
     </div>
-    <div class="tile wide" id="tileFw" role="button">
+    <div class="tile" id="tileFw" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <rect x="18" y="6" width="28" height="52" rx="6" stroke="#ffffff" stroke-width="4"/>
         <path d="M32 18v20M24 30l8 8 8-8" stroke="#1c7ed6" stroke-width="5"/>
         <path d="M26 48h12" stroke="#ffffff" stroke-width="4"/>
       </svg>
-      <div style="text-align:left"><div class="tl">최초 설치 · 업데이트</div><div class="ts" id="tileFwSub">스틱 펌웨어 설치와 새 버전 받기</div></div>
+      <div class="tl">설치 ·<br>업데이트</div><div class="ts" id="tileFwSub"></div>
     </div>
-    <div class="tile wide" id="tileReport" role="button">
+    <div class="tile" id="tileReport" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M32 10C17 10 6 19 6 30c0 7 5 13 12 16l-3 10 11-7c2 0 4 1 6 1 15 0 26-9 26-20S47 10 32 10z" fill="#fee500" stroke="#fee500" stroke-width="3"/>
         <path d="M32 20v12M32 39v1" stroke="#3c1e1e" stroke-width="5"/>
       </svg>
-      <div style="text-align:left"><div class="tl">오류·문의 신고</div><div class="ts">카카오톡으로 제작자에게 바로 보내기</div></div>
+      <div class="tl">오류·문의<br>신고</div>
     </div>
   </div>
   <button id="btnInstall" style="display:none;width:100%;margin-top:18px;padding:14px;font-weight:700">📲 홈 화면에 앱 설치</button>
   <button id="btnShareInst" style="width:100%;margin-top:12px;padding:14px;font-weight:800;background:#fee500;color:#3c1e1e;border:0">📤 설치 페이지 공유하기</button>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요. <span class="iosOnly">아이폰은 Bluefy 앱에서 스틱 측정만 됩니다.</span></p>
-  <div class="card" style="margin-top:10px;display:flex;align-items:center;gap:10px">
+  <div class="card notAndroid" style="margin-top:10px;display:flex;align-items:center;gap:10px">
     <div style="flex:1;font-size:14px;line-height:1.5">🍎 <b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요. (스틱 측정만 가능)</div>
     <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
   </div>
-  <a href="download.html" style="display:block;text-align:center;margin-top:10px;color:#74c0fc;font-weight:700;text-decoration:none">📥 다운로드 · 사용 설명서 (안드로이드 / 아이폰)</a>
+  <a href="download.html" style="display:block;text-align:center;margin-top:10px;color:#74c0fc;font-weight:700;text-decoration:none">📥 다른 휴대폰용 다운로드 안내</a>
 </div></div>
 <div id="admin"><div class="inner">
   <header>
@@ -441,7 +449,6 @@
         <label><span id="bRepLbl">최대 사이클</span><span class="nstep"><button class="stp" data-for="bRep" data-d="-1" aria-label="줄이기">−</button><input id="bRep" type="number" inputmode="numeric" min="1" max="999" step="1"><button class="stp" data-for="bRep" data-d="1" aria-label="늘리기">+</button></span></label>
         <label>전류 제한 (A)<span class="nstep"><button class="stp" data-for="bAmp" data-d="-1" aria-label="줄이기">−</button><input id="bAmp" type="number" inputmode="decimal" min="0.1" max="5" step="0.1"><button class="stp" data-for="bAmp" data-d="1" aria-label="늘리기">+</button></span></label>
       </div>
-    </div>
     </div>
     <div class="cgrid only-clean">
       <label>최소 전압 (V)<span class="nstep"><button class="stp" data-for="cMin" data-d="-1" aria-label="줄이기">−</button><input id="cMin" type="number" inputmode="decimal" min="0" max="12" step="0.1"><button class="stp" data-for="cMin" data-d="1" aria-label="늘리기">+</button></span></label>
@@ -591,14 +598,17 @@
 
   <div class="card">
     <div class="ttl">앱 설정</div>
+    <div class="set-row"><div class="ttl" style="margin:4px 0 0">알림</div></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 진동</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aVib"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">연결 알림 소리</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aSnd"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 음성 안내</span><div class="set-def">기본값: 켜짐</div><div class="set-help">컨디션 측정이 끝나면 "92점, 좋음"처럼 소리 내어 읽어 줍니다.</div></span><input type="checkbox" id="aSay"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 진동</span><div class="set-def">기본값: 켜짐</div><div class="set-help">좋음 1번, 보통 2번, 점검 필요·다시 재기 3번 울립니다.</div></span><input type="checkbox" id="aRVib"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">이상 경고</span><div class="set-def">기본값: 켜짐</div><div class="set-help">돌리는 중 전류가 갑자기 뛰거나 파노가 크게 흔들리면 "베어링·브러시 점검"을 화면·소리로 알려 줍니다.</div></span><input type="checkbox" id="aWarn"></label></div>
+    <div class="set-row"><div class="ttl" style="margin:4px 0 0">연결 · 화면</div></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">앱 열면 스틱 자동 연결</span><div class="set-def">기본값: 켜짐</div><div class="set-help">한 번 연결한 스틱이 켜져 있으면 앱을 열 때 바로 붙습니다 (브라우저가 지원할 때). 전원공급기는 늘 자동으로 다시 붙습니다.</div></span><input type="checkbox" id="aAuto"></label></div>
-    <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aHot"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">측정하는 동안 휴대폰 화면이 꺼지지 않게 합니다.</div></span><input type="checkbox" id="aWake"></label></div>
+    <div class="set-row"><label class="sw"><span><span class="set-name">앱에서 빨간 숫자 효과</span><div class="set-def">기본값: 켜짐</div></span><input type="checkbox" id="aHot"></label></div>
+    <div class="set-row"><div class="ttl" style="margin:4px 0 0">장치</div></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">릴레이 연결됨 (역방향)</span><div class="set-def">기본값: 꺼짐</div><div class="set-help">스틱 Grove 포트에 릴레이 보드를 달았을 때만 켜세요. 꺼져 있으면 역방향을 쓰지 않습니다.</div></span><input type="checkbox" id="aRelay"></label></div>
   </div>
 
@@ -619,6 +629,10 @@
     <div class="hdr-r"><span id="conn" class="conn" role="button">연결 안 됨</span></div>
   </header>
 
+  <div id="connectBox" class="card">
+    <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
+    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 해 보세요.</p>
+  </div>
 
   <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
     <b style="font-size:18px">🔒 활성화가 필요한 스틱입니다</b>
@@ -714,12 +728,6 @@
     <div id="recs" style="margin-top:2px"></div>
   </div>
 
-  <div id="connectBox" class="card">
-    <button id="btnConnect" class="primary">스틱 연결 (블루투스)</button>
-    <p id="hint" class="help" style="margin:10px 0 0">스틱을 켜고, 휴대폰 블루투스와 위치를 켠 뒤 눌러주세요. 목록에서 <b>파노체크-(스틱 ID)</b>를 고르면 됩니다.</p>
-  </div>
-
-  <p class="help">안드로이드 크롬에서 사용하세요<span class="iosOnly"> (아이폰은 Bluefy 앱)</span>. 연결이 안 되면 스틱 전원을 껐다 켜고 다시 연결해 보세요.</p>
 </main>
 
 <script>
@@ -830,6 +838,7 @@ async function saveFile(blob, name) {
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 if (IOS_UA) document.documentElement.classList.add('ios');
+if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('android');
 if (IOS_UA) {                                       // iPhone zooms in on a text box under 16 px and stays zoomed
   const vp = document.querySelector('meta[name=viewport]'); if (vp) vp.content += ', maximum-scale=1';
 }
@@ -1620,7 +1629,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26o';
+const APP_BUILD = '2026-11-26p';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
