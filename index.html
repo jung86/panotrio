@@ -66,7 +66,7 @@
       </details>
     </div>
     <div id="phoneNoChrome" style="display:none;text-align:left;line-height:1.55">
-      <b>📱 폰으로 설치하려면 크롬으로 여세요.</b> 지금 브라우저에서는 USB 연결이 안 됩니다.
+      <b>📱 크롬으로 여는 중…</b> 지금 브라우저(카톡·삼성 인터넷 등)에서는 USB 설치가 안 됩니다. 크롬이 안 열리면 아래 버튼을 누르세요.
       <a id="phChromeLink" href="#" style="display:block;margin-top:10px;text-align:center;background:#e8590c;color:#fff;font-weight:700;text-decoration:none;padding:12px;border-radius:10px">크롬으로 열기</a>
     </div>
     <esp-web-install-button manifest="manifest.json">
@@ -156,9 +156,14 @@
     };
     return;
   }
-  if (!navigator.usb) {                              // 삼성 인터넷·앱 안 브라우저 등
+  // 크롬이 아니면(카톡·네이버·삼성 인터넷 등 앱 안 브라우저) 바로 크롬으로 다시 연다
+  const notChrome = !navigator.usb || /KAKAOTALK|NAVER|DaumApps|SamsungBrowser|Line\/|Instagram|FBAN|FBAV|FB_IAB|Whale|EdgA|OPR\/|Firefox|; wv\)|everytimeApp|BAND\//i.test(ua);
+  if (notChrome) {
+    const intent = 'intent://' + location.host + location.pathname + location.search + '#Intent;scheme=https;package=com.android.chrome;end';
     document.getElementById('phoneNoChrome').style.display = '';
-    document.getElementById('phChromeLink').href = 'intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;end';
+    document.getElementById('phChromeLink').href = intent;
+    let tried = false; try { tried = sessionStorage.getItem('pcToChrome') === '1'; sessionStorage.setItem('pcToChrome', '1'); } catch (e) {}
+    if (!tried) setTimeout(() => { location.href = intent; }, 300);
     return;
   }
   document.getElementById('phoneInstall').style.display = '';

@@ -73,7 +73,7 @@
     <h3>📱 안드로이드폰으로 설치</h3>
     <ol class="steps">
       <li>스틱을 USB-C 선으로 폰에 꽂습니다. (C-C 선, 또는 OTG 젠더)</li>
-      <li>폰 <b>크롬</b>에서 <a href="./" style="color:var(--blue)">jung86.github.io/panotrio</a> 를 엽니다. 앱에서는 홈 <b>[최초 설치 · 업데이트]</b> → <b>[설치 페이지 열기]</b>.</li>
+      <li>폰 <b>크롬</b>에서 <a href="./" data-install style="color:var(--blue)">jung86.github.io/panotrio</a> 를 엽니다. 앱에서는 홈 <b>[최초 설치 · 업데이트]</b> → <b>[설치 페이지 열기]</b>.</li>
       <li><b>[폰으로 설치]</b> → 목록에서 스틱(USB JTAG/serial 또는 ESP32-S3) 선택 → <b>허용</b>.</li>
       <li>막대가 끝까지 찰 때까지(약 1분) 선을 빼지 마세요. "✅ 설치 끝"이 나오면 스틱이 다시 켜집니다.</li>
     </ol>
@@ -82,7 +82,7 @@
     <h3>💻 컴퓨터로 설치</h3>
     <ol class="steps">
       <li>스틱을 USB-C 선으로 컴퓨터에 꽂습니다.</li>
-      <li>크롬이나 엣지에서 <a href="./" style="color:var(--blue)">설치 페이지</a>를 열고 <b>설치 버튼</b> → 목록에서 스틱 포트 선택 → <b>INSTALL</b>.</li>
+      <li>크롬이나 엣지에서 <a href="./" data-install style="color:var(--blue)">설치 페이지</a>를 열고 <b>설치 버튼</b> → 목록에서 스틱 포트 선택 → <b>INSTALL</b>.</li>
       <li>약 30초 뒤 끝나면 선을 뺍니다.</li>
     </ol>
     <div class="tip">이미 쓰던 스틱을 다시 설치해도 <b>활성화와 설정은 그대로</b> 남습니다.</div>
@@ -423,6 +423,16 @@
   document.getElementById('back').onclick = e => {
     if (document.referrer && /app\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
   };
+</script>
+<script>
+// 안드로이드에서 크롬이 아닌 브라우저(카톡 등)면 설치 페이지 링크를 크롬으로 바로 열기
+(() => {
+  const ua = navigator.userAgent;
+  if (!/Android/i.test(ua)) return;
+  if (navigator.usb && !/KAKAOTALK|NAVER|DaumApps|SamsungBrowser|Line\/|Instagram|FBAN|FBAV|FB_IAB|Whale|EdgA|OPR\/|Firefox|; wv\)|everytimeApp|BAND\//i.test(ua)) return;
+  const base = location.host + location.pathname.replace(/[^/]*$/, '');
+  document.querySelectorAll('a[data-install]').forEach(a => { a.href = 'intent://' + base + '#Intent;scheme=https;package=com.android.chrome;end'; });
+})();
 </script>
 </body>
 </html>
