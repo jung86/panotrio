@@ -1432,12 +1432,27 @@ $('tileFw').onclick = async () => {
 };
 const REPORT_KAKAO = 'https://qr.kakao.com/talk/KAoG3jvpyh58RB7NFy4KUi7kl2I-';   // maker's KakaoTalk profile
 $('tileReport').onclick = () => reportOpen();
-async function reportKakao() {                       // copy app/stick info first, then open the maker's KakaoTalk
+// [카톡으로 보내기]: the note + versions + stick ID + what went wrong, handed to the share sheet (pick KakaoTalk → the maker).
+// The stick ID in it is what the maker needs to answer with an activation link in the same chat. Also kept on the usage server.
+function reportText(memo) {
   const id = $('infoId') ? $('infoId').textContent : '', info = $('infoTxt') ? $('infoTxt').textContent : '';
-  const t = '[파노체크 오류·문의]\n내용: \n\n앱 ' + APP_BUILD + (info && info.indexOf('펌웨어') >= 0 ? '\n' + info : '') + (id && !id.startsWith('-') ? '\n스틱 ID ' + id : '') +
-    '\n' + (IOS ? '아이폰' : /Android/i.test(navigator.userAgent) ? '안드로이드' : 'PC') + (dps.link ? ' · ' + dpsName() + ' 연결' : '');
-  try { await navigator.clipboard.writeText(t); notify('앱 정보를 복사했습니다 · 카톡 대화창에 붙여넣고 내용을 적어 주세요', true); } catch (e) {}
-  setTimeout(() => { location.href = REPORT_KAKAO; }, 700);
+  const fw = (info.match(/펌웨어\s*[\d.]+/) || [''])[0];
+  let st = ''; try { st = errState().split('\n').filter(l => /^(스틱|전원공급기|화면):/.test(l)).join('\n'); } catch (e) {}
+  const recent = diagLog.slice(-6).map(l => '· ' + l).join('\n');
+  return '[파노체크 오류·문의]\n' + (memo ? '내용: ' + memo + '\n' : '내용: \n') +
+    '\n앱 ' + APP_BUILD + (fw ? ' · ' + fw : '') + (id && !id.startsWith('-') ? '\n스틱 ID ' + id : (() => { let l = null; try { l = JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) {} return l && l.id ? '\n스틱 ID ' + l.id.slice(0, 4) + '-' + l.id.slice(4) + ' (마지막 연결)' : '\n스틱 ID (연결 안 됨)'; })()) +
+    '\n' + (IOS ? '아이폰' : /Android/i.test(navigator.userAgent) ? '안드로이드' : 'PC') +
+    (errLastMsg ? '\n오류: ' + errLastMsg : '') + (st ? '\n' + st : '') + (recent ? '\n최근 메시지:\n' + recent : '');
+}
+async function reportKakaoSend(memo) {
+  const t = reportText(memo);
+  try { errSend('user', memo ? memo.split('\n')[0].slice(0, 120) : '카톡으로 보낸 문의', errState() + '\n\n최근 화면 메시지:\n' + diagLog.slice(-40).join('\n'), (memo ? memo + ' ' : '') + '(카톡)'); } catch (e) {}
+  // copy + open the maker's KakaoTalk profile (works even if they are not Kakao friends yet); share sheet only when copying is blocked
+  let copied = false; try { await navigator.clipboard.writeText(t); copied = true; } catch (e) {}
+  if (!copied && navigator.share) { try { await navigator.share({ text: t }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  if (!copied) await askText('아래 내용을 길게 눌러 복사한 뒤 확인을 누르세요. 카톡이 열리면 붙여 넣어 보내 주세요.', t);
+  else notify('내용을 복사했습니다 · 열리는 카톡 대화창에 붙여 넣어 보내 주세요', true);
+  setTimeout(() => { location.href = REPORT_KAKAO; }, copied ? 900 : 0);
 }
 if (location.hash === '#manual') history.replaceState(null, '', location.pathname + '#home');
 $('btnHome').onclick = goHome;
@@ -1755,7 +1770,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27f';
+const APP_BUILD = '2026-11-27g';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1823,11 +1838,12 @@ function errSend(k, msg, detail, memo) {
     return fetch(USAGE_URL + '/e', { method: 'POST', body, keepalive: body.length < 60000, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).then(r => r.ok).catch(() => false);
   } catch (e) { return Promise.resolve(false); }
 }
+var errLastMsg = '';
 function errAuto(msg, err) {
   try {
     msg = String(msg || '').replace(/\s+/g, ' ').slice(0, 300);
     if (!msg || errSentMsg[msg] || errAutoN >= 10) return;
-    errSentMsg[msg] = 1; errAutoN++;
+    errSentMsg[msg] = 1; errAutoN++; errLastMsg = msg;
     diag('오류: ' + msg);
     const where = err && err.stack ? String(err.stack).slice(0, 3000) : '';
     errSend('auto', msg, (where ? '위치:\n' + where + '\n\n' : '') + errState() + '\n\n최근 화면 메시지:\n' + diagLog.slice(-25).join('\n'));
@@ -1850,13 +1866,14 @@ function reportOpen() {                              // [문제 보내기]: a sh
     '<div style="color:#8d8d93;font-size:14px;text-align:center;margin:4px 0 12px">어떤 문제가 있었는지 짧게 적어 주세요. 앱 상태와 함께 제작자에게 보냅니다.</div>' +
     '<textarea id="repMemo" maxlength="500" placeholder="예: 측정 중에 스틱 연결이 자꾸 끊겨요" style="width:100%;height:96px;font:15px/1.4 Pretendard,system-ui;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#f1f1f1;resize:vertical"></textarea>' +
     '<button id="repSend" class="primary" style="width:100%;margin-top:10px">보내기</button>' +
-    '<div style="display:flex;gap:8px;margin-top:8px"><button id="repKakao" style="flex:1">카톡으로 문의</button><button id="repClose" style="flex:1">닫기</button></div>' +
+    '<button id="repKakao" style="width:100%;margin-top:8px;font-weight:700">카톡으로 보내기</button>' +
+    '<button id="repClose" style="width:100%;margin-top:8px">닫기</button>' +
     '<div style="font-size:12px;color:#8d8d93;margin-top:12px;text-align:center;line-height:1.5">앱·펌웨어 버전, 스틱 ID, 연결 상태, 최근 측정과 화면 메시지가 함께 전송되며, 관리자만 확인할 수 있어요.</div></div>';
   document.body.appendChild(ov);
   const close = () => ov.remove();
   ov.onclick = e => { if (e.target === ov) close(); };
   $('repClose').onclick = close;
-  $('repKakao').onclick = () => { close(); reportKakao(); };
+  $('repKakao').onclick = async () => { const memo = $('repMemo').value.trim(); close(); await reportKakaoSend(memo); };
   $('repSend').onclick = async () => {
     const memo = $('repMemo').value.trim();
     $('repSend').disabled = true; $('repSend').textContent = '보내는 중…';
