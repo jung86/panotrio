@@ -393,6 +393,7 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
   <h1>파노체크</h1>
   <span id="homeConn" class="pill">스틱 연결 안 됨</span>
   <button id="btnConnect2" class="primary" style="margin-top:14px">스틱 연결 (블루투스)</button>
+  <button id="errBadge" style="display:none;margin-top:12px;width:100%;padding:12px;font-weight:700;background:#2a1012;border:1px solid #e03131;color:#ff8787;border-radius:4px"></button>
   <div id="fwBox" style="display:none;margin-top:14px;background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
   <div class="tiles">
     <div class="tile" id="tileMeasure" role="button">
@@ -1742,7 +1743,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27c';
+const APP_BUILD = '2026-11-27d';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -3484,17 +3485,47 @@ function pplErrText(e) {
     (e.cnt > 1 ? ' ~ ' + new Date(e.t).toLocaleString('ko-KR') + ' (' + e.cnt + '회)' : '') + '\n앱 ' + (e.app || '-') + ' · 펌웨어 ' + (e.fw || '-') + ' · ' + (e.hw === 'P2' ? 'Plus2' : 'S3') + ' · ' + (e.plat || '-') +
     '\n종류: ' + (e.k === 'user' ? '사용자가 보냄' : '자동 보고') + (e.memo ? '\n사용자 메모: ' + e.memo : '') + '\n내용: ' + e.msg + (e.detail ? '\n\n자세히:\n' + e.detail : '');
 }
-function pplErrRender(list, H) {                     // maker's phone: newest error reports not marked done, with [복사] for Claude
+// Maker's phone only: a red 「새 오류 N건」 button on home when error reports are waiting (not marked 해결).
+var errBadgeAt = 0;
+function errBadgeShow(n) {
+  const b = $('errBadge'); if (!b) return;
+  b.style.display = n > 0 ? '' : 'none'; b.textContent = '새 오류 ' + n + '건 · 확인하기';
+}
+async function errBadgeCheck(force) {
+  if (!USAGE_URL || (!force && Date.now() - errBadgeAt < 5 * 60e3)) return;
+  errBadgeAt = Date.now();
+  if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
+  if (!admKey) { errBadgeShow(0); return; }
+  try {
+    const pass = await usagePass(); if (!pass) return;
+    const r = await fetch(USAGE_URL + '/api/errors', { headers: { Authorization: 'Sig ' + pass }, cache: 'no-store' });
+    if (r.ok) errBadgeShow(((await r.json()).errors || []).filter(e => !e.done).length);
+  } catch (e) {}
+}
+$('errBadge').onclick = () => { location.hash = '#admin'; setTimeout(() => { const el = $('pplErr'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 900); };
+setTimeout(() => errBadgeCheck(true), 4000);
+setInterval(() => { if (document.visibilityState === 'visible') errBadgeCheck(); }, 10 * 60e3);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(errBadgeCheck, 1500); });
+function pplErrRender(list, H, tgs) {                // maker's phone: newest error reports not marked done, with [복사] for Claude
   const open = list.filter(e => !e.done).slice(0, 15);
-  $('pplErr').innerHTML = '<div style="font-weight:700;margin-bottom:4px">오류 <span class="help" style="margin:0">' + (open.length ? '안 본 것 ' + list.filter(e => !e.done).length + '개' : '새 오류 없음') + '</span></div>' +
+  errBadgeShow(list.filter(e => !e.done).length);
+  tgs = tgs || {};
+  const tgLine = '<div class="help" style="margin:0 0 6px">텔레그램 알림: ' + (!tgs.token ? '꺼짐 (서버 설정 필요)' : tgs.chat ? '켜짐' : '봇에게 아무 말이나 보낸 뒤 <button data-ea="tg" style="padding:4px 10px">텔레그램 연결</button>') + '</div>';
+  $('pplErr').innerHTML = '<div style="font-weight:700;margin-bottom:4px">오류 <span class="help" style="margin:0">' + (open.length ? '안 본 것 ' + list.filter(e => !e.done).length + '개' : '새 오류 없음') + '</span></div>' + tgLine +
     open.map(e => `<div class="row" data-n="${e.n}" style="grid-template-columns:1fr auto"><div style="min-width:0"><div class="meta">${esc(e.name || (e.stick === 'NOSTICK' ? '스틱 없음' : fmtId(e.stick)))} · ${pplAgo(e.t)} · 앱 ${esc((e.app || '-').replace(/^\d{4}-/, ''))} · 펌웨어 ${esc(e.fw || '-')} · ${e.k === 'user' ? '사용자' : '자동'}${e.cnt > 1 ? ' · ' + e.cnt + '회' : ''}</div>
       <div style="font-weight:700;word-break:break-all">${esc(e.msg)}</div>${e.memo && e.memo !== e.msg ? '<div class="meta" style="color:var(--ink)">' + esc(e.memo) + '</div>' : ''}</div>
       <div class="acts"><button data-ea="copy">복사</button><button data-ea="done">해결</button></div></div>`).join('');
   $('pplErr').onclick = async ev => {
-    const b = ev.target.closest('button'), row = ev.target.closest('.row'); if (!b || !row) return;
+    const b = ev.target.closest('button'), row = ev.target.closest('.row');
+    if (b && b.dataset.ea === 'tg') {
+      try { const r = await (await fetch(USAGE_URL + '/api/tg/link', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: '{}' })).json();
+        notify(r.ok ? '텔레그램 알림을 연결했습니다' : r.error === 'nomsg' ? '텔레그램에서 봇에게 먼저 아무 말이나 보내 주세요' : '연결하지 못했습니다', !!r.ok); if (r.ok) pplErrRender(list, H, { token: true, chat: true }); } catch (x) { notify('연결하지 못했습니다 (인터넷 확인)', false); }
+      return;
+    }
+    if (!b || !row) return;
     const e = list.find(x => x.n == row.dataset.n); if (!e) return;
     if (b.dataset.ea === 'copy') { const t = pplErrText(e); try { await navigator.clipboard.writeText(t); notify('오류 내용을 복사했습니다 · Claude에게 붙여 넣으세요', true); } catch (x) { await askText('이 내용을 복사하세요', t); } }
-    else { try { await fetch(USAGE_URL + '/api/errors/done', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: JSON.stringify({ id: e.n, done: true }) }); e.done = 1; pplErrRender(list, H); } catch (x) { notify('표시하지 못했습니다 (인터넷 확인)', false); } }
+    else { try { await fetch(USAGE_URL + '/api/errors/done', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: JSON.stringify({ id: e.n, done: true }) }); e.done = 1; pplErrRender(list, H, tgs); } catch (x) { notify('표시하지 못했습니다 (인터넷 확인)', false); } }
   };
 }
 async function pplUsageFetch(force) {
@@ -3515,7 +3546,7 @@ async function pplUsageFetch(force) {
       try { fwS3 = fwLatest ? fwLatest.ver : (await (await fetch('fw/latest.json', { cache: 'no-cache' })).json()).ver; } catch (e) {}
       try { const q = await fetch('fw/latest-plus2.json', { cache: 'no-cache' }); if (q.ok) fwP2 = (await q.json()).ver; } catch (e) {}
       pplUse = { sticks: m, fwS3, fwP2 }; pplUseErr = ''; pplUseAt = Date.now();
-      try { const q = await fetch(USAGE_URL + '/api/errors', { headers: H, cache: 'no-store' }); if (q.ok) pplErrRender((await q.json()).errors || [], H); } catch (e) {}
+      try { const q = await fetch(USAGE_URL + '/api/errors', { headers: H, cache: 'no-store' }); if (q.ok) { const d = await q.json(); pplErrRender(d.errors || [], H, d.tg); } } catch (e) {}
     } else pplUseErr = '사용 현황을 읽지 못했습니다 (' + r.status + ')';
   } catch (e) { pplUseErr = '사용 현황을 읽지 못했습니다 (인터넷 확인)'; }
   pplUseBusy = false;
