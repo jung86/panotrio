@@ -513,7 +513,8 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div class="prow" style="margin-top:4px"><input id="pplQ" type="search" placeholder="이름 또는 스틱 ID 검색" style="flex:1;min-width:0;font:600 15px Pretendard,system-ui;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:var(--ink)"><button id="btnPplAdd">＋ 직접 추가</button></div>
     <div id="pplList" class="ppl"></div>
     <div class="tools" style="margin-top:10px"><button id="btnPplExport">⬇ 내보내기</button><button id="btnPplImport">⬆ 가져오기</button><button id="btnPplSync">↻ 새로고침</button></div>
-    <button id="btnPplUsage" style="width:100%;margin-top:8px">사용 현황 보기</button>
+    <div class="tools" style="margin-top:8px"><button id="btnPplUsage" style="flex:2">사용 현황 보기</button><button id="btnPplUsageKey" style="flex:1">버전 표시 켜기</button></div>
+    <div id="pplUsageMsg" class="help" style="margin-top:4px"></div>
     <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
     <div class="help" style="margin-top:6px">링크를 만들 때마다 여기에 자동으로 기록됩니다. 목록은 이 휴대폰에만 저장되니 가끔 내보내기로 백업하세요.</div>
   </div>
@@ -1735,7 +1736,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26y';
+const APP_BUILD = '2026-11-26z';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -3387,9 +3388,53 @@ function pplStatus(e, id) {                          // from the GitHub removal 
   if (lv > 0) return ['re', '다시 허락'];
   return ['ok', '허락'];
 }
+// app / firmware version and last use of each person, from the usage server (needs its admin password, kept on this phone only)
+var PPL_UKEY = 'panocheck-usage-admin', pplUse = null, pplUseAt = 0, pplUseBusy = false, pplUseErr = '';
+function pplUsageKey() { try { return localStorage.getItem(PPL_UKEY) || ''; } catch (e) { return ''; } }
+function pplAgo(t) { const m = Math.floor((Date.now() - t) / 60000); if (m < 1) return '방금'; if (m < 60) return m + '분 전'; const h = Math.floor(m / 60); if (h < 24) return h + '시간 전'; return Math.floor(h / 24) + '일 전'; }
+function pplUsageLine(id) {
+  if (!pplUse) return '';
+  const u = pplUse.sticks[id];
+  if (!u) return '<div class="meta" style="color:var(--mute)">사용 기록 없음</div>';
+  const fwNew = u.hw === 'P2' ? pplUse.fwP2 : pplUse.fwS3, old = 'color:var(--accent,#f76707)';
+  const app = u.app ? '앱 ' + esc(u.app.replace(/^\d{4}-/, '')) : '앱 -', fw = '펌웨어 ' + esc(u.fw || '-');
+  return '<div class="meta" style="color:var(--ink)">' + (u.app && u.app < APP_BUILD ? `<span style="${old}">${app}</span>` : app) + ' · ' +
+    (fwNew && u.fw && u.fw !== fwNew ? `<span style="${old}">${fw}</span>` : fw) + ' · ' + pplAgo(u.last_seen) + '</div>';
+}
+async function pplUsageFetch(force) {
+  const k = pplUsageKey();
+  $('btnPplUsageKey').textContent = k ? '버전 표시 끄기' : '버전 표시 켜기';
+  if (!k || !USAGE_URL || pplUseBusy || (!force && Date.now() - pplUseAt < 60000)) return;
+  pplUseBusy = true;
+  try {
+    const H = { Authorization: 'Bearer ' + k };
+    try {                                            // keep the server's name list the same as this phone's
+      const o = pplAll(), list = Object.keys(o).map(id => { let st = 'ok'; try { st = pplStatus(o[id], id)[0]; } catch (e) {} return [id, (o[id].name || '').slice(0, 30), st, o[id].made || 0]; });
+      await fetch(USAGE_URL + '/api/people', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: JSON.stringify({ people: list }) });
+    } catch (e) {}
+    const r = await fetch(USAGE_URL + '/api/sticks', { headers: H, cache: 'no-store' });
+    if (r.status === 401) { pplUseErr = '사용 현황 비밀번호가 맞지 않습니다'; pplUse = null; try { localStorage.removeItem(PPL_UKEY); } catch (e) {} }
+    else if (r.ok) {
+      const d = await r.json(), m = {}; (d.sticks || []).forEach(x => m[x.id] = x);
+      let fwS3 = '', fwP2 = '';
+      try { fwS3 = fwLatest ? fwLatest.ver : (await (await fetch('fw/latest.json', { cache: 'no-cache' })).json()).ver; } catch (e) {}
+      try { const q = await fetch('fw/latest-plus2.json', { cache: 'no-cache' }); if (q.ok) fwP2 = (await q.json()).ver; } catch (e) {}
+      pplUse = { sticks: m, fwS3, fwP2 }; pplUseErr = ''; pplUseAt = Date.now();
+    } else pplUseErr = '사용 현황을 읽지 못했습니다 (' + r.status + ')';
+  } catch (e) { pplUseErr = '사용 현황을 읽지 못했습니다 (인터넷 확인)'; }
+  pplUseBusy = false;
+  $('pplUsageMsg').textContent = pplUseErr || (pplUse ? '버전·마지막 사용은 사용 현황 서버에서 읽었습니다 · 주황은 최신이 아닌 버전' : '');
+  if (pplUse || pplUseErr) pplRender();
+}
+$('btnPplUsageKey').onclick = async () => {
+  if (pplUsageKey()) { try { localStorage.removeItem(PPL_UKEY); } catch (e) {} pplUse = null; $('pplUsageMsg').textContent = ''; pplUsageFetch(); pplRender(); return; }
+  const k = await askText('사용 현황 비밀번호 (이 휴대폰에만 저장)', ''); if (!k || !k.trim()) return;
+  try { localStorage.setItem(PPL_UKEY, k.trim()); } catch (e) {}
+  await pplUsageFetch(true);
+};
 async function pplRender(fetchList) {
   if (!$('pplList')) return;
-  if (fetchList) { await loadRvkList(true); }
+  if (fetchList) { await loadRvkList(true); pplUsageFetch(true); }
   const o = pplAll(), q = ($('pplQ').value || '').trim().toUpperCase().replace(/-/g, '');
   const ids = Object.keys(o).sort((a, b) => (o[b].made || 0) - (o[a].made || 0));
   const shown = ids.filter(id => !q || id.includes(q) || (o[id].name || '').toUpperCase().includes(q));
@@ -3401,7 +3446,7 @@ async function pplRender(fetchList) {
     const d = e.made ? new Date(e.made) : null;
     const when = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '';
     return `<div class="row" data-id="${id}"><div style="min-width:0"><div class="nm">${esc(e.name || '(이름 없음)')}<span class="pst ${cls}">${txt}</span></div>
-      <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div></div>
+      <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div>${pplUsageLine(id)}</div>
       <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">삭제</button></div></div>`;
   }).join('') : '<div class="help" style="padding:10px 0">' + (ids.length ? '검색 결과가 없습니다' : '아직 기록이 없습니다') + '</div>';
 }
