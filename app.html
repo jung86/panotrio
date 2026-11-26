@@ -513,6 +513,7 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div class="prow" style="margin-top:4px"><input id="pplQ" type="search" placeholder="이름 또는 스틱 ID 검색" style="flex:1;min-width:0;font:600 15px Pretendard,system-ui;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:var(--ink)"><button id="btnPplAdd">＋ 직접 추가</button></div>
     <div id="pplList" class="ppl"></div>
     <div class="tools" style="margin-top:10px"><button id="btnPplExport">⬇ 내보내기</button><button id="btnPplImport">⬆ 가져오기</button><button id="btnPplSync">↻ 새로고침</button></div>
+    <button id="btnPplUsage" style="width:100%;margin-top:8px">사용 현황 보기</button>
     <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
     <div class="help" style="margin-top:6px">링크를 만들 때마다 여기에 자동으로 기록됩니다. 목록은 이 휴대폰에만 저장되니 가끔 내보내기로 백업하세요.</div>
   </div>
@@ -1735,8 +1736,57 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26v';
+const APP_BUILD = '2026-11-26y';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
+// ---------------------------------------------------------------- usage record (for the maker only)
+// Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
+// (tools/usage-worker). Nothing personal. A failed send is ignored: it never stops the app.
+var USAGE_URL = 'https://panocheck-usage.panocheck.workers.dev';                                 // the Cloudflare worker address; empty = send nothing
+var usageLast = null, usageMetSticks = {}, usageMeasN = 0, usageMeasTimer = 0;
+function usagePlat() { return IOS ? 'iOS' : /Android/i.test(navigator.userAgent) ? 'Android' : 'PC'; }
+function usageSend(k, info, n) {
+  try {
+    if (!USAGE_URL || navigator.onLine === false) return;
+    const s = info || usageLast || {};
+    const body = JSON.stringify({ id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), k, n: n || 1 });
+    fetch(USAGE_URL + '/p', { method: 'POST', body, keepalive: true, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
+  } catch (e) {}
+}
+function usageAdminUrl() {                          // admin page; the admin phone's people list rides along in the # part (never sent to any server by the browser;
+  let h = '';                                        // the admin page uploads it only after the password is entered)
+  try {
+    const o = pplLoad();
+    if (o) {
+      const list = Object.keys(o).map(id => { let st = 'ok'; try { st = pplStatus(o[id], id)[0]; } catch (e) {} return [id, (o[id].name || '').slice(0, 30), st, o[id].made || 0]; });
+      h = '#p=' + btoa(unescape(encodeURIComponent(JSON.stringify(list)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+  } catch (e) {}
+  return USAGE_URL + '/admin' + h;
+}
+function usageStick(kv) {                            // fresh INFO from the stick: once per stick per app opening
+  try {
+    if (!kv.ID) return;
+    usageLast = { id: kv.ID, hw: kv.HW || 'S3', fw: kv.VER || '' };
+    try { localStorage.setItem('panocheck-usage-last', JSON.stringify(usageLast)); } catch (e) {}
+    if (usageMetSticks[kv.ID]) return;
+    usageMetSticks[kv.ID] = 1; usageSend('open');
+  } catch (e) {}
+}
+function usageMeas() {                               // one measurement saved: sent together within 10 s
+  try {
+    usageMeasN++;
+    if (usageMeasTimer) return;
+    usageMeasTimer = setTimeout(() => { const n = usageMeasN; usageMeasN = 0; usageMeasTimer = 0; usageSend('meas', null, n); }, 10000);
+  } catch (e) {}
+}
+setTimeout(() => {                                   // app opened but no stick connected in 20 s: count it for this phone's last stick
+  try {
+    if (Object.keys(usageMetSticks).length) return;
+    let last = null; try { last = JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) {}
+    usageMetSticks._open = 1; usageSend('open', last || { id: '' });
+  } catch (e) {}
+}, 20000);
+addEventListener('pagehide', () => { try { if (usageMeasN) { clearTimeout(usageMeasTimer); usageMeasTimer = 0; const n = usageMeasN; usageMeasN = 0; usageSend('meas', null, n); } } catch (e) {} });
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
   const fresh = Date.now() - lcFront < 15000 && document.visibilityState === 'visible';
@@ -1794,6 +1844,7 @@ function onInfo(dv, whole) {
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
   stickVer = kv.VER || ''; stickOta = kv.OTA === '1'; fwCheck();
   stickCnd = kv.CND === '1' || verNum(stickVer) >= 2004;      // stick can show the condition score (firmware 2.4+)
+  usageStick(kv);
 }
 
 // ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)
@@ -2039,7 +2090,7 @@ function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
   recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot(), condSnapshot()));
   if (recs.length > 500) recs.length = 500;
-  saveRecs(recs); renderRecs();
+  saveRecs(recs); renderRecs(); usageMeas();
 }
 
 // ---------------------------------------------------------------- view
@@ -2861,6 +2912,15 @@ if (!('usb' in navigator) && !('serial' in navigator)) {      // iPhone (Bluefy,
   $('btnDps').style.background = 'var(--grey)'; $('btnDps').style.borderColor = 'var(--grey)';
 }
 $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mode: standalone)').matches ? ' · 설치된 앱' : '');
+(() => {                                             // maker only: tap the version line 5 times quickly → usage admin page (password asked there)
+  let n = 0, t = 0;
+  $('appBuild').addEventListener('click', () => {
+    const now = Date.now(); n = now - t < 700 ? n + 1 : 1; t = now;
+    if (n < 5 || !USAGE_URL) return;
+    n = 0; const u = usageAdminUrl();
+    try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
+  });
+})();
 
 // ---------------------------------------------------------------- motor condition: current, rpm per volt, steadiness, forward/reverse
 // Compared with the selected motor's own records at about the same voltage (median of the earlier ones).
@@ -3025,7 +3085,7 @@ function ckFinish() {
   recs.unshift(Object.assign({ t: r.t, memo: '' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
     volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? (r.measBad ? { condBad: 1, measBad: 1 } : { condBad: 1 }) : { cond: r.score }));
   if (recs.length > 500) recs.length = 500;
-  saveRecs(recs); renderRecs();
+  saveRecs(recs); renderRecs(); usageMeas();
   ckShow(r); ckSendStick(r); ckRender();
 }
 async function ckSendStick(r) {                       // 'G' grade score hz*10 mA tag  (stick firmware 2.4+)
@@ -3385,6 +3445,12 @@ $('pplFile').onchange = async () => {
     for (const [id, e] of Object.entries(add)) { if (!/^[0-9A-F]{8}$/.test(id) || typeof e !== 'object') continue; o[id] = Object.assign({}, e, o[id] || {}); n++; }
     pplStore(o); pplRender(); notify(`${n}명을 가져왔습니다`, true);
   } catch (e) { notify('가져오지 못했습니다: ' + e.message, false); }
+};
+$('btnPplUsage').onclick = async () => {
+  if (!USAGE_URL) return;
+  try { await loadRvkList(true); } catch (e) {}
+  const u = usageAdminUrl();
+  try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
 };
 $('btnPplSync').onclick = async () => { await pplRender(true); notify(rvkList ? '취소 상태를 새로 확인했습니다' : '취소 목록을 읽지 못했습니다 (인터넷 확인)', !!rvkList); };
 

@@ -1,0 +1,10 @@
+name = "panocheck-usage"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "panocheck-usage"
+database_id = "dc9f4bd9-7c31-49cf-909e-9035af3644c4"
+
+# 관리자 비밀번호는 여기 쓰지 않음: npx wrangler secret put ADMIN_TOKEN
