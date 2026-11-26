@@ -121,7 +121,7 @@
     <h2>💻 스틱 펌웨어 설치·업데이트 (PC · 안드로이드폰)</h2>
     <p style="margin:4px 0">스틱을 USB-C로 PC에 꽂고, PC의 <b>크롬 또는 엣지</b>로 설치 페이지를 엽니다. 활성화는 업데이트해도 유지됩니다.</p>
     <p style="margin:4px 0"><b>📱 안드로이드폰</b>: 스틱을 USB-C 선(C-C 또는 OTG 젠더)으로 폰에 꽂고, 폰 크롬으로 설치 페이지를 열어 <b>[폰으로 설치]</b> → 스틱 선택 → 허용. 폰에 따라 안 될 수 있으며, 그럴 땐 PC로 설치하세요. 아이폰은 안 됩니다.</p>
-    <div class="btns"><a class="btn" href="./">펌웨어 설치 페이지</a></div>
+    <div class="btns"><a class="btn" href="./" data-install>펌웨어 설치 페이지</a></div>
   </section>
 
   <!-- ======================= COMPARE ======================= -->
@@ -188,6 +188,16 @@
     document.getElementById('iphone').classList.add('hl');
     if (!location.hash) setTimeout(() => document.getElementById('iphone').scrollIntoView({ behavior: 'smooth' }), 400);
   } else det.textContent = 'PC에서는 펌웨어 설치와 앱(크롬)을 쓸 수 있습니다';
+})();
+</script>
+<script>
+// 안드로이드에서 크롬이 아닌 브라우저(카톡 등)면 설치 페이지 링크를 크롬으로 바로 열기
+(() => {
+  const ua = navigator.userAgent;
+  if (!/Android/i.test(ua)) return;
+  if (navigator.usb && !/KAKAOTALK|NAVER|DaumApps|SamsungBrowser|Line\/|Instagram|FBAN|FBAV|FB_IAB|Whale|EdgA|OPR\/|Firefox|; wv\)|everytimeApp|BAND\//i.test(ua)) return;
+  const base = location.host + location.pathname.replace(/[^/]*$/, '');
+  document.querySelectorAll('a[data-install]').forEach(a => { a.href = 'intent://' + base + '#Intent;scheme=https;package=com.android.chrome;end'; });
 })();
 </script>
 </body>
