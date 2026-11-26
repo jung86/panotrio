@@ -1070,7 +1070,7 @@ async function sendTime() {                          // the stick's standby cloc
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   if (!lcParked && !lcClosed) notify('블루투스 연결 끊김', false); else $('conn').textContent = '쉬는 중 · 앱으로 돌아오면 다시 연결';
-  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; stickBtnSeq = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
 }
@@ -1794,24 +1794,6 @@ function onInfo(dv, whole) {
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
   stickVer = kv.VER || ''; stickOta = kv.OTA === '1'; fwCheck();
   stickCnd = kv.CND === '1' || verNum(stickVer) >= 2004;      // stick can show the condition score (firmware 2.4+)
-  if (kv.BTN !== undefined) {                                  // stick button event (firmware 2.7+): BTN=seq.kind
-    const [sq, k] = kv.BTN.split('.').map(Number);
-    if (stickBtnSeq !== null && sq !== stickBtnSeq) stickButton(k);
-    stickBtnSeq = sq;
-  }
-}
-// Stick buttons while connected (firmware 2.7+): A held 1 s = start / stop measuring, B held 1 s = forward / reverse
-var stickBtnSeq = null;
-function stickButton(k) {
-  if (k === 1) {
-    if (!$('ckTag')) return;
-    if (!dps.link) { notify('스틱 버튼: 전원공급기가 연결되어 있지 않습니다', false); ckSay('전원공급기를 연결하세요', 2); return; }
-    ckGo(ckTag);
-  } else if (k === 2) {
-    if (!relayReady()) { notify('스틱 버튼: 릴레이가 연결되어 있지 않습니다 (설정에서 켜기)', false); return; }
-    if (cl.run || cl.busy) { notify('모터클리닝·길들이기 실행 중에는 방향을 바꿀 수 없습니다', false); return; }
-    psuDir(stickDir === 1 ? 0 : 1);
-  }
 }
 
 // ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)

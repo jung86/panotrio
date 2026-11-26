@@ -1,8 +1,8 @@
 {
- "ver": "2.7",
- "size": 1055232,
- "sha256": "d7f7c49bd02e59dfcb0d14664eb551bd681310dc11cc928895dd337b74a93542",
- "sig": "CHpclpUHoPXEzAJj0Gt1mlMWf4RRtczQcP0FXDdwpR3qtRG2MqSofnAU400uQ4hSgsIybjeQ5hsE9SVU1S7xbw",
- "bin": "fw/PanoCheck-2.7.app.bin",
- "note": "스틱 버튼으로 조작: 앱 연결 중 A 1초 = 측정 시작/멈춤, B 1초 = 정·역"
+ "ver": "2.8",
+ "size": 1054880,
+ "sha256": "3d5ea392004c2885aab06dcd99c6455bed377a8cea9ed15325a1b40ab92cc39b",
+ "sig": "P-wqwwOu5n07NNPgyjheJE0mkSGdPJ8Lk8Q8-9qpZThq7NrMLEOx7EdRVize7awFaabdC1QC9KaprvpVvkWfsA",
+ "bin": "fw/PanoCheck-2.8.app.bin",
+ "note": "2.7의 스틱 버튼 기능을 빼고 2.6과 같은 조작으로 되돌림"
 }
