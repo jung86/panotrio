@@ -1027,6 +1027,12 @@ async function sendKey(cmd, k) { const ch = cmdChar; if (!ch) return; try { awai
 function lockedOut() { return !!(stickLock && stickLock.lck && !stickLock.unl); }
 let mySet = null;                                   // null until the first stick values are known or the user changes something
 try { mySet = JSON.parse(localStorage.getItem(MYSET_KEY) || 'null'); } catch (e) {}
+if (!mySet || typeof mySet !== 'object') mySet = null;
+var hadMySet = !!mySet, setEditedNow = false;   // setEditedNow: the user changed a setting since the app opened                              // false on a phone that never used the app: start from DEFAULTS
+// Sticks this app has set up once. The first time a stick connects, it gets the default settings (DEFAULTS), not
+// whatever happens to be stored on it. After that the stick's own stored values are shown as before.
+const SETINIT_KEY = 'panocheck-setinit';
+function setInitList() { let a = null; try { a = JSON.parse(localStorage.getItem(SETINIT_KEY) || 'null'); } catch (e) {} return Array.isArray(a) ? a : null; }
 function saveMySet() { try { localStorage.setItem(MYSET_KEY, JSON.stringify(mySet)); } catch (e) {} }
 function vmIndex(mg) { let best = 0; VM_STEPS.forEach((v, i) => { if (Math.abs(v - mg) < Math.abs(VM_STEPS[best] - mg)) best = i; }); return best; }
 function vmLabel(mg) { return mg + ' mg' + (mg <= 20 ? ' (민감)' : mg >= 120 ? ' (둔감)' : mg === 40 ? ' (기본)' : ''); }
@@ -1036,7 +1042,7 @@ function diffKeys() {                               // settings where the stick 
   return Object.keys(SET_IDS).filter(k => supported(k) && mySet[k] !== undefined && +mySet[k] !== +stickSet[k]);
 }
 function edit(k, v) {                               // the user changed a value (kept in the app until saved)
-  mySet = Object.assign({}, DEFAULTS, mySet || stickSet || {}, { [k]: v });
+  mySet = Object.assign({}, DEFAULTS, mySet || stickSet || {}, { [k]: v }); setEditedNow = true;
   saveMySet(); renderSettings();
 }
 function renderSettings() {
@@ -1120,12 +1126,25 @@ async function saveToStick(auto) {                 // send every setting, then r
   else notify('앱 설정을 스틱에 맞췄습니다', true);
   return !left.length;
 }
-function afterStickInfo() {                        // called whenever fresh stick values arrive
+function afterStickInfo(sid) {                     // called whenever fresh stick values arrive
   if (!stickSet) return;
   if (stickLock && stickLock.lck && !stickLock.unl) {
     if (!unlockTried) { unlockTried = true; sendKey('K', myKey); renderSettings(); return; }   // try this phone's key once
     syncOnConnect = false;                           // another phone's lock: do not touch the stick
     renderSettings(); return;
+  }
+  if (sid && (!mySet || syncOnConnect)) {           // first time this app meets this stick: default settings, always
+    let seen = setInitList();
+    if (!seen) seen = hadMySet ? [sid] : [];        // app used before this change: its stick keeps its own settings
+    const first = seen.indexOf(sid) < 0;
+    if (first) seen.push(sid);
+    try { localStorage.setItem(SETINIT_KEY, JSON.stringify(seen.slice(-20))); } catch (e) {}
+    if (first) {
+      mySet = Object.assign({}, DEFAULTS, setEditedNow && mySet || {}); saveMySet(); hadMySet = true;   // changes just made in the app are kept syncOnConnect = false;
+      renderSettings();
+      setTimeout(async () => { if (diffKeys().length && await saveToStick(true)) notify('처음 연결한 스틱이라 기본 설정으로 맞췄습니다', true); }, 300);
+      return;
+    }
   }
   if (!mySet || syncOnConnect) {                     // just connected: show what is stored on this stick
     const fromStick = {};
@@ -1601,7 +1620,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26n';
+const APP_BUILD = '2026-11-26o';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
@@ -1647,7 +1666,7 @@ function onInfo(dv, whole) {
   stickSet = parsed;
   stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
-  afterStickInfo();
+  afterStickInfo(kv.ID || (device && device.id) || '');
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
   renderSettings();
