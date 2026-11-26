@@ -1,5 +1,7 @@
 // 파노체크 사용 현황 기록 서버 (Cloudflare Worker + D1)
 //   POST /p          앱이 보내는 작은 기록 {id, hw, app, fw, plat, k:'open'|'meas', n}
+//   POST /e          오류 보고 {k:'auto'|'user', id, hw, app, fw, plat, msg, detail, memo}  (자동은 같은 오류를 하루 한 줄로 묶고 횟수만 셈)
+//   GET  /api/errors 오류 목록 · POST /api/errors/done {id, done} · POST /api/errors/delete {id}
 //   GET  /admin      관리자 화면 (비밀번호 입력)
 //   GET  /api/sticks 스틱별 현황 (Authorization: Bearer <ADMIN_TOKEN>)
 //   POST /api/note   스틱 메모 {id, note}  (같은 인증)
@@ -64,6 +66,37 @@ async function ping(req, env) {
   return new Response('', { status: 204, headers: h });
 }
 
+let errorsReady = false;
+async function errorsTable(env) {
+  if (errorsReady) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS errors (n INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER, first INTEGER, stick TEXT, hw TEXT, app TEXT, fw TEXT, plat TEXT,
+    k TEXT, msg TEXT, detail TEXT, memo TEXT, cnt INTEGER DEFAULT 1, done INTEGER DEFAULT 0)`).run();
+  errorsReady = true;
+}
+const txt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, n);
+async function errReport(req, env) {
+  const h = cors(req);
+  if (!h['Access-Control-Allow-Origin'] && req.headers.get('Origin')) return new Response('', { status: 403 });
+  const raw = await req.text(); if (raw.length > 40000) return new Response('', { status: 413, headers: h });
+  let b; try { b = JSON.parse(raw); } catch (e) { return new Response('', { status: 400, headers: h }); }
+  await errorsTable(env);
+  let id = clip(b.id, 16).toUpperCase(); if (!/^[0-9A-F]{8,16}$/.test(id)) id = 'NOSTICK';
+  const k = b.k === 'user' ? 'user' : 'auto', now = Date.now(), msg = txt(b.msg, 300) || '(내용 없음)';
+  const day = await env.DB.prepare('SELECT COUNT(*) AS c FROM errors WHERE stick = ?1 AND t > ?2').bind(id, now - 864e5).first();
+  if (day && day.c >= (k === 'user' ? 40 : 60)) return new Response('', { status: 429, headers: h });   // one phone cannot flood it
+  const app = clip(b.app, 24), vals = [now, id, clip(b.hw, 8), app, clip(b.fw, 12), clip(b.plat, 8), k, msg, txt(b.detail, 12000), txt(b.memo, 500)];
+  if (k === 'auto') {                                // same error again within a day: count it on the same line
+    const same = await env.DB.prepare('SELECT n FROM errors WHERE k = \'auto\' AND stick = ?1 AND msg = ?2 AND app = ?3 AND t > ?4 ORDER BY n DESC LIMIT 1').bind(id, msg, app, now - 864e5).first();
+    if (same) { await env.DB.prepare('UPDATE errors SET cnt = cnt + 1, t = ?2, done = 0 WHERE n = ?1').bind(same.n, now).run(); return new Response('', { status: 204, headers: h }); }
+  }
+  await env.DB.prepare('INSERT INTO errors (t, first, stick, hw, app, fw, plat, k, msg, detail, memo) VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)').bind(...vals).run();
+  return new Response('', { status: 204, headers: h });
+}
+async function errList(env) {
+  await errorsTable(env); await peopleTable(env);
+  const r = await env.DB.prepare('SELECT e.*, p.name AS name FROM errors e LEFT JOIN people p ON p.id = e.stick ORDER BY e.t DESC LIMIT 200').all();
+  return json({ now: Date.now(), errors: r.results || [] });
+}
 let peopleReady = false;
 async function peopleTable(env) {                    // made on first use, so no separate migration step
   if (peopleReady) return;
@@ -101,11 +134,15 @@ async function route(req, env) {
     try {
       if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' } });
       if (p === '/p' && req.method === 'POST') return await ping(req, env);
+      if (p === '/e' && req.method === 'POST') return await errReport(req, env);
       if (p === '/admin' || p === '/') return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
       if (p.startsWith('/api/')) {
         if (!(await authed(req, env))) return json({ error: 'auth' }, 401);
         if (p === '/api/sticks' && req.method === 'GET') return await sticks(env);
         if (p === '/api/people' && req.method === 'POST') return await setPeople(req, env);
+        if (p === '/api/errors' && req.method === 'GET') return await errList(env);
+        if (p === '/api/errors/done' && req.method === 'POST') { const b = await req.json(); await errorsTable(env); await env.DB.prepare('UPDATE errors SET done = ?2 WHERE n = ?1').bind(+b.id || 0, b.done ? 1 : 0).run(); return json({ ok: true }); }
+        if (p === '/api/errors/delete' && req.method === 'POST') { const b = await req.json(); await errorsTable(env); await env.DB.prepare('DELETE FROM errors WHERE n = ?1').bind(+b.id || 0).run(); return json({ ok: true }); }
         if (p === '/api/note' && req.method === 'POST') {
           const b = await req.json();
           const note = String(b.note || '').replace(/[<>]/g, '').slice(0, 60);
@@ -152,6 +189,9 @@ button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);c
 .old{color:var(--acc)}.on{color:#69db7c}.none{color:var(--mute)}
 .note{border:0;background:transparent;padding:2px 0;width:100%;color:var(--fg);border-bottom:1px dashed var(--line);border-radius:0;font-weight:700}
 .del{padding:2px 8px;font-size:12px;margin-top:4px}
+.err{padding:10px 0;border-bottom:1px solid var(--line)}.err:last-child{border-bottom:0}.err.done{opacity:.5}
+.err .em{font-weight:700;margin:3px 0;word-break:break-all}.err pre{white-space:pre-wrap;word-break:break-all;font:12px/1.4 ui-monospace,Consolas,monospace;background:#0e0e10;border:1px solid var(--line);border-radius:4px;padding:8px;max-height:320px;overflow:auto;display:none}
+.err .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.err .acts button{padding:4px 10px;font-size:13px}
 #msg{margin-bottom:10px}
 </style></head><body><main>
 <h1>파노체크 사용 현황</h1>
@@ -164,6 +204,9 @@ button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);c
 <div class="card"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap"><div style="flex:1;min-width:160px" class="mute" id="latest"></div><button id="re">새로 고침</button><button id="out">잠그기</button></div>
 <div id="list"></div>
 <div class="mute" style="margin-top:10px">이름은 앱의 「허락한 사람」 목록에서 옵니다(앱 관리자 화면의 [사용 현황 보기]로 열면 맞춰짐). 주황 글씨는 최신이 아닌 버전입니다. 목록에 없는 스틱은 이름 칸에 직접 메모할 수 있습니다.</div></div>
+<div class="card" id="errCard"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="flex:1">오류 <span class="mute" id="errCount"></span></b><label class="mute"><input type="checkbox" id="errAll" style="vertical-align:-2px"> 해결한 것도 보기</label></div>
+<div id="errList"></div>
+<div class="mute" style="margin-top:8px">[복사]를 누르면 오류 내용이 통째로 복사됩니다. Claude에게 붙여 넣으면 고칠 수 있습니다.</div></div>
 </div></main>
 <script>
 const $=id=>document.getElementById(id);let tk='';try{tk=localStorage.getItem('pc-admin')||''}catch(e){}
@@ -206,10 +249,26 @@ async function load(){
       '<div><div class="'+(appOld?'old':'')+'">앱 '+esc(s.app||'-')+'</div><div class="'+(fwOld?'old':'')+'">펌웨어 '+esc(s.fw||'-')+'</div><div class="mute">30일 중 '+(s.days30||0)+'일 사용</div>'+(p?'':'<button class="del" data-del="'+esc(id)+'">기록 삭제</button>')+'</div></div>'}).join('')||'<div class="mute">아직 기록이 없습니다</div>';
   document.querySelectorAll('.note').forEach(i=>i.onchange=async()=>{try{await api('/api/note',{id:i.dataset.id,note:i.value});i.style.borderBottomColor='#69db7c'}catch(e){i.style.borderBottomColor='#ff6b6b'}});
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm(b.dataset.del+' 기록을 지울까요?'))return;await api('/api/delete',{id:b.dataset.del});load()});
+  loadErrors();
+}
+let errs=[];
+function errText(e){return '[파노체크 오류 #'+e.n+']\\n사람: '+(e.name||'-')+' ('+(e.stick==='NOSTICK'?'스틱 없음':fid(e.stick))+')\\n시각: '+new Date(e.first).toLocaleString('ko-KR')+(e.cnt>1?' ~ '+new Date(e.t).toLocaleString('ko-KR')+' ('+e.cnt+'회)':'')+'\\n앱 '+(e.app||'-')+' · 펌웨어 '+(e.fw||'-')+' · '+(e.hw==='P2'?'Plus2':'S3')+' · '+(e.plat||'-')+'\\n종류: '+(e.k==='user'?'사용자가 보냄':'자동 보고')+(e.memo?'\\n사용자 메모: '+e.memo:'')+'\\n내용: '+e.msg+(e.detail?'\\n\\n자세히:\\n'+e.detail:'')}
+async function loadErrors(){
+  let d;try{d=await api('/api/errors')}catch(e){$('errList').innerHTML='<div class="mute">오류 목록을 읽지 못했습니다</div>';return}
+  errs=d.errors||[];const all=$('errAll').checked,open=errs.filter(e=>!e.done).length,shown=errs.filter(e=>all||!e.done);
+  $('errCount').textContent=open?'· 안 본 것 '+open+'개':'· 새 오류 없음';
+  $('errList').innerHTML=shown.map(e=>'<div class="err'+(e.done?' done':'')+'"><div class="mute">'+esc(e.name||(e.stick==='NOSTICK'?'스틱 없음':fid(e.stick)))+' · '+ago(e.t,d.now)+' · 앱 '+esc((e.app||'-').replace(/^\\d{4}-/,''))+' · 펌웨어 '+esc(e.fw||'-')+'<span class="tag'+(e.k==='user'?' no':'')+'">'+(e.k==='user'?'사용자':'자동')+'</span>'+(e.cnt>1?'<span class="tag">'+e.cnt+'회</span>':'')+'</div>'+
+    '<div class="em">'+esc(e.msg)+'</div>'+(e.memo?'<div>메모: '+esc(e.memo)+'</div>':'')+'<pre id="ed'+e.n+'">'+esc(errText(e))+'</pre>'+
+    '<div class="acts"><button data-ecopy="'+e.n+'" class="pri">복사</button><button data-emore="'+e.n+'">자세히</button><button data-edone="'+e.n+'">'+(e.done?'다시 열기':'해결')+'</button><button data-edel="'+e.n+'">삭제</button></div></div>').join('')||'<div class="mute">'+(errs.length?'해결 안 된 오류가 없습니다':'아직 오류 보고가 없습니다')+'</div>';
+  const byN=n=>errs.find(e=>e.n==n);
+  document.querySelectorAll('[data-ecopy]').forEach(b=>b.onclick=async()=>{const t=errText(byN(b.dataset.ecopy));try{await navigator.clipboard.writeText(t);b.textContent='복사됨'}catch(e){const p=$('ed'+b.dataset.ecopy);p.style.display='block';const r=document.createRange();r.selectNodeContents(p);getSelection().removeAllRanges();getSelection().addRange(r);b.textContent='길게 눌러 복사'}});
+  document.querySelectorAll('[data-emore]').forEach(b=>b.onclick=()=>{const p=$('ed'+b.dataset.emore);p.style.display=p.style.display==='block'?'none':'block'});
+  document.querySelectorAll('[data-edone]').forEach(b=>b.onclick=async()=>{const e=byN(b.dataset.edone);await api('/api/errors/done',{id:e.n,done:!e.done});loadErrors()});
+  document.querySelectorAll('[data-edel]').forEach(b=>b.onclick=async()=>{if(!confirm('이 오류를 지울까요?'))return;await api('/api/errors/delete',{id:+b.dataset.edel});loadErrors()});
 }
 function show(on){$('login').style.display=on?'none':'';$('view').style.display=on?'':'none'}
 $('f').onsubmit=e=>{e.preventDefault();tk=$('tk').value.trim();try{localStorage.setItem('pc-admin',tk)}catch(_){};$('err').textContent='';load()};
-$('re').onclick=load;$('out').onclick=()=>{tk='';try{localStorage.removeItem('pc-admin')}catch(_){};show(false)};
+$('re').onclick=load;$('errAll').onchange=loadErrors;$('out').onclick=()=>{tk='';try{localStorage.removeItem('pc-admin')}catch(_){};show(false)};
 if(pending&&!tk)$('err').textContent='비밀번호를 넣으면 앱의 허락 목록('+pending.length+'명)을 맞춥니다';
 loadLatest().then(()=>{if(tk)load()});
 </script></body></html>`;
