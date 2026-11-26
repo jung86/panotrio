@@ -12,7 +12,7 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.endsWith('.bin')) return;   // firmware files: never cached
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.endsWith('.bin') || url.pathname.endsWith('.mp4')) return;   // firmware and guide videos: never cached (videos stream in parts)
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {

@@ -1,0 +1,32 @@
+// 1. 스틱 연결 · 파노 측정
+const { open } = require('./lib');
+module.exports = async () => {
+  const S = await open('s1', { seed: { 'panotrio-motors': JSON.stringify(['하이퍼대시3 #1']), 'panotrio-motor': '하이퍼대시3 #1' } });
+  const p = S.p;
+  await S.wait(2300); S.mark('start');
+  await S.cap('스틱 연결과 파노 측정', '스틱을 켜고 휴대폰 블루투스·위치를 켜 둡니다'); await S.wait(2800);
+  await S.cap('① [스틱 연결 (블루투스)]를 누릅니다'); await S.wait(900);
+  await S.tap('#btnConnect2', 900);
+  await S.cap('② 목록에서 파노체크-(스틱 ID)를 고르고', '[페어링]을 누릅니다'); await S.wait(1200);
+  await S.tap('.__pick .i', 600); await S.tap('.__pick .p', 1600);
+  await S.cap('연결되면 "연결됨"으로 바뀝니다', '다음부터는 앱을 열면 저절로 연결됩니다'); await S.wait(2800);
+  await S.cap('③ [파노측정]을 누릅니다'); await S.wait(700);
+  await S.tap('#tileMeasure', 1200);
+  await S.cap('④ 스틱을 메인터넌스에 물리고 모터를 돌립니다', '진동·소리로 자동으로 잽니다'); await S.wait(1500);
+  await p.evaluate(() => { SIM.vset = 2.0; SIM.out = true; });
+  await S.wait(3500);
+  await S.cap('큰 숫자가 파노(Hz), 아래가 rpm', '진동·소리 값이 서로 맞으면 MATCH(초록)'); await S.wait(4000);
+  await S.cap('확실한 결과는 고른 모터로 자동 기록됩니다'); await S.wait(600);
+  await S.scrollTo('#motorSel', 'start'); await S.wait(3200);
+  await S.cap('모터가 멈추면 마지막 값이 남습니다 (HOLD)');
+  await S.scrollTo('#bigCard', 'start');
+  await p.evaluate(() => { SIM.out = false; }); await S.wait(3500);
+  await S.cap('느린 모터는 범위를 LOW로', '값이 2배로 나오면 LOW를 고르세요'); await S.wait(500);
+  await S.scrollTo('#segRange', 'center');
+  await S.tap('#segRange button[data-v="1"]', 2200);
+  await S.tap('#segRange button[data-v="0"]', 1200);
+  await S.cap('[↺ 측정 초기화]: 지난 결과를 지우고 다시 대기'); await S.wait(500);
+  await S.tap('#btnReset', 2500);
+  await S.cap(''); await S.wait(500); S.mark('end');
+  return S;
+};
