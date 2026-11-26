@@ -4,5 +4,6 @@
  "sha256": "ec47a59e3a4488742981b201bb78981cc9c7332565905bfac20be532c2464e39",
  "sig": "EQg2JMa5wvh1a3_IKsZdXA2V8kBYtONO9LURE3LfBDwpNo12HeX4t0I7S1XAQ3LaADLfsB-7PfzfI_4Q8EnVhA",
  "bin": "fw/PanoCheck-2.9.app.bin",
- "note": "진동+마이크 모드: 파노가 조금(약 ±7%) 흔들려도 다시 재지 않음"
+ "note": "진동+마이크 모드: 파노가 조금(약 ±7%) 흔들려도 다시 재지 않음",
+ "min": "2.9"
 }
