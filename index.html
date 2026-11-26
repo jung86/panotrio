@@ -49,26 +49,27 @@
       <h2 style="margin:0 0 6px">📱 폰으로 설치 (안드로이드)</h2>
       <ol style="margin:4px 0 12px">
         <li>스틱을 <b>USB-C 선</b>으로 폰에 꽂습니다. (C-C 선, 또는 OTG 젠더)</li>
-        <li>아래 <b>[폰으로 설치]</b> → 목록에서 스틱(USB JTAG/serial 또는 ESP32-S3) 선택 → <b>허용</b>.</li>
-        <li>약 1분 기다립니다. 끝날 때까지 선을 빼지 마세요.</li>
+        <li>스틱 <b>옆면 전원 버튼을 약 2초</b> 누르고, 스틱 안의 <b>초록 불이 깜빡이면</b> 손을 뗍니다. (설치 모드, 화면은 꺼져도 됩니다)</li>
+        <li>아래 <b>[폰으로 설치]</b> → 목록에서 스틱(USB JTAG/serial) 선택 → <b>허용</b>.</li>
+        <li>"✅ 설치 끝"이 나오면 선을 빼고 <b>전원 버튼을 한 번</b> 눌러 켭니다.</li>
       </ol>
       <button id="btnPhone" style="display:block;width:100%">폰으로 설치</button>
       <div id="phBar" style="display:none;margin-top:12px;height:14px;border-radius:7px;background:var(--line);overflow:hidden"><div id="phFill" style="height:100%;width:0;background:var(--acc);transition:width .2s"></div></div>
       <div id="phStat" style="margin-top:8px;font-weight:700"></div>
       <div id="phDl" style="display:none;margin-top:12px;padding:12px;border-radius:10px;border:2px solid var(--acc)">
-        <b>자동 연결이 안 되면: 다운로드 모드로 설치</b>
+        <b>연결이 안 되면: 설치 모드로 다시</b>
         <ol style="margin:6px 0 10px">
-          <li>스틱을 폰에 꽂은 채로, 스틱 <b>옆면 전원 버튼을 약 2초</b> 누릅니다.</li>
+          <li>스틱을 폰에 꽂은 채로, 스틱 <b>옆면 전원 버튼을 약 2초</b> 누릅니다. (이미 했다면 선을 뺐다 꽂고 다시)</li>
           <li>스틱 안의 <b>초록 불이 깜빡이면</b> 손을 뗍니다. (화면은 꺼져 있어도 됩니다)</li>
           <li>아래 버튼 → 목록에서 스틱 선택 → 허용.</li>
         </ol>
-        <button id="btnPhoneDl" style="display:block;width:100%;background:#1971c2">다운로드 모드로 설치</button>
+        <button id="btnPhoneDl" style="display:block;width:100%;background:#1971c2">설치 모드로 다시 설치</button>
         <div class="small" style="margin-top:6px">설치가 끝나도 화면이 안 켜지면 전원 버튼을 한 번 누르세요.</div>
       </div>
       <details id="phHelp" style="margin-top:8px"><summary class="small">안 될 때 · 기록 보기</summary>
         <ul class="small">
           <li>목록에 스틱이 없으면: 선을 뺐다 다시 꽂거나, 다른 USB-C 선(충전 전용 선은 안 됨)을 써 보세요.</li>
-          <li>"연결하지 못했습니다"가 나오면: 아래 <b>다운로드 모드로 설치</b>를 해 보세요.</li>
+          <li>"연결하지 못했습니다"가 나오면: 선을 뺐다 꽂고, 전원 버튼 2초 → 초록 불 깜빡임을 확인한 뒤 다시 누르세요.</li>
           <li>그래도 안 되면 아래 기록을 <b>[기록 복사]</b>해서 제작자에게 보내 주세요. 그동안은 컴퓨터로 설치하세요.</li>
           <li>활성화와 설정은 설치해도 지워지지 않습니다.</li>
         </ul>
@@ -197,7 +198,7 @@
     if (busy) return;
     let dev;
     try {
-      const m = await import('./install/phone-flash.js?v=2');
+      const m = await import('./install/phone-flash.js?v=3');
       try { dev = await m.pickDevice(log); }
       catch (e) { log('장치 선택: ' + (e && e.name) + ' ' + (e && e.message)); stat.style.color = ''; stat.textContent = '스틱을 고르지 않았습니다. 목록이 비어 있으면 선을 다시 꽂거나 다른 선을 써 보세요.'; return; }
       busy = true; btn.disabled = btnDl.disabled = true; btn.style.opacity = btnDl.style.opacity = .5;
@@ -209,17 +210,17 @@
         log
       }, { mode });
       stat.style.color = '#2b8a3e';
-      stat.innerHTML = '✅ 설치 끝! 파노체크 ' + r.version + '이 켜집니다. 선을 빼고 <a href="app.html">앱</a>에서 연결하세요.';
+      stat.innerHTML = '✅ 설치 끝! (파노체크 ' + r.version + ')<br>선을 빼고 스틱 <b>옆면 전원 버튼을 한 번</b> 눌러 켠 뒤, <a href="app.html">앱</a>에서 연결하세요.';
       log('설치 끝');
     } catch (e) {
       const msg = String(e && e.message || e);
       log('[오류] ' + msg);
       stat.style.color = '#c92a2a';
       stat.textContent = msg.startsWith('CONNECT:') ? (mode === 'no_reset'
-          ? '❌ 다운로드 모드 스틱과도 연결하지 못했습니다. 아래 기록을 [기록 복사]해서 보내 주세요.'
-          : '❌ 스틱과 자동으로 연결하지 못했습니다. 아래 "다운로드 모드로 설치"를 해 보세요.')
+          ? '❌ 설치 모드 스틱과도 연결하지 못했습니다. 아래 기록을 [기록 복사]해서 보내 주세요.'
+          : '❌ 스틱과 연결하지 못했습니다. 초록 불이 깜빡이는 설치 모드인지 확인하고 아래 버튼을 눌러 보세요.')
         : /Unable to find interface/.test(msg) ? '❌ 고른 기기는 USB 설치를 받을 수 없습니다. 목록에서 스틱(ESP32-S3 / USB JTAG)을 골랐는지 확인하세요.'
-        : /NetworkError|transfer|disconnected|device/i.test(msg) ? '❌ 연결이 끊겼습니다. 아래 "다운로드 모드로 설치"를 해 보세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)'
+        : /NetworkError|transfer|disconnected|device/i.test(msg) ? '❌ 연결이 끊겼습니다. 설치 모드(초록 불 깜빡임)로 다시 해 보세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)'
         : '❌ 실패: ' + msg;
       document.getElementById('phDl').style.display = '';
       document.getElementById('phHelp').open = true;
