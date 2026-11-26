@@ -56,14 +56,51 @@
 </div></div>
 <main>
   <div class="toc">
-    <a href="#s-setup">준비·연결</a><a class="key" href="#s-rule">★ 작동 기준</a><a href="#s-home">홈 화면</a><a href="#s-measure">파노측정</a>
-    <a href="#s-psu">전원공급기</a><a href="#s-cond">컨디션 점수</a><a href="#s-rec">기록</a><a href="#s-clean">모터클리닝</a>
-    <a href="#s-break">모터길들이기</a><a href="#s-set">설정</a><a href="#s-up">업데이트·활성화</a><a href="#s-ios">아이폰</a><a href="#s-faq">문제 해결</a>
+    <a class="key" href="#s-install">★ 최초 설치</a><a href="#s-start">앱 열기·활성화</a><a href="#s-setup">준비·연결</a><a class="key" href="#s-rule">★ 작동 기준</a><a href="#s-home">홈 화면</a>
+    <a href="#s-measure">파노측정</a><a href="#s-psu">전원공급기</a><a href="#s-cond">컨디션 점수</a><a href="#s-rec">기록</a><a href="#s-clean">모터클리닝</a>
+    <a href="#s-break">모터길들이기</a><a href="#s-set">설정</a><a href="#s-up">업데이트</a><a href="#s-ios">아이폰</a><a href="#s-faq">문제 해결</a>
   </div>
+
+  <!-- ===================================================== install -->
+  <section id="s-install" class="key">
+    <h2>1. 최초 설치 (처음 한 번)</h2>
+    <p>새 스틱에는 파노체크 프로그램(펌웨어)을 <b>USB로 한 번</b> 넣어야 합니다. 그 다음부터는 앱에서 <b>블루투스로 업데이트</b>됩니다.</p>
+    <h3>준비물</h3>
+    <ul>
+      <li>M5StickS3 스틱, <b>데이터가 되는 USB-C 선</b> (충전 전용 선은 안 됨)</li>
+      <li><b>안드로이드폰</b>(크롬) 또는 <b>컴퓨터</b>(윈도우·맥의 크롬·엣지). 아이폰은 설치가 안 됩니다.</li>
+    </ul>
+    <h3>📱 안드로이드폰으로 설치</h3>
+    <ol class="steps">
+      <li>스틱을 USB-C 선으로 폰에 꽂습니다. (C-C 선, 또는 OTG 젠더)</li>
+      <li>폰 <b>크롬</b>에서 <a href="./" style="color:var(--blue)">jung86.github.io/panotrio</a> 를 엽니다. 앱에서는 홈 <b>[최초 설치 · 업데이트]</b> → <b>[설치 페이지 열기]</b>.</li>
+      <li><b>[폰으로 설치]</b> → 목록에서 스틱(USB JTAG/serial 또는 ESP32-S3) 선택 → <b>허용</b>.</li>
+      <li>막대가 끝까지 찰 때까지(약 1분) 선을 빼지 마세요. "✅ 설치 끝"이 나오면 스틱이 다시 켜집니다.</li>
+    </ol>
+    <img class="shot half" src="manual/install-phone.jpg" alt="폰으로 설치 화면" loading="lazy">
+    <p class="cap">폰에 따라 USB 기기를 못 잡는 경우가 있습니다. 그럴 땐 컴퓨터로 설치하세요.</p>
+    <h3>💻 컴퓨터로 설치</h3>
+    <ol class="steps">
+      <li>스틱을 USB-C 선으로 컴퓨터에 꽂습니다.</li>
+      <li>크롬이나 엣지에서 <a href="./" style="color:var(--blue)">설치 페이지</a>를 열고 <b>설치 버튼</b> → 목록에서 스틱 포트 선택 → <b>INSTALL</b>.</li>
+      <li>약 30초 뒤 끝나면 선을 뺍니다.</li>
+    </ol>
+    <div class="tip">이미 쓰던 스틱을 다시 설치해도 <b>활성화와 설정은 그대로</b> 남습니다.</div>
+  </section>
+
+  <!-- ===================================================== start -->
+  <section id="s-start">
+    <h2>2. 앱 열기 · 활성화</h2>
+    <ol class="steps">
+      <li>안드로이드는 <b>크롬</b>에서 <a href="app.html" style="color:var(--blue)">jung86.github.io/panotrio/app.html</a> 을 엽니다. 아이폰은 <a href="#s-ios" style="color:var(--blue)">Bluefy</a> 앱 안에서 엽니다.</li>
+      <li>앱 첫 화면의 <b>[📲 홈 화면에 앱 설치]</b>(또는 크롬 메뉴 ⋮ → 홈 화면에 추가)를 누르면 다음부터 아이콘으로 바로 열립니다.</li>
+      <li><b>활성화</b>: 새 스틱은 잠겨 있습니다. 스틱을 연결한 뒤(<a href="#s-setup" style="color:var(--blue)">3번</a>) 앱의 <b>[📨 활성화 요청 보내기]</b>로 제작자에게 카톡을 보내고, 답장으로 온 <b>활성화 링크</b>를 누른 뒤 스틱을 연결하면 끝납니다.</li>
+    </ol>
+  </section>
 
   <!-- ===================================================== setup -->
   <section id="s-setup">
-    <h2>1. 준비와 연결</h2>
+    <h2>3. 준비와 연결</h2>
     <svg class="dia" viewBox="0 0 360 400" role="img" aria-label="연결 구성도" style="max-width:420px;margin:10px auto 4px">
       <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#9aa3b5"/></marker></defs>
       <rect x="10" y="10" width="140" height="64" rx="12" fill="#232a36" stroke="#3a4352"/>
@@ -100,10 +137,9 @@
       <li>(선택) 전원공급기는 휴대폰 USB-C ↔ DPS-150 <b>Micro USB</b>(DPS100은 PC COMM 단자) 데이터선으로 잇고, 파노측정 화면의 <b>⚡ [연결]</b>을 누릅니다.</li>
     </ol>
   </section>
-
   <!-- ===================================================== rule -->
   <section id="s-rule" class="key">
-    <h2>2. ★ 작동 기준 (언제 측정되나요?)</h2>
+    <h2>4. ★ 작동 기준 (언제 측정되나요?)</h2>
     <ol class="steps">
       <li><b>스틱을 메인터넌스에 물립니다.</b> 모터 가까이, 흔들리지 않게 단단히 고정해야 진동이 정확히 전해집니다.</li>
       <li><b>모터를 돌립니다.</b> 스틱이 <b>진동 감도</b>(기본 40 mg)보다 센 진동을 연속으로 느끼면 "모터가 돈다"고 인식합니다.</li>
@@ -133,10 +169,9 @@
       약한 진동에도 시작되면 <b>진동 감도</b> 숫자를 올리고(둔감), 모터가 돌아도 시작이 안 되면 내리세요(민감).
     </div>
   </section>
-
   <!-- ===================================================== home -->
   <section id="s-home">
-    <h2>3. 홈 화면</h2>
+    <h2>5. 홈 화면</h2>
     <img class="shot half" src="manual/home.jpg" alt="홈 화면" loading="lazy">
     <ul>
       <li><b>스틱 연결</b>: 맨 위 상태 표시가 "연결됨"으로 바뀝니다.</li>
@@ -148,10 +183,9 @@
     </ul>
     <p class="mute">새 펌웨어가 있으면 연결 버튼 아래에 파란 알림 상자가 나옵니다 (→ <a href="#s-up" style="color:var(--blue)">업데이트</a>).</p>
   </section>
-
   <!-- ===================================================== measure -->
   <section id="s-measure">
-    <h2>4. 파노측정</h2>
+    <h2>6. 파노측정</h2>
     <img class="shot" src="manual/m-big.jpg" alt="파노 큰 숫자" loading="lazy">
     <p class="cap">큰 숫자 = 파노(Hz), 아래 = rpm, 진동·소리 값, 맨 아래 상태</p>
     <table>
@@ -171,10 +205,9 @@
     <img class="shot" src="manual/m-chart.jpg" alt="최근 60초 그래프" loading="lazy">
     <p class="cap">최근 60초 그래프: 흰색 파노, 주황 진동, 하늘색 소리. 선이 평평할수록 모터가 고르게 돕니다.</p>
   </section>
-
   <!-- ===================================================== psu -->
   <section id="s-psu">
-    <h2>5. ⚡ 전원공급기 · 정역</h2>
+    <h2>7. ⚡ 전원공급기 · 정역</h2>
     <img class="shot half" src="manual/m-psu.jpg" alt="전원공급기 카드" loading="lazy">
     <h3>전원공급기 연결 (DPS-150 / DPS100)</h3>
     <table>
@@ -218,10 +251,9 @@
     </ul>
     <div class="tip">역방향은 스틱 Grove 단자에 <b>릴레이 보드</b>를 달고, 설정에서 <b>"릴레이 연결됨"</b>을 켜야 쓸 수 있습니다. 전류 제한을 1 A 정도로 낮추면 모터가 안 돌거나 CC에 걸려 "전원 불안정"이 나올 수 있습니다.</div>
   </section>
-
   <!-- ===================================================== condition -->
   <section id="s-cond">
-    <h2>6. 🩺 모터 컨디션 점수</h2>
+    <h2>8. 🩺 모터 컨디션 점수</h2>
     <img class="shot" src="manual/m-cond.jpg" alt="모터 컨디션 카드" loading="lazy">
     <ul>
       <li>모터가 돌면 앱이 바로 <b>100점 만점</b> 점수를 냅니다.
@@ -286,10 +318,9 @@
     </svg>
     <p class="mute">측정이 끝나 HOLD가 되면 큰 숫자 자리에 <b>점수(PT)</b>와 <b>파노 Hz</b>가 2.5초씩 번갈아 나옵니다. 처음 1초는 파노. 측정 중에는 화면 위쪽에 <b>SCORE 92</b>처럼 작게 나옵니다.</p>
   </section>
-
   <!-- ===================================================== records -->
   <section id="s-rec">
-    <h2>7. 기록</h2>
+    <h2>9. 기록</h2>
     <img class="shot half" src="manual/m-recs.jpg" alt="기록" loading="lazy">
     <ul>
       <li><b>모터</b>를 고르면 그 모터 이름으로 저장됩니다. <b>✎</b>로 모터 추가·이름 바꾸기.</li>
@@ -299,10 +330,9 @@
     </ul>
     <p class="mute">기록은 이 휴대폰에만 저장됩니다. 가끔 CSV로 백업하세요.</p>
   </section>
-
   <!-- ===================================================== clean -->
   <section id="s-clean">
-    <h2>8. 모터클리닝</h2>
+    <h2>10. 모터클리닝</h2>
     <img class="shot half" src="manual/clean.jpg" alt="모터클리닝 화면" loading="lazy">
     <ul>
       <li>맨 위에서 <b>전원공급기 연결 (USB)</b>.</li>
@@ -311,10 +341,9 @@
       <li>화면 아래에서 시작·정지, 진행 상황과 파노를 봅니다. 설정은 💾 프리셋으로 저장.</li>
     </ul>
   </section>
-
   <!-- ===================================================== break-in -->
   <section id="s-break">
-    <h2>9. 모터길들이기</h2>
+    <h2>11. 모터길들이기</h2>
     <img class="shot half" src="manual/breakin.jpg" alt="모터길들이기 화면" loading="lazy">
     <ul>
       <li><b>구간</b>마다 전압, 방향(정/역/번갈아), 시간(분·초), 쿨링(분·초)을 정합니다. <b>+ 구간 추가</b>로 최대 10개.</li>
@@ -324,10 +353,9 @@
     </ul>
     <div class="tip">실행 중엔 DPS 보호(OVP/OCP)를 필요한 만큼만 걸고, 끝나면 원래 값으로 돌려놓습니다.</div>
   </section>
-
   <!-- ===================================================== settings -->
   <section id="s-set">
-    <h2>10. 설정</h2>
+    <h2>12. 설정</h2>
     <p>스틱을 연결하면 스틱에 저장된 설정을 불러옵니다. 바꾼 뒤 꼭 <b>[스틱에 저장]</b>을 누르세요.</p>
     <img class="shot half" src="manual/set-wait.jpg" alt="측정 대기 시간 설정" loading="lazy">
     <table>
@@ -348,31 +376,24 @@
       <li>헷갈리면 <b>[기본값으로 되돌리기]</b> → <b>[스틱에 저장]</b>.</li>
     </ul>
   </section>
-
   <!-- ===================================================== update -->
   <section id="s-up">
-    <h2>11. 업데이트 · 활성화</h2>
-    <h3>처음 한 번: 활성화</h3>
-    <p>새 스틱은 잠겨 있습니다. 앱의 <b>[📨 활성화 요청 보내기]</b>로 제작자에게 카톡을 보내고, 답장으로 온 <b>활성화 링크</b>를 누른 뒤 스틱을 연결하면 끝납니다.</p>
+    <h2>13. 업데이트</h2>
     <h3>스틱 펌웨어 (블루투스)</h3>
     <ul>
-      <li>새 버전이 있으면 홈에 알림이 뜹니다 → <b>[업데이트]</b>. 홈의 <b>[최초 설치 · 업데이트]</b>에서도 언제든 확인할 수 있습니다.</li>
-      <li>배터리 25% 이상(USB에 꽂혀 있으면 상관없음). 끊겨도 90초 안에 다시 연결하면 이어받습니다.</li>
-      </ul>
-    <h3>최초 설치 (USB)</h3>
-    <ul>
-      <li>처음 쓰는 스틱이나 블루투스 업데이트가 안 되는 스틱은 USB로 한 번 설치합니다: 홈 <b>[최초 설치 · 업데이트]</b> → <b>[설치 페이지 열기]</b>, 또는 <a href="./" style="color:var(--blue)">펌웨어 설치 페이지</a>.</li>
-      <li><b>안드로이드폰</b>: 스틱을 USB-C 선(C-C 선 또는 OTG 젠더)으로 폰에 꽂고 크롬에서 <b>[폰으로 설치]</b> → 스틱 선택 → 허용. 약 1분, 선을 빼지 마세요. 폰에 따라 안 되면 PC로 설치하세요.</li>
-      <li><b>PC</b>: 크롬·엣지에서 설치 페이지의 설치 버튼.</li>
-      <li>아이폰은 USB 설치가 안 됩니다. 활성화·설정은 설치해도 그대로 남습니다.</li>
+      <li>새 버전이 있으면 스틱을 연결할 때 알림이 뜹니다 → <b>[지금 업데이트]</b>.</li>
+      <li>언제든 홈 <b>[최초 설치 · 업데이트]</b>에서 최신인지 확인하고 업데이트할 수 있습니다.</li>
+      <li>2~5분 걸립니다. 배터리 25% 이상(USB에 꽂혀 있으면 상관없음). 끊겨도 90초 안에 다시 연결하면 이어받고, 실패해도 스틱은 원래 버전으로 켜집니다.</li>
+      <li>블루투스 업데이트가 안 되는 스틱(2.0 전 버전)은 <a href="#s-install" style="color:var(--blue)">1. 최초 설치</a>처럼 USB로 한 번 설치합니다.</li>
     </ul>
+    <img class="shot half" src="manual/fw-menu.jpg" alt="최초 설치 · 업데이트 창" loading="lazy">
     <h3>앱</h3>
     <p>앱을 완전히 닫았다 다시 열면 새 버전이 됩니다. 버전은 설정 맨 아래에 있습니다.</p>
   </section>
 
   <!-- ===================================================== iphone -->
   <section id="s-ios">
-    <h2>12. 아이폰</h2>
+    <h2>14. 아이폰</h2>
     <ul>
       <li>무료 앱 <b>Bluefy</b>를 받아 그 안에서 <b>jung86.github.io/panotrio/app.html</b>을 엽니다.</li>
       <li>된다: 스틱 연결, 파노측정, 기록, 설정, 활성화, 업데이트, 컨디션 점수(파노만으로).</li>
@@ -380,21 +401,21 @@
     </ul>
     <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;background:var(--acc);color:#fff;font-weight:800;padding:10px 14px;border-radius:10px;text-decoration:none">Bluefy 받기</a>
   </section>
-
   <!-- ===================================================== faq -->
   <section id="s-faq">
-    <h2>13. 문제 해결</h2>
+    <h2>15. 문제 해결</h2>
     <ul>
       <li><b>스틱이 목록에 없어요</b>: 블루투스·위치 켜짐, 크롬(아이폰은 Bluefy)인지 확인. 다른 휴대폰에 연결돼 있으면 안 보입니다. 스틱을 껐다 켜기.</li>
       <li><b>측정이 시작 안 돼요</b>: 스틱을 메인터넌스에 단단히 물렸는지, <b>진동 감도</b>를 낮춰(민감) 보세요. 대기 시간 동안 진동이 끊기면 다시 기다립니다.</li>
       <li><b>값이 2배로 나와요</b>: 느린 모터는 범위를 <b>LOW</b>로.</li>
       <li><b>점수가 안 나와요</b>: "전원 불안정"이면 전류 제한을 올리거나 전원을 확인, "측정 불안정"이면 스틱을 다시 물리고 재세요.</li>
-      <li><b>DPS-150 / DPS100이 안 보여요</b>: 충전 전용 선이 아닌 <b>데이터선</b>인지, DPS 전원이 켜졌는지 확인하고 다시 꽂기. DPS100은 첫 목록에서 [취소] → 전체 목록에서 고르기 (<a href="#s-psu" style="color:var(--blue)">5번</a>).</li>
+      <li><b>DPS-150 / DPS100이 안 보여요</b>: 충전 전용 선이 아닌 <b>데이터선</b>인지, DPS 전원이 켜졌는지 확인하고 다시 꽂기. DPS100은 첫 목록에서 [취소] → 전체 목록에서 고르기 (<a href="#s-psu" style="color:var(--blue)">7번</a>).</li>
+      <li><b>폰으로 설치가 안 돼요</b>: 데이터선인지 확인하고 선을 뺐다 다시 꽂은 뒤 한 번 더. 목록에 스틱이 없거나 계속 실패하면 컴퓨터로 설치하세요 (<a href="#s-install" style="color:var(--blue)">1번</a>).</li>
       <li><b>새 기능이 안 보여요</b>: 앱을 완전히 닫았다 다시 열기.</li>
     </ul>
   </section>
 
-  <p class="foot">설치 방법(안드로이드·아이폰)은 <a href="download.html">다운로드 페이지</a>에 있습니다.<br>설명서 2026-11-26</p>
+  <p class="foot">앱 받는 곳(안드로이드·아이폰)은 <a href="download.html">다운로드 페이지</a>에 있습니다.<br>설명서 2026-11-26</p>
 </main>
 <script>
   (() => { let d = 'M130 70'; for (let x = 136, k = 0; x <= 514; x += 6, k++) d += ` L${x} ${k % 2 ? 98 : 14}`; d += ' L520 70'; const v = document.getElementById('vib'); if (v) v.setAttribute('d', d); })();
