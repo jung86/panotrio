@@ -1734,8 +1734,46 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26v';
+const APP_BUILD = '2026-11-26w';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
+// ---------------------------------------------------------------- usage record (for the maker only)
+// Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
+// (tools/usage-worker). Nothing personal. A failed send is ignored: it never stops the app.
+var USAGE_URL = 'https://panocheck-usage.panocheck.workers.dev';                                 // the Cloudflare worker address; empty = send nothing
+var usageLast = null, usageMetSticks = {}, usageMeasN = 0, usageMeasTimer = 0;
+function usagePlat() { return IOS ? 'iOS' : /Android/i.test(navigator.userAgent) ? 'Android' : 'PC'; }
+function usageSend(k, info, n) {
+  try {
+    if (!USAGE_URL || navigator.onLine === false) return;
+    const s = info || usageLast || {};
+    const body = JSON.stringify({ id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), k, n: n || 1 });
+    fetch(USAGE_URL + '/p', { method: 'POST', body, keepalive: true, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
+  } catch (e) {}
+}
+function usageStick(kv) {                            // fresh INFO from the stick: once per stick per app opening
+  try {
+    if (!kv.ID) return;
+    usageLast = { id: kv.ID, hw: kv.HW || 'S3', fw: kv.VER || '' };
+    try { localStorage.setItem('panocheck-usage-last', JSON.stringify(usageLast)); } catch (e) {}
+    if (usageMetSticks[kv.ID]) return;
+    usageMetSticks[kv.ID] = 1; usageSend('open');
+  } catch (e) {}
+}
+function usageMeas() {                               // one measurement saved: sent together within 10 s
+  try {
+    usageMeasN++;
+    if (usageMeasTimer) return;
+    usageMeasTimer = setTimeout(() => { const n = usageMeasN; usageMeasN = 0; usageMeasTimer = 0; usageSend('meas', null, n); }, 10000);
+  } catch (e) {}
+}
+setTimeout(() => {                                   // app opened but no stick connected in 20 s: count it for this phone's last stick
+  try {
+    if (Object.keys(usageMetSticks).length) return;
+    let last = null; try { last = JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) {}
+    usageMetSticks._open = 1; usageSend('open', last || { id: '' });
+  } catch (e) {}
+}, 20000);
+addEventListener('pagehide', () => { try { if (usageMeasN) { clearTimeout(usageMeasTimer); usageMeasTimer = 0; const n = usageMeasN; usageMeasN = 0; usageSend('meas', null, n); } } catch (e) {} });
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
   const fresh = Date.now() - lcFront < 15000 && document.visibilityState === 'visible';
@@ -1792,6 +1830,7 @@ function onInfo(dv, whole) {
   if (kv.BAT !== undefined) onBattery(+kv.BAT, kv.USB === '1');
   stickVer = kv.VER || ''; stickOta = kv.OTA === '1'; fwCheck();
   stickCnd = kv.CND === '1' || verNum(stickVer) >= 2004;      // stick can show the condition score (firmware 2.4+)
+  usageStick(kv);
 }
 
 // ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)
@@ -2030,7 +2069,7 @@ function addRecord(memo) {
   if (!cur || cur.big <= 0) return;
   recs.unshift(Object.assign({ t: Date.now(), memo, motor: curMotor, mode: cur.mode, big: +cur.big.toFixed(1), vib: +cur.vib.toFixed(1), mic: +cur.mic.toFixed(1), status: statusText }, psuSnapshot(), condSnapshot()));
   if (recs.length > 500) recs.length = 500;
-  saveRecs(recs); renderRecs();
+  saveRecs(recs); renderRecs(); usageMeas();
 }
 
 // ---------------------------------------------------------------- view
@@ -3016,7 +3055,7 @@ function ckFinish() {
   recs.unshift(Object.assign({ t: r.t, memo: '' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
     volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? (r.measBad ? { condBad: 1, measBad: 1 } : { condBad: 1 }) : { cond: r.score }));
   if (recs.length > 500) recs.length = 500;
-  saveRecs(recs); renderRecs();
+  saveRecs(recs); renderRecs(); usageMeas();
   ckShow(r); ckSendStick(r); ckRender();
 }
 async function ckSendStick(r) {                       // 'G' grade score hz*10 mA tag  (stick firmware 2.4+)
