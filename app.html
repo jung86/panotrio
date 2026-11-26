@@ -520,7 +520,17 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
     <div class="help" style="margin-top:6px">링크를 만들 때마다 여기에 자동으로 기록됩니다. 목록은 이 휴대폰에만 저장되니 가끔 내보내기로 백업하세요.</div>
   </div>
-  <p class="help">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
+  <div class="card" id="admViewers" style="display:none">
+    <div class="ttl" style="display:flex;align-items:center;gap:8px">보기 전용 관리자 <span id="avCount" class="help" style="margin:0"></span></div>
+    <div id="avList" class="ppl"></div>
+    <button id="btnAvAdd" style="width:100%;margin-top:8px">＋ 관리자 추가 (신청 코드 붙여넣기)</button>
+    <div class="help" style="margin-top:6px">추가한 사람은 사용 현황과 오류만 볼 수 있어요. 스틱 활성화나 서명은 못 해요. 그 사람은 앱 홈의 로고를 5번 눌러 신청 코드를 만들어요.</div>
+  </div>
+  <div class="card" id="admView" style="display:none">
+    <div class="ttl" id="vwTtl">보기 전용 관리자 신청</div>
+    <div id="vwBody"></div>
+  </div>
+  <p class="help" id="admFoot">링크는 그 스틱 ID 전용입니다. 다른 스틱에는 쓸 수 없습니다.<br>허락을 취소한 스틱에 다시 허락하려면 같은 ID로 <b>활성화 링크 만들기</b>를 누르면 됩니다. 예전 링크는 다시 쓸 수 없습니다.</p>
 </div></div>
 <div id="clean" data-mode="clean"><div class="inner">
   <header>
@@ -1605,7 +1615,9 @@ async function adminShow() {
   $('admOpen').style.display = admKey ? 'none' : '';
   $('admMake').style.display = admKey ? '' : 'none';
   $('admPeople').style.display = admKey ? '' : 'none';
+  $('admViewers').style.display = admKey ? '' : 'none';
   if (admKey) pplRender(true);
+  vwShow();
   if (admKey && actState && !actState.act && !$('aId').value) $('aId').value = actState.id.slice(0, 4) + '-' + actState.id.slice(4);
 }
 const ub64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
@@ -1743,7 +1755,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27e';
+const APP_BUILD = '2026-11-27f';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -3527,18 +3539,125 @@ function errBadgeShow(n) {
 async function errBadgeCheck(force) {
   if (!USAGE_URL || (!force && Date.now() - errBadgeAt < 5 * 60e3)) return;
   errBadgeAt = Date.now();
-  if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
-  if (!admKey) { errBadgeShow(0); return; }
+  const A = await authHdr(); if (!A) { errBadgeShow(0); return; }
   try {
-    const pass = await usagePass(); if (!pass) return;
-    const r = await fetch(USAGE_URL + '/api/errors', { headers: { Authorization: 'Sig ' + pass }, cache: 'no-store' });
+    const r = await fetch(USAGE_URL + '/api/errors', { headers: { Authorization: A }, cache: 'no-store' });
     if (r.ok) errBadgeShow(((await r.json()).errors || []).filter(e => !e.done).length);
   } catch (e) {}
 }
-$('errBadge').onclick = () => { location.hash = '#admin'; setTimeout(() => { const el = $('pplErr'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 900); };
+$('errBadge').onclick = () => { location.hash = '#admin'; setTimeout(() => { const el = admKey ? $('pplErr') : $('vwErr'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 900); };
 setTimeout(() => errBadgeCheck(true), 4000);
 setInterval(() => { if (document.visibilityState === 'visible') errBadgeCheck(); }, 10 * 60e3);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(errBadgeCheck, 1500); });
+// ---- view-only admins: their own key (made on their phone, never leaves it); the maker adds the public half on the usage server.
+// Their app signs "PanoCheck|view|v1|<kid>|<expiry>" and may read usage and errors, and get Telegram alerts. No activation, no signing.
+var vw = null, vwState = '';
+async function vwLoad() { if (vw === null) { try { vw = await idb(st => st.get('view')) || false; } catch (e) { vw = false; } } return vw; }
+const b64uOf = u8 => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function vwHdr() {
+  if (!(await vwLoad())) return '';
+  const exp = Date.now() + 12 * 3600e3;
+  try { const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, vw.key, new TextEncoder().encode('PanoCheck|view|v1|' + vw.kid + '|' + exp)); return 'Sig2 ' + vw.kid + '.' + exp + '.' + b64uOf(new Uint8Array(sig)); } catch (e) { return ''; }
+}
+async function authHdr() {                           // maker's key first, else a view-only admin's key
+  if (!admKey) { try { admKey = await idb(st => st.get('sign')) || null; } catch (e) {} }
+  if (admKey) { const p = await usagePass(); return p ? 'Sig ' + p : ''; }
+  return vwHdr();
+}
+async function vwMake() {
+  const name = ($('vwName').value || '').trim().slice(0, 30); if (!name) { notify('이름을 넣어 주세요', false); return; }
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+  const j = await crypto.subtle.exportKey('jwk', kp.publicKey);
+  const kid = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(j.x + '.' + j.y)))].map(v => v.toString(16).padStart(2, '0')).join('').slice(0, 12);
+  vw = { key: kp.privateKey, kid, name, code: 'PCV1.' + b64uOf(new TextEncoder().encode(name)) + '.' + j.x + '.' + j.y, made: Date.now() };
+  try { await idb(st => st.put(vw, 'view')); } catch (e) { notify('이 휴대폰에 저장하지 못했습니다', false); vw = null; return; }
+  vwState = 'wait'; $('admOpen').style.display = 'none'; vwRender();
+}
+async function vwCheck() {
+  const A = await vwHdr(); if (!A || !USAGE_URL) return;
+  try {
+    const r = await fetch(USAGE_URL + '/api/errors', { headers: { Authorization: A }, cache: 'no-store' });
+    if (r.status === 401) { vwState = 'wait'; vwRender(); return false; }
+    if (!r.ok) throw 0;
+    const d = await r.json(); vwState = 'ok'; vwRender(d); errBadgeShow((d.errors || []).filter(e => !e.done).length); return true;
+  } catch (e) { if ($('vwMsg')) $('vwMsg').textContent = '서버에 연결하지 못했습니다 (인터넷 확인)'; }
+}
+function vwRender(d) {
+  const B = $('vwBody'); if (!B) return;
+  if (!vw) {
+    $('vwTtl').textContent = '보기 전용 관리자 신청';
+    B.innerHTML = '<div class="set-help" style="margin:0 0 8px">제작자가 추가해 주면 이 휴대폰에서 사용 현황과 오류를 볼 수 있어요.</div><input id="vwName" type="text" maxlength="30" placeholder="내 이름" autocomplete="off"><button id="vwMake" class="primary" style="width:100%;margin-top:10px">신청 코드 만들기</button>';
+    $('vwMake').onclick = vwMake; return;
+  }
+  if (vwState !== 'ok') {
+    $('vwTtl').textContent = '보기 전용 관리자 신청 · ' + vw.name;
+    B.innerHTML = '<div class="set-help" style="margin:0 0 6px">이 코드를 제작자에게 보내 주세요. 제작자가 추가한 뒤 [확인]을 누르면 돼요.</div><textarea readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#cfe">' + esc(vw.code) + '</textarea>' +
+      '<div class="tools" style="margin-top:8px"><button id="vwShare" class="primary">보내기 (카톡)</button><button id="vwCopy">복사</button><button id="vwOk">확인</button></div><div id="vwMsg" class="help" style="margin-top:6px"></div><button id="vwDrop" style="width:100%;margin-top:10px;font-size:14px">신청 취소</button>';
+    $('vwCopy').onclick = async () => { try { await navigator.clipboard.writeText(vw.code); notify('신청 코드를 복사했습니다', true); } catch (e) { await askText('이 코드를 복사하세요', vw.code); } };
+    $('vwShare').onclick = async () => { const t = '파노체크 보기 전용 관리자 신청 코드 (' + vw.name + ')\n' + vw.code; try { if (navigator.share) { await navigator.share({ text: t }); return; } } catch (e) { if (e && e.name === 'AbortError') return; } try { await navigator.clipboard.writeText(t); notify('복사했습니다 · 카톡에 붙여 넣으세요', true); } catch (e) { await askText('이 코드를 복사하세요', vw.code); } };
+    $('vwOk').onclick = async () => { $('vwMsg').textContent = '확인 중…'; const ok = await vwCheck(); if (ok === false) $('vwMsg').textContent = '아직 추가되지 않았어요. 제작자에게 코드를 보냈는지 확인해 주세요.'; };
+    $('vwDrop').onclick = vwDrop; return;
+  }
+  $('vwTtl').textContent = '보기 전용 관리자 · ' + vw.name;
+  const tg = (d && d.tg) || {}, list = (d && d.errors) || [], open = list.filter(e => !e.done);
+  B.innerHTML = '<button id="vwUsage" class="primary" style="width:100%">사용 현황 보기</button>' +
+    '<div class="help" style="margin:10px 0 6px">텔레그램 오류 알림: ' + (!tg.token ? '제작자가 아직 켜지 않았어요' : !tg.chat ? '<button id="vwTg">텔레그램 연결</button>' : (tg.on ? '켜짐 <button id="vwTgOff">끄기</button>' : '꺼짐 <button id="vwTgOn">켜기</button>')) + '</div><div id="vwMsg" class="help"></div>' +
+    '<div id="vwErr"><div style="font-weight:700;margin:8px 0 4px">오류 <span class="help" style="margin:0">' + (open.length ? '해결 안 된 것 ' + open.length + '개' : '새 오류 없음') + '</span></div>' +
+    open.slice(0, 15).map(e => `<div class="row" data-n="${e.n}" style="grid-template-columns:1fr auto"><div style="min-width:0"><div class="meta">${esc(e.name || (e.stick === 'NOSTICK' ? '스틱 없음' : fmtId(e.stick)))} · ${pplAgo(e.t)} · 앱 ${esc((e.app || '-').replace(/^\d{4}-/, ''))} · 펌웨어 ${esc(e.fw || '-')} · ${e.k === 'user' ? '사용자' : '자동'}${e.cnt > 1 ? ' · ' + e.cnt + '회' : ''}</div><div style="font-weight:700;word-break:break-all">${esc(e.msg)}</div>${e.memo && e.memo !== e.msg ? '<div class="meta" style="color:var(--ink)">' + esc(e.memo) + '</div>' : ''}</div><div class="acts"><button data-vc="${e.n}">복사</button></div></div>`).join('') + '</div>' +
+    '<button id="vwDrop" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 빼기</button>';
+  $('vwDrop').onclick = vwDrop;
+  $('vwUsage').onclick = async () => { const w = window.open('about:blank', '_blank'); const A = await vwHdr(); const u = USAGE_URL + '/admin#v=' + A.replace(/^Sig2 /, ''); if (w) { try { w.opener = null; w.location.href = u; return; } catch (e) {} } location.href = u; };
+  B.querySelectorAll('[data-vc]').forEach(b => b.onclick = async () => { const e = list.find(x => x.n == b.dataset.vc); const t = pplErrText(e); try { await navigator.clipboard.writeText(t); notify('오류 내용을 복사했습니다', true); } catch (x) { await askText('이 내용을 복사하세요', t); } });
+  const post = async (p, body) => (await fetch(USAGE_URL + p, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await vwHdr() }, body: JSON.stringify(body || {}) })).json();
+  if ($('vwTg')) $('vwTg').onclick = async () => {
+    try { const r = await post('/api/tg/link');
+      if (r.ok) { notify('텔레그램 알림을 연결했습니다', true); vwCheck(); }
+      else if (r.link) { $('vwMsg').innerHTML = '텔레그램에서 <b>[시작]</b>을 누른 뒤, 이 화면으로 돌아와 [텔레그램 연결]을 한 번 더 눌러 주세요.'; window.open(r.link, '_blank'); }
+      else notify('연결하지 못했습니다', false);
+    } catch (e) { notify('연결하지 못했습니다 (인터넷 확인)', false); } };
+  for (const [id, on] of [['vwTgOff', false], ['vwTgOn', true]]) if ($(id)) $(id).onclick = async () => { try { await post('/api/me/tg', { on }); vwCheck(); } catch (e) { notify('바꾸지 못했습니다', false); } };
+}
+async function vwDrop() {
+  if (!(await askConfirm('이 휴대폰의 보기 전용 관리자 열쇠를 지울까요?\n(다시 하려면 새로 신청해야 해요)'))) return;
+  try { await idb(st => st.delete('view')); } catch (e) {}
+  vw = false; vwState = ''; errBadgeShow(0); vwRender(); $('admOpen').style.display = '';
+}
+async function vwShow() {
+  const card = $('admView'); if (!card) return;
+  if (admKey) { card.style.display = 'none'; $('admFoot').style.display = ''; return; }
+  await vwLoad();
+  card.style.display = ''; $('admOpen').style.display = vw ? 'none' : ''; $('admFoot').style.display = vw ? 'none' : '';
+  vwRender(); if (vw) vwCheck();
+}
+// maker's phone: the list of view-only admins
+async function avLoad() {
+  if (!admKey || !USAGE_URL) return;
+  const A = await authHdr(); if (!A) return;
+  try {
+    const r = await fetch(USAGE_URL + '/api/admins', { headers: { Authorization: A }, cache: 'no-store' });
+    if (!r.ok) { $('avList').innerHTML = '<div class="help">' + (r.status === 404 ? '사용 현황 서버 업데이트가 필요해요' : '목록을 읽지 못했습니다') + '</div>'; return; }
+    const L = (await r.json()).admins || [];
+    $('avCount').textContent = L.length ? L.length + '명' : '';
+    $('avList').innerHTML = L.length ? L.map(a => `<div class="row" data-k="${esc(a.kid)}"><div style="min-width:0"><div class="nm">${esc(a.name || '(이름 없음)')}</div><div class="meta">${a.last ? '마지막 사용 ' + pplAgo(a.last) : '아직 안 씀'} · 텔레그램 ${a.chat ? (a.tg ? '켜짐' : '꺼짐') : '연결 안 함'}</div></div>
+      <div class="acts">${a.chat ? `<button data-av="${a.tg ? 'off' : 'on'}">${a.tg ? '알림 끄기' : '알림 켜기'}</button>` : ''}<button data-av="del">빼기</button></div></div>`).join('') : '<div class="help" style="padding:6px 0">아직 없어요</div>';
+    $('avList').onclick = async ev => {
+      const b = ev.target.closest('button'), row = ev.target.closest('.row'); if (!b || !row) return;
+      const a = L.find(x => x.kid === row.dataset.k); if (!a) return;
+      if (b.dataset.av === 'del' && !(await askConfirm((a.name || '이 사람') + '을(를) 관리자에서 뺄까요?'))) return;
+      try { await fetch(USAGE_URL + (b.dataset.av === 'del' ? '/api/admins/del' : '/api/admins/tg'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ kid: a.kid, on: b.dataset.av === 'on' }) }); } catch (e) { notify('바꾸지 못했습니다 (인터넷 확인)', false); }
+      avLoad();
+    };
+  } catch (e) { $('avList').innerHTML = '<div class="help">목록을 읽지 못했습니다 (인터넷 확인)</div>'; }
+}
+$('btnAvAdd').onclick = async () => {
+  const code = await askText('받은 신청 코드를 붙여 넣으세요 (PCV1.로 시작)', ''); if (!code) return;
+  const c = (code.match(/PCV1\.[A-Za-z0-9_.-]+/) || [''])[0];
+  try {
+    const r = await (await fetch(USAGE_URL + '/api/admins/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ code: c }) })).json();
+    notify(r.ok ? (r.name || '관리자') + '을(를) 추가했습니다' : r.error === 'full' ? '관리자는 20명까지예요' : '신청 코드가 맞지 않습니다', !!r.ok);
+  } catch (e) { notify('추가하지 못했습니다 (인터넷 확인)', false); }
+  avLoad();
+};
 function pplErrRender(list, H, tgs) {                // maker's phone: newest error reports not marked done, with [복사] for Claude
   const open = list.filter(e => !e.done).slice(0, 15);
   errBadgeShow(list.filter(e => !e.done).length);
@@ -3580,6 +3699,7 @@ async function pplUsageFetch(force) {
       try { const q = await fetch('fw/latest-plus2.json', { cache: 'no-cache' }); if (q.ok) fwP2 = (await q.json()).ver; } catch (e) {}
       pplUse = { sticks: m, fwS3, fwP2 }; pplUseErr = ''; pplUseAt = Date.now();
       try { const q = await fetch(USAGE_URL + '/api/errors', { headers: H, cache: 'no-store' }); if (q.ok) { const d = await q.json(); pplErrRender(d.errors || [], H, d.tg); } } catch (e) {}
+      avLoad();
     } else pplUseErr = '사용 현황을 읽지 못했습니다 (' + r.status + ')';
   } catch (e) { pplUseErr = '사용 현황을 읽지 못했습니다 (인터넷 확인)'; }
   pplUseBusy = false;

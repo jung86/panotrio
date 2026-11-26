@@ -8,6 +8,9 @@
 //   (/api/는 앱 주소 jung86.github.io에서도 비밀번호와 함께 읽을 수 있음: 앱 「허락한 사람」 목록에 버전 표시)
 //   POST /api/people 앱의 「허락한 사람」 목록 통째로 바꾸기 {people:[[id, 이름, 상태, 만든 시각], ...]}  (같은 인증)
 // 개인 정보는 받지 않음: 스틱 ID, 앱·펌웨어 버전, 스틱 종류, 폰 종류(안드로이드/아이폰/PC)만.
+// 보기 전용 관리자: 그 사람 폰의 앱이 자기 열쇠를 만들고 신청 코드 `PCV1.<이름>.<x>.<y>`(공개 키)를 줌 → 제작자 폰이 POST /api/admins/add {code}.
+//   그 폰은 `Authorization: Sig2 <kid>.<만료>.<서명>`(`PanoCheck|view|v1|<kid>|<만료>` 서명, kid = sha256(x.y) 앞 12자리)으로
+//   GET /api/sticks·/api/errors·/api/tg, POST /api/tg/link·/api/tg/test·/api/me/tg만 씀(나머지는 제작자만). GET /api/admins, POST /api/admins/del {kid}, /api/admins/tg {kid, on}.
 // ADMIN_TOKEN은 코드에 없음: `npx wrangler secret put ADMIN_TOKEN`으로 넣음.
 // 텔레그램 알림(선택): `npx wrangler secret put TG_TOKEN`(BotFather가 준 봇 토큰). 봇에게 아무 말이나 보낸 뒤 관리 화면 [텔레그램 연결]을 누르면
 //   대화 번호를 찾아 kv 표에 저장(POST /api/tg/link), 새 오류 줄이 생길 때마다 그 대화로 알림. GET /api/tg 상태, POST /api/tg/test 시험.
@@ -36,6 +39,32 @@ async function sigOk(v) {
     ownerKey = ownerKey || await crypto.subtle.importKey('jwk', OWNER_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
     return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, ownerKey, b64u(m[2]), new TextEncoder().encode('PanoCheck|usage|v1|' + exp));
   } catch (e) { return false; }
+}
+let adminsReady = false;
+async function adminsTable(env) {
+  if (adminsReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS admins (kid TEXT PRIMARY KEY, name TEXT, x TEXT, y TEXT, made INTEGER, last INTEGER DEFAULT 0, tg_chat TEXT DEFAULT '', tg INTEGER DEFAULT 1)").run();
+  adminsReady = true;
+}
+const hex = b => [...new Uint8Array(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+const kidOf = async (x, y) => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(x + '.' + y))).slice(0, 12);
+async function viewerOk(v, env) {                    // a view-only admin's phone: its own key, added by the maker
+  const m = /^([0-9a-f]{12})\.(\d{13})\.([A-Za-z0-9_-]{80,90})$/.exec(v); if (!m) return null;
+  const exp = +m[2], now = Date.now();
+  if (exp < now || exp > now + 13 * 3600e3) return null;
+  await adminsTable(env);
+  const row = await env.DB.prepare('SELECT * FROM admins WHERE kid = ?1').bind(m[1]).first(); if (!row) return null;
+  try {
+    const k = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: row.x, y: row.y }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    if (!(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, k, b64u(m[3]), new TextEncoder().encode('PanoCheck|view|v1|' + m[1] + '|' + exp)))) return null;
+  } catch (e) { return null; }
+  if (now - (row.last || 0) > 600e3) await env.DB.prepare('UPDATE admins SET last = ?2 WHERE kid = ?1').bind(row.kid, now).run();
+  return row;
+}
+async function who(req, env) {                       // { role: 'owner' } or { role: 'view', a: <admins row> } or null
+  const h = req.headers.get('Authorization') || '';
+  if (/^Sig2\s+/i.test(h)) { const a = await viewerOk(h.replace(/^Sig2\s+/i, ''), env); return a ? { role: 'view', a } : null; }
+  return (await authed(req, env)) ? { role: 'owner' } : null;
 }
 async function authed(req, env) {
   const h = req.headers.get('Authorization') || '';
@@ -85,9 +114,9 @@ async function tg(env, method, body) {
   const r = await fetch('https://api.telegram.org/bot' + env.TG_TOKEN + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
   return r.json().catch(() => ({ ok: false }));
 }
-async function tgSend(env, text) {
+async function tgSend(env, text, to) {
   if (!env.TG_TOKEN) return false;
-  const chat = env.TG_CHAT || await kvGet(env, 'tg_chat'); if (!chat) return false;
+  const chat = to || env.TG_CHAT || await kvGet(env, 'tg_chat'); if (!chat) return false;
   const r = await tg(env, 'sendMessage', { chat_id: chat, text: text.slice(0, 3500), disable_web_page_preview: true });
   return !!r.ok;
 }
@@ -105,19 +134,45 @@ async function tgError(env, req, e) {               // one message per new error
       '\n' + new URL(req.url).origin + '/admin';
     if (hr && hr.c === 21) m = '[파노체크] 1시간에 오류가 20개 넘게 들어와서 알림을 잠시 멈춥니다. 관리 화면에서 확인해 주세요.\n' + new URL(req.url).origin + '/admin';
     await tgSend(env, m);
+    await adminsTable(env);                          // view-only admins who turned alerts on
+    const vs = await env.DB.prepare("SELECT tg_chat FROM admins WHERE tg = 1 AND tg_chat != ''").all();
+    for (const v of vs.results || []) await tgSend(env, m, v.tg_chat);
   } catch (x) {}
 }
 async function tgLink(env) {                         // find the chat of whoever last wrote to the bot, keep it, say hello there
   if (!env.TG_TOKEN) return json({ error: 'token' });
   const u = await tg(env, 'getUpdates', { limit: 50 });
   if (!u.ok) return json({ error: 'badtoken' });
-  const ms = (u.result || []).map(x => x.message || x.edited_message || x.channel_post).filter(Boolean);
+  const ms = (u.result || []).map(x => x.message || x.edited_message || x.channel_post).filter(Boolean)
+    .filter(x => !/^\/start [0-9a-f]{12}/.test(x.text || ''));          // those are view-only admins linking themselves
   const m = ms[ms.length - 1]; if (!m) return json({ error: 'nomsg' });
   await kvSet(env, 'tg_chat', m.chat.id);
   const ok = await tgSend(env, '파노체크 오류 알림이 연결됐어요. 앞으로 새 오류가 들어오면 여기로 알려 드릴게요.');
   return json({ ok, name: m.chat.first_name || m.chat.title || '' });
 }
-async function tgState(env) { return { token: !!env.TG_TOKEN, chat: !!(env.TG_CHAT || (env.TG_TOKEN && await kvGet(env, 'tg_chat'))) }; }
+async function tgLinkView(env, a) {                 // view-only admin: the app opens t.me/<bot>?start=<kid>, they press Start, then this finds it
+  if (!env.TG_TOKEN) return json({ error: 'token' });
+  const me = await tg(env, 'getMe', {}); if (!me.ok) return json({ error: 'badtoken' });
+  const link = 'https://t.me/' + me.result.username + '?start=' + a.kid;
+  const u = await tg(env, 'getUpdates', { limit: 100 });
+  const m = (u.result || []).map(x => x.message).filter(x => x && (x.text || '').trim() === '/start ' + a.kid).pop();
+  if (!m) return json({ error: 'nomsg', link });
+  await env.DB.prepare('UPDATE admins SET tg_chat = ?2, tg = 1 WHERE kid = ?1').bind(a.kid, String(m.chat.id)).run();
+  const ok = await tgSend(env, '파노체크 오류 알림이 연결됐어요(' + (a.name || '관리자') + '). 새 오류가 들어오면 여기로 알려 드릴게요.', String(m.chat.id));
+  return json({ ok });
+}
+async function addAdmin(env, code) {
+  const m = /^PCV1\.([A-Za-z0-9_-]{0,120})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/.exec(String(code || '').trim()); if (!m) return json({ error: 'code' });
+  let name = ''; try { name = new TextDecoder().decode(b64u(m[1])).replace(/[<>]/g, '').slice(0, 30); } catch (e) {}
+  try { await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: m[2], y: m[3] }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']); } catch (e) { return json({ error: 'code' }); }
+  await adminsTable(env);
+  const n = await env.DB.prepare('SELECT COUNT(*) AS c FROM admins').first(); if (n && n.c >= 20) return json({ error: 'full' });
+  const kid = await kidOf(m[2], m[3]);
+  await env.DB.prepare('INSERT INTO admins (kid, name, x, y, made) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(kid) DO UPDATE SET name = ?2').bind(kid, name, m[2], m[3], Date.now()).run();
+  return json({ ok: true, kid, name });
+}
+async function tgState(env, me) {
+  if (me && me.role === 'view') return { token: !!env.TG_TOKEN, chat: !!me.a.tg_chat, on: !!me.a.tg, role: 'view' }; return { token: !!env.TG_TOKEN, chat: !!(env.TG_CHAT || (env.TG_TOKEN && await kvGet(env, 'tg_chat'))) }; }
 const txt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, n);
 async function errReport(req, env, ctx) {
   const h = cors(req);
@@ -139,10 +194,10 @@ async function errReport(req, env, ctx) {
   if (ctx && ctx.waitUntil) ctx.waitUntil(note); else await note;
   return new Response(null, { status: 204, headers: h });
 }
-async function errList(env) {
+async function errList(env, me) {
   await errorsTable(env); await peopleTable(env);
   const r = await env.DB.prepare('SELECT e.*, p.name AS name FROM errors e LEFT JOIN people p ON p.id = e.stick ORDER BY e.t DESC LIMIT 200').all();
-  return json({ now: Date.now(), errors: r.results || [], tg: await tgState(env) });
+  return json({ now: Date.now(), errors: r.results || [], tg: await tgState(env, me), role: me.role });
 }
 let peopleReady = false;
 async function peopleTable(env) {                    // made on first use, so no separate migration step
@@ -164,7 +219,7 @@ async function setPeople(req, env) {
   await env.DB.batch([env.DB.prepare('DELETE FROM people'), ...rows]);   // the app's list is the truth: removed people go away
   return json({ ok: true, n: rows.length });
 }
-async function sticks(env) {
+async function sticks(env, me) {
   const now = Date.now();
   const d7 = kstDay(now - 6 * 864e5), d30 = kstDay(now - 29 * 864e5);
   const r = await env.DB.prepare(`SELECT s.*,
@@ -173,7 +228,7 @@ async function sticks(env) {
     FROM sticks s ORDER BY last_seen DESC`).bind(d7, d30).all();
   await peopleTable(env);
   const pp = await env.DB.prepare('SELECT * FROM people').all();
-  return json({ now, sticks: r.results || [], people: pp.results || [] });
+  return json({ now, sticks: r.results || [], people: pp.results || [], role: me.role });
 }
 
 async function route(req, env, ctx) {
@@ -184,11 +239,22 @@ async function route(req, env, ctx) {
       if (p === '/e' && req.method === 'POST') return await errReport(req, env, ctx);
       if (p === '/admin' || p === '/') return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
       if (p.startsWith('/api/')) {
-        if (!(await authed(req, env))) return json({ error: 'auth' }, 401);
-        if (p === '/api/sticks' && req.method === 'GET') return await sticks(env);
+        const me = await who(req, env);
+        if (!me) return json({ error: 'auth' }, 401);
+        if (p === '/api/sticks' && req.method === 'GET') return await sticks(env, me);
+        if (p === '/api/errors' && req.method === 'GET') return await errList(env, me);
+        if (p === '/api/tg' && req.method === 'GET') return json(await tgState(env, me));
+        if (me.role === 'view') {                    // view-only admin: reading, plus its own Telegram alerts
+          if (p === '/api/tg/link' && req.method === 'POST') return await tgLinkView(env, me.a);
+          if (p === '/api/tg/test' && req.method === 'POST') return json({ ok: !!me.a.tg_chat && await tgSend(env, '[파노체크] 시험 알림이에요. 잘 왔으면 준비 끝!', me.a.tg_chat) });
+          if (p === '/api/me/tg' && req.method === 'POST') { const b = await req.json(); await env.DB.prepare('UPDATE admins SET tg = ?2 WHERE kid = ?1').bind(me.a.kid, b.on ? 1 : 0).run(); return json({ ok: true }); }
+          return json({ error: 'owner' }, 403);
+        }
+        if (p === '/api/admins' && req.method === 'GET') { await adminsTable(env); const r = await env.DB.prepare("SELECT kid, name, made, last, tg, tg_chat != '' AS chat FROM admins ORDER BY made").all(); return json({ admins: r.results || [] }); }
+        if (p === '/api/admins/add' && req.method === 'POST') return await addAdmin(env, (await req.json()).code);
+        if (p === '/api/admins/del' && req.method === 'POST') { await adminsTable(env); await env.DB.prepare('DELETE FROM admins WHERE kid = ?1').bind(String((await req.json()).kid || '')).run(); return json({ ok: true }); }
+        if (p === '/api/admins/tg' && req.method === 'POST') { const b = await req.json(); await adminsTable(env); await env.DB.prepare('UPDATE admins SET tg = ?2 WHERE kid = ?1').bind(String(b.kid || ''), b.on ? 1 : 0).run(); return json({ ok: true }); }
         if (p === '/api/people' && req.method === 'POST') return await setPeople(req, env);
-        if (p === '/api/errors' && req.method === 'GET') return await errList(env);
-        if (p === '/api/tg' && req.method === 'GET') return json(await tgState(env));
         if (p === '/api/tg/link' && req.method === 'POST') return await tgLink(env);
         if (p === '/api/tg/test' && req.method === 'POST') return json({ ok: await tgSend(env, '[파노체크] 시험 알림이에요. 잘 왔으면 준비 끝!') });
         if (p === '/api/errors/done' && req.method === 'POST') { const b = await req.json(); await errorsTable(env); await env.DB.prepare('UPDATE errors SET done = ?2 WHERE n = ?1').bind(+b.id || 0, b.done ? 1 : 0).run(); return json({ ok: true }); }
@@ -243,6 +309,7 @@ button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);c
 .err .em{font-weight:700;margin:3px 0;word-break:break-all}.err pre{white-space:pre-wrap;word-break:break-all;font:12px/1.4 ui-monospace,Consolas,monospace;background:#0e0e10;border:1px solid var(--line);border-radius:4px;padding:8px;max-height:320px;overflow:auto;display:none}
 .err .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.err .acts button{padding:4px 10px;font-size:13px}
 #msg{margin-bottom:10px}
+.view [data-edone],.view [data-edel],.view [data-del],.view .del,.view #tgBox{display:none!important}.view .note{pointer-events:none;border-color:transparent}
 </style></head><body><main>
 <h1>파노체크 사용 현황</h1>
 <div class="card" id="login"><div style="margin-bottom:8px">관리자 비밀번호</div>
@@ -265,10 +332,10 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 function ago(t,now){const m=Math.floor((now-t)/60000);if(m<1)return'방금';if(m<60)return m+'분 전';const h=Math.floor(m/60);if(h<24)return h+'시간 전';return Math.floor(h/24)+'일 전'}
 function dt(t){const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 const fid=id=>id.slice(0,4)+'-'+id.slice(4);
-async function api(p,body){const r=await fetch(p,{method:body?'POST':'GET',headers:Object.assign({Authorization:/^Sig /.test(tk)?tk:'Bearer '+tk},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});if(r.status===401)throw new Error('auth');if(!r.ok)throw new Error('서버 오류 '+r.status);return r.json()}
+async function api(p,body){const r=await fetch(p,{method:body?'POST':'GET',headers:Object.assign({Authorization:/^Sig2? /.test(tk)?tk:'Bearer '+tk},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});if(r.status===401)throw new Error('auth');if(!r.ok)throw new Error('서버 오류 '+r.status);return r.json()}
 let pending=null;
-function readHash(){try{const q=new URLSearchParams(location.hash.slice(1)),sg=q.get('s');if(sg&&/^\\d{13}\\.[A-Za-z0-9_-]+$/.test(sg))tk='Sig '+sg;const pv=q.get('p');const m=pv&&/^[A-Za-z0-9_-]+$/.test(pv)?[0,pv]:null;if(m){let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';pending=JSON.parse(decodeURIComponent(escape(atob(b))))}}catch(e){pending=null}}
-readHash();if(/^Sig /.test(tk))history.replaceState(null,'',location.pathname);addEventListener('hashchange',()=>{readHash();if(/^Sig /.test(tk))history.replaceState(null,'',location.pathname);if(tk)load()});
+function readHash(){try{const q=new URLSearchParams(location.hash.slice(1)),sg=q.get('s');if(sg&&/^\\d{13}\\.[A-Za-z0-9_-]+$/.test(sg))tk='Sig '+sg;const s2=q.get('v');if(s2&&/^[0-9a-f]{12}\\.\\d{13}\\.[A-Za-z0-9_-]+$/.test(s2))tk='Sig2 '+s2;const pv=q.get('p');const m=pv&&/^[A-Za-z0-9_-]+$/.test(pv)?[0,pv]:null;if(m){let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';pending=JSON.parse(decodeURIComponent(escape(atob(b))))}}catch(e){pending=null}}
+readHash();if(/^Sig2? /.test(tk))history.replaceState(null,'',location.pathname);addEventListener('hashchange',()=>{readHash();if(/^Sig2? /.test(tk))history.replaceState(null,'',location.pathname);if(tk)load()});
 let latest={};
 async function loadLatest(){for(const [k,u] of [['app','https://jung86.github.io/panotrio/app.html'],['s3','https://jung86.github.io/panotrio/fw/latest.json'],['p2','https://jung86.github.io/panotrio/fw/latest-plus2.json']]){try{const r=await fetch(u,{cache:'no-store'});if(!r.ok)continue;const t=await r.text();if(k==='app'){const m=/const APP_BUILD = '([^']+)'/.exec(t);if(m)latest.app=m[1]}else latest[k]=JSON.parse(t).ver}catch(e){}}}
 async function load(){
@@ -276,8 +343,8 @@ async function load(){
   try{
     if(pending){const r=await api('/api/people',{people:pending});pending=null;history.replaceState(null,'',location.pathname);$('msg').textContent='앱의 허락 목록 '+r.n+'명을 맞췄습니다';}
     d=await api('/api/sticks');
-  }catch(e){if(e.message==='auth'){$('err').textContent=/^Sig /.test(tk)?'열쇠 확인 시간이 지났습니다. 앱에서 다시 열거나 비밀번호를 넣어 주세요':'비밀번호가 맞지 않습니다';tk='';show(false);try{localStorage.removeItem('pc-admin')}catch(_){};return}$('err').textContent=e.message;show(false);return}
-  show(true);const now=d.now,S=d.sticks,P={};(d.people||[]).forEach(p=>P[p.id]=p);
+  }catch(e){if(e.message==='auth'){$('err').textContent=/^Sig2? /.test(tk)?'열쇠 확인 시간이 지났습니다. 앱에서 다시 열거나 비밀번호를 넣어 주세요':'비밀번호가 맞지 않습니다';tk='';show(false);try{localStorage.removeItem('pc-admin')}catch(_){};return}$('err').textContent=e.message;show(false);return}
+  show(true);document.body.classList.toggle('view',d.role==='view');const now=d.now,S=d.sticks,P={};(d.people||[]).forEach(p=>P[p.id]=p);
   const byId={};S.forEach(s=>byId[s.id]=s);
   const rows=S.filter(s=>s.id!=='NOSTICK').map(s=>({s,p:P[s.id]}));
   Object.keys(P).forEach(id=>{if(!byId[id])rows.push({s:null,p:P[id]})});
