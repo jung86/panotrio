@@ -1,6 +1,6 @@
 {
   "name": "파노체크",
-  "version": "2.7",
+  "version": "2.8",
   "new_install_prompt_erase": false,
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -8,19 +8,19 @@
       "chipFamily": "ESP32-S3",
       "parts": [
         {
-          "path": "install/bootloader-2.7.bin",
+          "path": "install/bootloader-2.8.bin",
           "offset": 0
         },
         {
-          "path": "install/partitions-2.7.bin",
+          "path": "install/partitions-2.8.bin",
           "offset": 32768
         },
         {
-          "path": "install/otadata-2.7.bin",
+          "path": "install/otadata-2.8.bin",
           "offset": 57344
         },
         {
-          "path": "fw/PanoCheck-2.7.app.bin",
+          "path": "fw/PanoCheck-2.8.app.bin",
           "offset": 65536
         }
       ]
