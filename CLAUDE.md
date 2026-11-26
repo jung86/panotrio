@@ -85,7 +85,7 @@
 
 ## 4-2. 사용 현황 (관리자용, 앱 2026-11-26w)
 - 서버 코드 tools/usage-worker (README에 설치 순서). Cloudflare 계정은 사용자 본인 것. 관리자 비밀번호는 저장소에 넣지 않음.
-- 배포 후 app.html `USAGE_URL`에 워커 주소를 넣어야 기록 시작.
+- 배포됨(2026-11-26): https://panocheck-usage.panocheck.workers.dev (관리 화면 /admin). 관리 비밀번호는 PC `Documents\motorcleaner\비공개\usage-admin.txt`에만. 워커 작업 폴더 PC `Documents\motorcleaner\usage-worker`. 스틱 ID는 16진수만 받음(아니면 NOSTICK).
 
 ## 5. 실제 기기로 아직 확인 못 한 것
 

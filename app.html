@@ -1739,7 +1739,7 @@ var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
 // (tools/usage-worker). Nothing personal. A failed send is ignored: it never stops the app.
-var USAGE_URL = '';                                   // the Cloudflare worker address; empty = send nothing
+var USAGE_URL = 'https://panocheck-usage.panocheck.workers.dev';                                 // the Cloudflare worker address; empty = send nothing
 var usageLast = null, usageMetSticks = {}, usageMeasN = 0, usageMeasTimer = 0;
 function usagePlat() { return IOS ? 'iOS' : /Android/i.test(navigator.userAgent) ? 'Android' : 'PC'; }
 function usageSend(k, info, n) {
