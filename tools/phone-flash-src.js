@@ -1,11 +1,12 @@
-// 파노체크: 안드로이드 크롬에서 WebUSB로 펌웨어 설치 (web-serial-polyfill + esptool-js)
+// 파노체크: 안드로이드 크롬에서 펌웨어 설치 (Web Serial이 있으면 그것, 없으면 WebUSB + web-serial-polyfill) + esptool-js
 // 빌드: npm i esptool-js@0.5.4 web-serial-polyfill@1.0.15 spark-md5@3.0.2 esbuild; npx esbuild tools/phone-flash-src.js --bundle --format=esm --minify --target=chrome100 --outfile=install/phone-flash.js
 // manifest.json의 네 조각만 씀 (NVS 0x9000~0xE000는 건드리지 않음 -> 활성화 유지)
-import { ESPLoader, Transport } from "esptool-js";
+import { ESPLoader, Transport, UsbJtagSerialReset, ClassicReset } from "esptool-js";
 import { SerialPort as UsbSerialPort } from "web-serial-polyfill";
 import SparkMD5 from "spark-md5";
 
 const ESP_VID = 0x303a;
+const hex = (n) => (n === undefined || n === null ? "?" : "0x" + n.toString(16).padStart(4, "0"));
 
 function bstr(buf) {
   const u = new Uint8Array(buf);
@@ -13,16 +14,37 @@ function bstr(buf) {
   for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
   return s;
 }
-
-export async function pickDevice() {
-  if (!navigator.usb) throw new Error("NO_USB");
-  return navigator.usb.requestDevice({ filters: [{ vendorId: ESP_VID }] });
+function withTimeout(p, ms, code) {
+  let t;
+  return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(code)), ms); })]).finally(() => clearTimeout(t));
 }
 
-// ui: { status(text), progress(0..1), log(text) }
-export async function flash(device, ui, manifestUrl = "manifest.json") {
+export function hasNativeSerial() { return !!navigator.serial; }
+
+// returns { kind:'usb'|'serial', port, usb? }. Android: WebUSB first (Web Serial on Android may list only Bluetooth)
+export async function pickDevice(log = () => {}, prefer = "usb") {
+  if (navigator.usb && prefer !== "serial") {
+    const usb = await navigator.usb.requestDevice({ filters: [{ vendorId: ESP_VID }] });
+    const itfs = usb.configurations && usb.configurations[0]
+      ? usb.configurations[0].interfaces.map((f) => f.interfaceNumber + ":" + f.alternates[0].interfaceClass).join(" ") : "?";
+    log(`장치(WebUSB) ${usb.productName || ""} VID ${hex(usb.vendorId)} PID ${hex(usb.productId)} 인터페이스 ${itfs}`);
+    return { kind: "usb", usb, port: new UsbSerialPort(usb) };
+  }
+  if (navigator.serial) {
+    const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: ESP_VID }] });
+    const i = port.getInfo ? port.getInfo() : {};
+    log(`장치(Web Serial) VID ${hex(i.usbVendorId)} PID ${hex(i.usbProductId)}`);
+    return { kind: "serial", port };
+  }
+  throw new Error("NO_USB");
+}
+
+// ui: { status(text), progress(0..1), log(text) }; opts.mode: 'default_reset' (자동) | 'no_reset' (스틱을 직접 다운로드 모드로)
+export async function flash(dev, ui, opts = {}) {
   const say = (t) => ui.status && ui.status(t);
   const log = (t) => ui.log && ui.log(t);
+  const mode = opts.mode || "default_reset";
+  const manifestUrl = opts.manifest || "manifest.json";
 
   say("펌웨어 파일 받는 중…");
   const man = await (await fetch(manifestUrl, { cache: "no-cache" })).json();
@@ -35,43 +57,57 @@ export async function flash(device, ui, manifestUrl = "manifest.json") {
     files.push({ data: bstr(await r.arrayBuffer()), address: p.offset });
   }
   const totalAll = files.reduce((a, f) => a + f.data.length, 0);
+  log(`파일 ${files.length}개 ${Math.round(totalAll / 1024)} KB, 방식 ${dev.kind}, 모드 ${mode}`);
 
-  say("스틱에 연결하는 중…");
-  const port = new UsbSerialPort(device);
-  const transport = new Transport(port, false);
-  const terminal = { clean() {}, writeLine: (d) => log(d), write: (d) => log(d) };
-  const loader = new ESPLoader({ transport, baudrate: 115200, romBaudrate: 115200, terminal });
+  say(mode === "no_reset" ? "다운로드 모드 스틱에 연결하는 중…" : "스틱에 연결하는 중…");
+  const transport = new Transport(dev.port, false);
+  const terminal = { clean() {}, writeLine: (d) => log(d), write: (d) => { if (String(d).trim()) log(d); } };
+  const loader = new ESPLoader({ transport, baudrate: 115200, romBaudrate: 115200, terminal, serialOptions: { bufferSize: 64 }, debugLogging: false,
+    resetConstructors: {
+      usbJTAGSerialReset: (t) => ({ reset: async () => { log("리셋 신호 보냄 (USB-JTAG)"); await new UsbJtagSerialReset(t).reset(); } }),
+      classicReset: (t, d) => ({ reset: async () => { log("리셋 신호 보냄 (기본)"); await new ClassicReset(t, d).reset(); } }),
+    } });
+  const abort = async () => {             // never hang here: close the USB device first (ends pending transfers), then the port
+    if (dev.usb && dev.usb.opened) { try { await withTimeout(dev.usb.close(), 3000, "T"); } catch (_) {} }
+    try { await withTimeout(transport.disconnect(), 3000, "T"); } catch (_) {}
+    if (dev.usb && dev.usb.opened) { try { await withTimeout(dev.usb.close(), 3000, "T"); } catch (_) {} }
+  };
+  const origConnect = transport.connect.bind(transport);
+  transport.connect = async (...a) => {
+    log("포트 여는 중…");
+    await withTimeout(origConnect(...a), 10000, "OPEN_TIMEOUT");
+    log("포트 열림, 스틱을 설치 모드로 바꾸는 중…");
+  };
   let chip;
   try {
-    chip = await loader.main();
+    chip = await withTimeout(loader.main(mode), 30000, "TIMEOUT");
   } catch (e) {
-    try { await transport.disconnect(); } catch (_) {}
+    log("[연결 실패] " + (e && (e.name ? e.name + ": " : "") + e.message || e));
+    await abort();
     throw new Error("CONNECT:" + (e && e.message || e));
   }
-  if (!/ESP32-S3/i.test(chip)) {
-    try { await transport.disconnect(); } catch (_) {}
-    throw new Error("이 기기는 ESP32-S3가 아닙니다: " + chip);
-  }
+  log("칩: " + chip);
+  if (!/ESP32-S3/i.test(chip)) { await abort(); throw new Error("이 기기는 ESP32-S3가 아닙니다: " + chip); }
 
   say("설치 중… 선을 빼지 마세요");
   const sizes = files.map((f) => f.data.length);
   const before = (i) => sizes.slice(0, i).reduce((a, b) => a + b, 0);
-  await loader.writeFlash({
-    fileArray: files,
-    flashSize: "keep",
-    flashMode: "keep",
-    flashFreq: "keep",
-    eraseAll: false,
-    compress: true,
-    reportProgress: (i, written, total) => {
-      const frac = total ? written / total : 1;
-      ui.progress && ui.progress((before(i) + frac * sizes[i]) / totalAll);
-    },
-    calculateMD5Hash: (img) => SparkMD5.hashBinary(img),
-  });
+  let lastP = Date.now();
+  const watchdog = setInterval(() => { if (Date.now() - lastP > 30000) { log("[멈춤] 30초 동안 진행 없음"); abort(); } }, 3000);
+  try {
+    await loader.writeFlash({
+      fileArray: files, flashSize: "keep", flashMode: "keep", flashFreq: "keep", eraseAll: false, compress: true,
+      reportProgress: (i, written, total) => {
+        lastP = Date.now();
+        const frac = total ? written / total : 1;
+        ui.progress && ui.progress((before(i) + frac * sizes[i]) / totalAll);
+      },
+      calculateMD5Hash: (img) => SparkMD5.hashBinary(img),
+    });
+  } finally { clearInterval(watchdog); }
   say("다시 켜는 중…");
-  try { await loader.after("hard_reset"); } catch (_) {}
-  try { await transport.disconnect(); } catch (_) {}
+  try { await withTimeout(loader.after("hard_reset"), 5000, "TIMEOUT"); } catch (_) {}
+  await abort();
   ui.progress && ui.progress(1);
   return { chip, version: man.version };
 }
