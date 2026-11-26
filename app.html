@@ -763,11 +763,6 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div id="status" class="status">대기</div>
   </div>
 
-  <div class="card">
-    <div class="ttl">최근 60초</div>
-    <canvas id="chart" width="1040" height="360"></canvas>
-    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#8d8d93"></i>진동</span><span><i style="background:#4a4a50"></i>소리</span></div>
-  </div>
 
   <div class="card" id="psuCard">
     <div class="psuHead"><div class="ttl">전원공급기 · 정역</div><span id="psuLive" class="help"></span><button id="btnPsu" style="padding:6px 12px;font-size:14px">연결</button></div>
@@ -785,6 +780,12 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
       <div class="psuAct"><div class="seg" id="psuDir"><button data-d="0">정방향</button><button data-d="1">역방향</button></div><button id="psuOut">출력 켜기</button></div>
       <div id="psuMsg" class="help" style="margin-top:6px;text-align:center"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="ttl">최근 60초</div>
+    <canvas id="chart" width="1040" height="360"></canvas>
+    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#8d8d93"></i>진동</span><span><i style="background:#4a4a50"></i>소리</span></div>
   </div>
 
   <div class="card" id="condCard">
@@ -1733,7 +1734,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26t';
+const APP_BUILD = '2026-11-26u';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
