@@ -75,7 +75,7 @@
   }
   const B = '-5c1b-4f2e-9d3a-50a0b0c0d0e1';
   let mode = 2;
-  const info = () => `ID=1DD625E0;VER=2.6;ACT=1;RES=OK;LCK=0;UNL=1;BR=170;VM=4;WT=25;HOT=550;MIC=40;DIM=30;OFF=10;PS=1;SB=1;CK=1;C12=0;CB=0;CBR=40;BAT=86;USB=0;OTA=1;CND=1;DIR=${SIM.dir};RLY=0`;
+  const info = () => `ID=1DD625E0;VER=2.9;ACT=1;RES=OK;LCK=0;UNL=1;BR=170;VM=4;WT=25;HOT=550;MIC=40;DIM=30;OFF=10;PS=1;SB=1;CK=1;C12=0;CB=0;CBR=40;BAT=86;USB=0;OTA=1;CND=1;DIR=${SIM.dir};RLY=0`;
   let lastBig = 0, steady = 0;
   function statFrame() {
     const b = new Uint8Array(20), d = new DataView(b.buffer);
