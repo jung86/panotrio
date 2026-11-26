@@ -105,9 +105,11 @@ export async function flash(dev, ui, opts = {}) {
       calculateMD5Hash: (img) => SparkMD5.hashBinary(img),
     });
   } finally { clearInterval(watchdog); }
-  say("다시 켜는 중…");
-  try { await withTimeout(loader.after("hard_reset"), 5000, "TIMEOUT"); } catch (_) {}
-  await abort();
+  // 쓰기와 확인(Hash verified)이 끝나면 설치 성공. 다시 켜기(RTS 리셋)는 다운로드 모드에선 안 될 수 있어 기다리지 않음
   ui.progress && ui.progress(1);
+  (async () => {
+    try { await withTimeout(loader.after("hard_reset"), 4000, "TIMEOUT"); } catch (_) {}
+    await abort();
+  })();
   return { chip, version: man.version };
 }
