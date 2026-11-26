@@ -1,30 +1,31 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#111418">
+<meta name="theme-color" content="#0b0b0c">
 <title>파노체크</title>
 <link rel="manifest" href="app.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="application-name" content="파노체크">
 <style>
-  :root { --bg:#111418; --card:#1b2028; --ink:#eef1f6; --mute:#8e98aa; --line:#2b323e; --acc:#e8590c;
-          --grey:#5c6370; --green:#2f9e44; --yellow:#e0b000; --orange:#e8590c; --red:#e03131; --cyan:#1098ad; }
+  :root { --bg:#0b0b0c; --card:#141415; --ink:#eef1f6; --mute:#8e98aa; --line:#222225; --acc:#f76707;
+          --grey:#5c6370; --green:#2f9e44; --yellow:#e0b000; --orange:#f76707; --red:#e03131; --cyan:#1098ad; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif; word-break:keep-all; overflow-wrap:break-word; }
   main { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
   header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   header h1 { font-size:20px; margin:0; }
   .conn { font-size:13px; color:var(--mute); }
-  .conn.on { color:#69db7c; }
+  .conn.on { color:var(--ink); }
   button { font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer; }
   button:disabled { opacity:.4; }
   .primary { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; width:100%; padding:16px; font-size:18px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:14px; margin:12px 0; }
   .big { text-align:center; padding:18px 10px 8px; }
-  .big .hz { font-size:76px; font-weight:800; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
+  .big .hz { font-size:76px; font-weight:700; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
   .big .unit { font-size:20px; color:var(--mute); font-weight:600; }
   .big .rpm { font-size:22px; color:var(--mute); margin-top:6px; font-variant-numeric:tabular-nums; }
   /* above 550 Hz: red, shaking, glowing */
@@ -37,7 +38,7 @@
   @keyframes cardGlow { from{box-shadow:0 0 8px #ff000055} to{box-shadow:0 0 28px #ff2d2dbb} }
   @media (prefers-reduced-motion: reduce) { .big.hot .hz, .big.hot { animation:none; } }
   #toast { position:fixed; left:50%; top:14px; transform:translate(-50%,calc(-100% - 30px)); z-index:70; padding:12px 18px; border-radius:8px;
-           font-weight:800; font-size:16px; color:var(--ink); background:#2a313c; border:1px solid #3a4250; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
+           font-weight:700; font-size:16px; color:var(--ink); background:#2a313c; border:1px solid #3a4250; box-shadow:0 8px 24px #000a; transition:transform .3s; white-space:nowrap; }
   #toast.show { transform:translate(-50%,0); }
   #toast.bad { background:#c92a2a; }
   .hdr-r { display:flex; align-items:center; gap:10px; }
@@ -47,15 +48,15 @@
   #home .inner { max-width:560px; margin:0 auto; padding:26px 18px 40px; text-align:center; }
   #home .logo { width:132px; height:132px; border-radius:26px; box-shadow:0 8px 28px #000a; }
   #home h1 { font-size:30px; margin:14px 0 4px; letter-spacing:1px; }
-  .pill { display:inline-block; font-size:13px; padding:3px 10px; border-radius:6px; background:#232a35; color:var(--mute); }
-  .pill.on { background:#232a35; color:var(--ink); }
+  .pill { display:inline-block; font-size:13px; padding:3px 10px; border-radius:6px; background:#1b1b1d; color:var(--mute); }
+  .pill.on { background:#1b1b1d; color:var(--ink); }
   .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
-  .tile { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 10px 14px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:16px 10px 14px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; }
   .tile:active { transform:scale(.97); }
   .tile svg { width:44px; height:44px; }
   .tile .ts:empty, #hint:empty { display:none; }
   #btnConnect2 { display:block; margin-left:auto; margin-right:auto; width:auto; min-width:62%; padding:13px 28px; font-size:17px; border-radius:8px; }
-  .tile .tl { font-size:19px; font-weight:800; color:var(--ink); }
+  .tile .tl { font-size:19px; font-weight:700; color:var(--ink); }
   .tile .ts { font-size:13px; color:var(--mute); min-height:18px; font-variant-numeric:tabular-nums; }
   .back { font-size:26px; padding:0 12px 2px; line-height:1.2; }
   .hdr-l { display:flex; align-items:center; gap:8px; }
@@ -63,56 +64,56 @@
   #clean.open { display:block; }
   #clean .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
   .dpsLive { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:12px; text-align:center; }
-  .dpsLive div { background:#0f1217; border-radius:10px; padding:10px 2px; }
-  .dpsLive span { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .dpsLive div { background:#0e0e10; border-radius:6px; padding:10px 2px; }
+  .dpsLive span { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
   .dpsLive small { font-size:13px; color:var(--mute); margin-left:3px; }
   .cgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .cgrid label { font-size:13px; color:var(--mute); display:flex; flex-direction:column; gap:4px; }
-  .cgrid input, .cgrid select, #cRly { width:100%; font:700 20px system-ui; padding:9px 10px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  .cgrid input, .cgrid select, #cRly { width:100%; font:700 20px system-ui; padding:9px 10px; border-radius:6px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); }
   #cRly { font-size:16px; }
   #clean[data-mode=clean] .only-break, #clean[data-mode=break] .only-clean { display:none !important; }
   .bhist { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
   .bhist .r { display:grid; grid-template-columns:52px 1fr 92px; gap:8px; align-items:center; font-variant-numeric:tabular-nums; font-size:14px; }
-  .bhist .bar { height:10px; background:#0f1217; border-radius:6px; overflow:hidden; position:relative; }
+  .bhist .bar { height:10px; background:#0e0e10; border-radius:6px; overflow:hidden; position:relative; }
   .bhist .bar i { display:block; height:100%; background:var(--acc); }
-  .bhist .r.ok .bar i { background:#2f9e44; }
+  .bhist .r.ok .bar i { background:var(--acc); }
   .bstages { display:flex; flex-direction:column; gap:10px; }
-  .bstage { border:1px solid var(--line); border-radius:14px; padding:10px; background:#12161d; }
-  .bstage .h { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-weight:800; }
+  .bstage { border:1px solid var(--line); border-radius:6px; padding:10px; background:var(--card2); }
+  .bstage .h { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-weight:700; }
   .bstage .h .sp { flex:1; }
   .bstage .h button { padding:4px 10px; font-size:14px; }
   .bsteps { display:flex; flex-direction:column; gap:8px; }
-  .bstep { border:1px solid var(--line); border-radius:12px; padding:8px; background:#12161d; }
-  .bstep .h { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-weight:800; font-size:14px; }
+  .bstep { border:1px solid var(--line); border-radius:6px; padding:8px; background:var(--card2); }
+  .bstep .h { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-weight:700; font-size:14px; }
   .bstep .h .n { color:var(--mute); width:20px; }
   .bstep .h .sp { flex:1; }
   .bstep .h button { padding:4px 9px; font-size:14px; }
   .bstep .f { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
   .bstep .f.f5 { grid-template-columns:repeat(5, 1fr); }
   .bstep .f label { font-size:11px; color:var(--mute); display:flex; flex-direction:column; gap:2px; }
-  .bstep .f input, .bstep .f select { width:100%; font:700 16px system-ui; padding:7px 6px; border-radius:8px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  .bstep .f input, .bstep .f select { width:100%; font:600 16px Pretendard,system-ui; padding:7px 6px; border-radius:8px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); }
   .cstat { display:grid; grid-template-columns:1fr 2fr; gap:10px; align-items:end; }
-  .cbig { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .cbig { font-size:30px; font-weight:700; font-variant-numeric:tabular-nums; }
   .cmid { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .cbar { height:8px; background:#0f1217; border-radius:4px; margin-top:10px; overflow:hidden; }
+  .cbar { height:8px; background:#0e0e10; border-radius:4px; margin-top:10px; overflow:hidden; }
   .cbar div { height:100%; width:0; background:var(--acc); transition:width .2s; }
   .psuHead { display:flex; align-items:center; gap:8px; }
   .psuHead .ttl { margin:0; flex:1; }
   .psuRow { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; align-items:end; }
   .psuRow #psuOut { grid-column:1 / -1; padding:12px 4px; font-size:17px; }
   .psuRow label { font-size:12px; color:var(--mute); display:flex; flex-direction:column; gap:3px; }
-  .psuRow input { width:100%; font:700 18px system-ui; padding:8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
-  #psuOut { padding:10px 4px; font-weight:800; }
-  #psuOut.on { background:var(--green); border-color:var(--green); color:#fff; }
+  .psuRow input { width:100%; font:600 18px Pretendard,system-ui; padding:8px; border-radius:6px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); }
+  #psuOut { padding:10px 4px; font-weight:700; }
+  #psuOut.on { background:var(--acc); border-color:var(--acc); color:#fff; }
   #psuDir { margin-top:10px; grid-template-columns:1fr 1fr; }
   .seg button.sel2 { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
   .condTop { display:flex; align-items:center; gap:14px; }
-  .condScore { font-size:44px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; min-width:84px; text-align:center; }
+  .condScore { font-size:44px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; min-width:84px; text-align:center; }
   .condScore small { font-size:15px; color:var(--mute); font-weight:600; }
-  .condGrade { font-size:13px; font-weight:800; border-radius:4px; padding:2px 8px; color:#000; display:inline-block; }
+  .condGrade { font-size:13px; font-weight:700; border-radius:4px; padding:2px 8px; color:#000; display:inline-block; }
   .condRows { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:14px; margin-top:10px; font-variant-numeric:tabular-nums; }
   .condRows .k { color:var(--mute); }
-  .condRows .up { color:#ff8787; } .condRows .dn { color:#69db7c; }
+  .condRows .up { color:#ff8787; } .condRows .dn { color:var(--ink); }
   .ckBox { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
   .ckBox .seg button { min-height:40px; }
   .ckGo { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
@@ -127,12 +128,12 @@
   .ckBox .prow select { flex:0 0 42%; } .ckBox .prow button { flex:1; }
   .ckCmp { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; font-variant-numeric:tabular-nums; }
   .ckCmp th, .ckCmp td { padding:3px 4px; text-align:right; border-bottom:1px solid var(--line); } .ckCmp th:first-child, .ckCmp td:first-child { text-align:left; color:var(--mute); }
-  .ckCmp .up { color:#ff8787; } .ckCmp .dn { color:#69db7c; }
+  .ckCmp .up { color:#ff8787; } .ckCmp .dn { color:var(--ink); }
   .prow { display:flex; gap:6px; align-items:center; margin:8px 0 2px; }
-  .prow select { flex:1; min-width:0; font:600 15px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  .prow select { flex:1; min-width:0; font:600 15px Pretendard,system-ui; padding:9px 8px; border-radius:6px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); }
   .prow button { padding:8px 11px; font-size:15px; white-space:nowrap; min-height:48px; }
   .prow select { min-height:48px; }
-  #psuPreSave, #cPreSave, #bPreSave { min-width:96px; padding:10px 14px; font-size:16px; font-weight:800; background:var(--acc); border-color:var(--acc); color:#fff; }
+  #psuPreSave, #cPreSave, #bPreSave { min-width:96px; padding:10px 14px; font-size:16px; font-weight:700; background:var(--acc); border-color:var(--acc); color:#fff; }
   #psuPreSave:active, #cPreSave:active, #bPreSave:active { filter:brightness(1.15); }
   .ppl { margin-top:8px; }
   .ppl .row { display:grid; grid-template-columns:1fr auto; gap:6px; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line); }
@@ -140,11 +141,11 @@
   .ppl .meta { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums; }
   .ppl .acts { display:flex; gap:4px; }
   .ppl .acts button { padding:7px 9px; font-size:13px; }
-  .pst { font-size:12px; font-weight:800; border-radius:6px; padding:1px 6px; margin-left:6px; }
-  .pst.ok { background:#2b8a3e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#1971c2; color:#fff; }
+  .pst { font-size:12px; font-weight:700; border-radius:6px; padding:1px 6px; margin-left:6px; }
+  .pst.ok { background:#2a2a2e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#2a2a2e; color:#fff; }
   .tile.wide { grid-column:1 / -1; flex-direction:row; justify-content:flex-start; padding:16px 20px; gap:16px; }
   .tiles3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
-  .tiles3 .tile { padding:12px 4px 10px; gap:6px; border-radius:10px; }
+  .tiles3 .tile { padding:12px 4px 10px; gap:6px; border-radius:6px; }
   .tiles3 .tile svg { width:36px; height:36px; }
   .tiles3 .tile .tl { font-size:14px; text-align:center; line-height:1.25; }
   .tiles3 .tile .ts { display:none; }
@@ -154,22 +155,22 @@
   #book.open { display:block; }
   #book .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
   .rank { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
-  .rank .r { display:grid; grid-template-columns:34px 1fr auto auto; gap:8px; align-items:center; padding:10px 8px; border-radius:12px; background:#12161d; border:1px solid var(--line); cursor:pointer; font-variant-numeric:tabular-nums; }
+  .rank .r { display:grid; grid-template-columns:34px 1fr auto auto; gap:8px; align-items:center; padding:10px 8px; border-radius:6px; background:var(--card2); border:1px solid var(--line); cursor:pointer; font-variant-numeric:tabular-nums; }
   .rank .r.sel { border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc); }
-  .rank .no { font-size:20px; font-weight:800; text-align:center; }
-  .rank .nm { font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rank .no { font-size:20px; font-weight:700; text-align:center; }
+  .rank .nm { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .rank .sub { font-size:12px; color:var(--mute); }
-  .rank .sc { font-size:22px; font-weight:800; min-width:44px; text-align:right; }
+  .rank .sc { font-size:22px; font-weight:700; min-width:44px; text-align:right; }
   .bkList { font-size:14px; margin-top:8px; font-variant-numeric:tabular-nums; }
   .bkList .l { display:grid; grid-template-columns:auto auto 1fr auto; white-space:nowrap; gap:6px; padding:5px 0; border-bottom:1px solid var(--line); align-items:center; }
   .bkLeg { display:flex; gap:12px; font-size:12px; color:var(--mute); margin-top:4px; } .bkLeg i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
-  #condWarn { display:none; margin-top:10px; background:#3b1414; border:1px solid var(--red); border-radius:12px; padding:10px 12px; font-size:15px; font-weight:700; color:#ffc9c9; cursor:pointer; }
+  #condWarn { display:none; margin-top:10px; background:#3b1414; border:1px solid var(--red); border-radius:6px; padding:10px 12px; font-size:15px; font-weight:700; color:#ffc9c9; cursor:pointer; }
   #condWarn.show { display:block; }
   #admin { position:fixed; inset:0; z-index:61; background:var(--bg); overflow-y:auto; display:none; }
   #admin.open { display:block; }
   #admin .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
-  #admin input[type=password], #admin input[type=text] { width:100%; font:700 20px system-ui; padding:12px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:#fff; }
-  #aId { font:800 26px ui-monospace,Consolas,monospace !important; letter-spacing:3px; text-transform:uppercase; }
+  #admin input[type=password], #admin input[type=text] { width:100%; font:700 20px system-ui; padding:12px; border-radius:6px; border:1px solid var(--line); background:#0e0e10; color:#fff; }
+  #aId { font:700 26px ui-monospace,Consolas,monospace !important; letter-spacing:3px; text-transform:uppercase; }
   #settings { position:fixed; inset:0; z-index:60; background:var(--bg); overflow-y:auto; transform:translateX(100%); transition:transform .25s; }
   #settings.open { transform:translateX(0); }
   #settings .inner { max-width:560px; margin:0 auto; padding:14px 14px 40px; }
@@ -177,7 +178,7 @@
   .set-row:last-child { border-bottom:0; }
   .set-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
   .set-name { font-weight:700; }
-  .set-val { font-variant-numeric:tabular-nums; color:#ffd8a8; font-weight:700; white-space:nowrap; }
+  .set-val { font-variant-numeric:tabular-nums; color:#8d8d93; font-weight:700; white-space:nowrap; }
   .set-help { font-size:13px; color:var(--mute); margin-top:2px; }
   .set-def { font-size:12px; color:var(--mute); opacity:.85; margin:1px 0 4px; }
   .set-def b { color:inherit; font-weight:700; }
@@ -193,9 +194,9 @@
   .sw { display:flex; justify-content:space-between; align-items:center; gap:12px; }
   .sw input { width:46px; height:26px; accent-color:var(--acc); }
   .off { opacity:.45; pointer-events:none; }
-  .status { margin-top:12px; border-radius:10px; padding:9px; text-align:center; font-weight:700; color:#000; background:var(--grey); }
+  .status { margin-top:12px; border-radius:6px; padding:9px; text-align:center; font-weight:700; color:#000; background:var(--grey); }
   .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .val { background:#151a21; border-radius:10px; padding:10px 12px; }
+  .val { background:var(--card2); border-radius:6px; padding:10px 12px; }
   .val .k { font-size:13px; color:var(--mute); }
   .val .v { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
   .val .s { font-size:13px; color:var(--mute); }
@@ -221,12 +222,12 @@
   label.auto { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--mute); margin-top:8px; }
   .del { padding:2px 8px; font-size:13px; }
   .rec { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); }
-  .rec .hz { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; min-width:78px; }
+  .rec .hz { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; min-width:78px; }
   .rec .mid { flex:1; min-width:0; }
   .rec .meta { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rec .memo { font-size:14px; color:var(--ink); text-decoration:none; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .mrow { display:flex; gap:8px; align-items:center; margin:10px 0 4px; }
-  .mrow select { flex:1; font:600 16px system-ui; padding:9px 8px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); }
+  .mrow select { flex:1; font:600 16px Pretendard,system-ui; padding:9px 8px; border-radius:6px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); }
   .fchips { display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; }
   .fchips button { padding:5px 12px; border-radius:6px; font-size:13px; white-space:nowrap; }
   .fchips button.sel { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
@@ -236,9 +237,9 @@
   .chip.st { background:transparent !important; color:var(--mute); border:1px solid var(--line); font-weight:600; }
   .recMore { width:100%; margin-top:8px; font-size:14px; color:var(--mute); }
   .chip.cchip { text-align:center; line-height:1.25; padding:3px 7px; margin-right:4px; } .chip.cchip b { font-size:15px; }
-  #splash { position:fixed; inset:0; z-index:99; background:#111418; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
+  #splash { position:fixed; inset:0; z-index:99; background:#0b0b0c; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s; }
   #splash img { width:min(86vw,62vh,520px); aspect-ratio:1; border-radius:22px; box-shadow:0 10px 40px #000a; }
-  #splash .name { font-size:34px; font-weight:800; letter-spacing:2px; }
+  #splash .name { font-size:34px; font-weight:700; letter-spacing:2px; }
   #splash.hide { opacity:0; pointer-events:none; }
   /* 파노측정: key info fits one phone screen */
   main { padding-top:10px; }
@@ -262,7 +263,7 @@
   .psuAct { display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px; }
   .psuAct #psuOut { min-height:52px; padding:10px 4px; font-size:17px; }
   .psuAct #psuDir { margin-top:0; gap:8px; }
-  .psuAct #psuDir button { min-height:68px; font-size:21px; font-weight:800; border-radius:12px; }
+  .psuAct #psuDir button { min-height:68px; font-size:21px; font-weight:700; border-radius:6px; }
   main #psuMsg:empty, main #condNote:empty { display:none; }
   main .condTop { gap:10px; }
   main .condScore { font-size:34px; min-width:68px; }
@@ -270,9 +271,9 @@
   #conn { cursor:pointer; }
   /* iPhone: in-app dialogs (see askBox) and room for the notch / home bar */
   .askOv { position:fixed; inset:0; z-index:95; background:rgba(10,12,16,.88); display:flex; align-items:center; justify-content:center; padding:20px; }
-  .askBox { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; width:100%; max-width:420px; }
+  .askBox { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:18px; width:100%; max-width:420px; }
   .askMsg { white-space:pre-line; font-size:16px; line-height:1.5; margin-bottom:12px; }
-  .askIn { width:100%; font:600 16px system-ui; padding:12px; border-radius:10px; border:1px solid var(--line); background:#0f1217; color:var(--ink); margin-bottom:12px; }
+  .askIn { width:100%; font:600 16px Pretendard,system-ui; padding:12px; border-radius:6px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); margin-bottom:12px; }
   .askBtns { display:flex; gap:10px; } .askBtns button { flex:1; padding:14px; font-size:17px; }
   #home .inner, #clean .inner, #admin .inner, #settings .inner, #book .inner, main {
     padding-top:max(14px, env(safe-area-inset-top)); padding-bottom:calc(40px + env(safe-area-inset-bottom));
@@ -281,6 +282,99 @@
   #toast { top:calc(14px + env(safe-area-inset-top)); }
   #home, #clean, #admin, #settings, #book { top:var(--nobt, 0px); }
   .iosOnly { display:none; } html.ios .iosOnly { display:inline; }
+
+/* ===== 간소화 시안 덮어쓰기 ===== */
+/* 색: 배경·카드·글자·회색 + 강조 주황 1개, 위험(빨강)은 경고에만 */
+:root{--bg:#0e0f11;--card:#16181b;--ink:#ececec;--mute:#8a8f98;--line:#26292e;--acc:#f76707;
+      --green:var(--ink);--yellow:var(--ink);--cyan:var(--mute);--grey:var(--mute)}
+/* 모서리: 카드 10 · 버튼 8 · 작은 뱃지 4 */
+.card{border-radius:10px}
+button,select,input{border-radius:8px}
+.pill,.chip,.mtag{border-radius:4px}
+.chip,.cchip{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.conn.on{color:var(--acc)}
+#toast{background:#26292e;border-radius:8px}
+#toast.bad{background:#a61e1e}
+/* 연결 버튼: 꽉 찬 폭 → 조금 좁게, 높이 줄임 */
+#home .primary,#connectBox .primary{display:block;width:auto;min-width:240px;max-width:320px;margin-left:auto;margin-right:auto;padding:12px 20px;font-size:16px;border-radius:8px}
+#hint:empty{display:none}
+#connectBox{padding:12px}
+/* 메뉴 타일 아이콘: 여러 색 → 흰색+주황 */
+.tile svg [stroke="#74c0fc"],.tile svg [stroke="#1c7ed6"],.tile svg [stroke="#ffd8a8"],.tile svg [stroke="#5c6370"]{stroke:var(--mute)}
+.tile svg [fill="#fee500"]{fill:none;stroke:var(--ink)}
+.tile svg [stroke="#3c1e1e"]{stroke:var(--ink)}
+.tile{border-radius:10px}
+.tile .ts{font-size:12px}
+/* 설명 글: 작게, 「기본값」 줄은 숨김(값 옆에 이미 표시) */
+.help{font-size:12.5px;line-height:1.5;color:var(--mute)}
+.set-def{display:none}
+#ckHow{display:none}
+/* 남은 여러 색 정리 */
+body .reset{color:var(--ink);background:var(--card);border-color:var(--line)}
+body .memo{color:var(--ink)}
+body .mtag{color:var(--mute);background:transparent;border:1px solid var(--line);border-radius:4px}
+body .fchips button{border-radius:6px}
+body .status{background:var(--line);color:#000;border-radius:8px}
+/* 기록 더 보기 */
+.recMore{display:block;width:100%;margin-top:8px;background:none;color:var(--mute)}
+
+/* ===== 디자인 톤: 글꼴 1개 · 글자 크기 6단계 · 무채색 + 주황 1색 ===== */
+/* 글자 크기 단계(px): 12 보조 · 13 라벨 · 15 본문/버튼 · 17 제목 · 24 숫자 · 64 큰 숫자 */
+:root{--bg:#0b0b0c;--card:#141415;--card2:#1b1b1d;--ink:#f1f1f1;--mute:#8d8d93;--line:#222225;--acc:#f76707}
+body{font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+button{font-size:15px;font-weight:500}
+header h1{font-size:17px;font-weight:700}
+#home h1{font-size:24px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px}
+.pill{font-size:12px;background:var(--card2);padding:3px 8px}
+.conn{font-size:12px}
+.ttl,.lbl{font-size:12px;font-weight:600;letter-spacing:0;color:var(--mute)}
+.card{background:var(--card);border-color:var(--line);padding:16px}
+/* 큰 파노 숫자 */
+.big .hz{font-size:64px;font-weight:700;letter-spacing:-.03em}
+.big .unit{font-size:15px;font-weight:500}
+.big .rpm{font-size:15px}
+/* 메뉴 타일: 굵기·크기 한 단계 낮춤 */
+.tile{gap:8px;padding:18px 8px 14px}
+.tile svg{width:40px;height:40px}
+.tile .tl{font-size:15px;font-weight:600}
+.tiles3 .tile .tl{font-size:13px;font-weight:500}
+.tile .ts{font-size:12px}
+/* 선택된 버튼: 주황 채움 → 흰 바탕 검은 글씨(주황은 실행 버튼에만) */
+.seg button.sel,.fchips button.sel{background:var(--ink);border-color:var(--ink);color:#000;font-weight:600}
+.set-val{color:var(--ink);font-weight:600}
+/* 숫자 칸들 */
+.val .v,.dpsLive span{font-size:24px;font-weight:600}
+.condScore{font-size:40px;font-weight:700}
+.cbig{font-size:24px;font-weight:700}
+.rank .sc,.rank .no{font-size:17px;font-weight:700}
+.rec .hz{font-size:17px;font-weight:600;min-width:64px}
+.ckGo button b{font-size:15px;font-weight:600}
+.ckGo .ckWide b{font-size:15px}
+.ckGo button small,.seg small{font-size:12px;font-weight:400}
+.psuRow #psuOut{font-size:15px;font-weight:600}
+.stp{font-size:20px;font-weight:500;border-radius:8px}
+.condGrade,.pst{font-weight:600;border-radius:4px}
+.set-name{font-size:15px;font-weight:600}
+.set-help,.set-ends,.legend,.condRows{font-size:12px}
+#condWarn{background:#1d1212;border-radius:8px}
+
+/* ===== 3차 QA ===== */
+/* 모서리(R): 카드·타일 6 · 버튼·입력 4 · 작은 태그 3 — 둥근 알약 느낌 제거 */
+.card,.tile,.tiles3 .tile,.dpsLive div,#condWarn{border-radius:6px}
+button,select,input,.stp,.primary,#home .primary,#connectBox .primary,body .status,body .reset{border-radius:4px}
+.pill,.chip,.mtag,.condGrade,.pst,body .mtag,body .fchips button{border-radius:3px}
+/* 기록·비교: 다른 타일처럼 가운데 세로 배치 */
+body .tile.wide{flex-direction:row;justify-content:center;align-items:center;text-align:left;padding:14px 12px;gap:12px}
+body .tile.wide svg{width:32px;height:32px}
+/* 프리셋 줄: 저장·삭제·연결 버튼 같은 폭·높이 */
+body .prow select{min-height:44px}
+body .prow button,body .prow #bPreSave{flex:0 0 68px;width:68px;min-width:68px;min-height:44px;padding:0;font-size:15px;font-weight:600}
+
+/* 글줄: 한국어는 낱말 단위로 줄바꿈(「합니/다」 끊김 방지), 행간 1.55 */
+body{word-break:keep-all;overflow-wrap:break-word;line-height:1.55}
+.help,.set-help,.ts,.condRows{line-height:1.5}
+body .prow #psuPreSave,body .prow #cPreSave,body .prow #bPreSave{flex:0 0 68px;width:68px;min-width:68px;padding:0;font-size:15px;font-weight:600}
+.note2{display:inline-block;margin-top:2px;font-size:12px;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -291,12 +385,12 @@
   <h1>파노체크</h1>
   <span id="homeConn" class="pill">스틱 연결 안 됨</span>
   <button id="btnConnect2" class="primary" style="margin-top:14px">스틱 연결 (블루투스)</button>
-  <div id="fwBox" style="display:none;margin-top:14px;background:var(--card);border:1px solid var(--acc);border-radius:10px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
+  <div id="fwBox" style="display:none;margin-top:14px;background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
   <div class="tiles">
     <div class="tile" id="tileMeasure" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 44a24 24 0 0 1 48 0" stroke="#e8590c" stroke-width="5"/>
-        <path d="M14 44a18 18 0 0 1 4-11" stroke="#ffd8a8" stroke-width="2" opacity=".6"/>
+        <path d="M8 44a24 24 0 0 1 48 0" stroke="#f76707" stroke-width="5"/>
+        <path d="M14 44a18 18 0 0 1 4-11" stroke="#8d8d93" stroke-width="2" opacity=".6"/>
         <path d="M32 44 45 26" stroke="#ffffff" stroke-width="4"/>
         <circle cx="32" cy="44" r="5" fill="#ffffff"/>
         <path d="M6 54h52" stroke="#5c6370" stroke-width="3"/>
@@ -308,7 +402,7 @@
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <rect x="10" y="20" width="30" height="24" rx="5" stroke="#ffffff" stroke-width="4"/>
         <path d="M40 32h10M50 26v12" stroke="#ffffff" stroke-width="4"/>
-        <path d="M24 24 18 33h9l-5 8" stroke="#e8590c" stroke-width="4"/>
+        <path d="M24 24 18 33h9l-5 8" stroke="#f76707" stroke-width="4"/>
         <path d="M8 54c6-4 10 4 16 0s10 4 16 0 10 4 16 0" stroke="#5c6370" stroke-width="3"/>
       </svg>
       <div class="tl">모터클리닝</div>
@@ -316,7 +410,7 @@
     <div class="tile" id="tileBreakin" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="32" cy="34" r="20" stroke="#ffffff" stroke-width="4"/>
-        <path d="M32 22v12l8 6" stroke="#e8590c" stroke-width="5"/>
+        <path d="M32 22v12l8 6" stroke="#f76707" stroke-width="5"/>
         <path d="M26 8h12" stroke="#ffffff" stroke-width="4"/>
       </svg>
       <div class="tl">모터길들이기</div>
@@ -324,7 +418,7 @@
     <div class="tile" id="tileSettings" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="32" cy="32" r="9" stroke="#ffffff" stroke-width="4"/>
-        <path d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.7 5.7M44.7 44.7l5.7 5.7M13.6 50.4l5.7-5.7M44.7 19.3l5.7-5.7" stroke="#e8590c" stroke-width="5"/>
+        <path d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.7 5.7M44.7 44.7l5.7 5.7M13.6 50.4l5.7-5.7M44.7 19.3l5.7-5.7" stroke="#f76707" stroke-width="5"/>
       </svg>
       <div class="tl">설정</div>
           </div>
@@ -332,24 +426,24 @@
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 54h48" stroke="#5c6370" stroke-width="3"/>
         <rect x="12" y="32" width="9" height="18" rx="2" stroke="#ffffff" stroke-width="4"/>
-        <rect x="28" y="18" width="9" height="32" rx="2" stroke="#e8590c" stroke-width="4"/>
+        <rect x="28" y="18" width="9" height="32" rx="2" stroke="#f76707" stroke-width="4"/>
         <rect x="44" y="26" width="9" height="24" rx="2" stroke="#ffffff" stroke-width="4"/>
       </svg>
-      <div style="text-align:left"><div class="tl">기록 · 비교</div><div class="ts" id="tileBookSub"></div></div>
+      <div><div class="tl">기록 · 비교</div><div class="ts" id="tileBookSub"></div></div>
     </div>
   </div>
   <div class="tiles3">
     <div class="tile" id="tileManual" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 14c8-3 16-3 24 3v36c-8-6-16-6-24-3z" stroke="#ffffff" stroke-width="4"/>
-        <path d="M56 14c-8-3-16-3-24 3v36c8-6 16-6 24-3z" stroke="#e8590c" stroke-width="4"/>
+        <path d="M56 14c-8-3-16-3-24 3v36c8-6 16-6 24-3z" stroke="#f76707" stroke-width="4"/>
       </svg>
       <div class="tl">설명서</div>
     </div>
     <div class="tile" id="tileFw" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <rect x="18" y="6" width="28" height="52" rx="6" stroke="#ffffff" stroke-width="4"/>
-        <path d="M32 18v20M24 30l8 8 8-8" stroke="#e8590c" stroke-width="5"/>
+        <path d="M32 18v20M24 30l8 8 8-8" stroke="#f76707" stroke-width="5"/>
         <path d="M26 48h12" stroke="#ffffff" stroke-width="4"/>
       </svg>
       <div class="tl">업데이트</div><div class="ts" id="tileFwSub"></div>
@@ -357,7 +451,7 @@
     <div class="tile" id="tileReport" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M32 10C17 10 6 19 6 30c0 7 5 13 12 16l-3 10 11-7c2 0 4 1 6 1 15 0 26-9 26-20S47 10 32 10z" stroke="#ffffff" stroke-width="4"/>
-        <path d="M32 20v12M32 39v1" stroke="#e8590c" stroke-width="5"/>
+        <path d="M32 20v12M32 39v1" stroke="#f76707" stroke-width="5"/>
       </svg>
       <div class="tl">문의</div>
     </div>
@@ -366,8 +460,8 @@
   <button id="btnShareInst" style="width:100%;margin-top:12px;padding:14px;font-weight:700">설치 페이지 공유</button>
   <p class="help" style="margin-top:22px">안드로이드 크롬에서 사용하세요. <span class="iosOnly">아이폰은 Bluefy 앱에서 스틱 측정만 됩니다.</span></p>
   <div class="card notAndroid" style="margin-top:10px;display:flex;align-items:center;gap:10px">
-    <div style="flex:1;font-size:14px;line-height:1.5"><b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요. (스틱 측정만 가능)</div>
-    <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
+    <div style="flex:1;font-size:14px;line-height:1.5"><b>아이폰</b>은 무료 앱 <b>Bluefy</b>를 받아 그 안에서 이 주소를 여세요.<br><span class="note2">스틱 측정만 가능</span></div>
+    <a href="https://apps.apple.com/kr/app/bluefy/id1492822055" target="_blank" rel="noopener" style="background:#f76707;color:#fff;font-weight:700;padding:10px 12px;border-radius:6px;text-decoration:none;white-space:nowrap">아이폰용 받기</a>
   </div>
   <a href="download.html" style="display:block;text-align:center;margin-top:10px;color:var(--mute);font-weight:700;text-decoration:none">다른 휴대폰용 다운로드 안내</a>
 </div></div>
@@ -383,7 +477,7 @@
     <div id="aMsg" class="help" style="margin-top:8px;text-align:center"></div>
     <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
       <div class="set-help" style="margin-bottom:6px">휴대폰에 있는 <b>잠긴 코드 만들기 파일</b>(파노체크-활성화코드-만들기-잠김.html)을 고르고 그 비밀번호를 넣으면, 키가 이 휴대폰에만 저장되어 다음부터 바로 열립니다.</div>
-      <button id="btnAdmFile" style="width:100%">📄 비공개 파일에서 키 불러오기</button>
+      <button id="btnAdmFile" style="width:100%">비공개 파일에서 키 불러오기</button>
       <input id="aFile" type="file" accept=".html,.htm,text/html" style="display:none">
     </div>
   </div>
@@ -393,22 +487,22 @@
     <div class="ttl" style="margin-top:10px">받는 사람 (메모)</div>
     <input id="aName" type="text" maxlength="30" placeholder="예: 홍길동 · 동호회" autocomplete="off">
     <div id="aLvInfo" class="help" style="margin-top:6px"></div>
-    <div class="tools" style="margin-top:10px"><button id="btnAdmMake" class="primary">활성화 링크 만들기</button><button id="btnAdmRvk">🚫 허락 취소</button></div>
+    <div class="tools" style="margin-top:10px"><button id="btnAdmMake" class="primary">활성화 링크 만들기</button><button id="btnAdmRvk">허락 취소</button></div>
     <div id="aRes" style="display:none;margin-top:12px">
-      <textarea id="aLink" readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#cfe"></textarea>
-      <div class="tools" style="margin-top:8px"><button id="btnAdmShare" class="primary">📨 답장 보내기 (카톡)</button><button id="btnAdmCopy">복사</button><button id="btnAdmHere">이 스틱에 바로</button></div>
+      <textarea id="aLink" readonly style="width:100%;height:84px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#cfe"></textarea>
+      <div class="tools" style="margin-top:8px"><button id="btnAdmShare" class="primary">답장 보내기 (카톡)</button><button id="btnAdmCopy">복사</button><button id="btnAdmHere">이 스틱에 바로</button></div>
     </div>
-    <div id="aRvkRes" style="display:none;margin-top:12px;border:1px solid #e8590c;border-radius:12px;padding:10px">
-      <div class="set-help" style="margin:0 0 6px">아래 한 줄을 <b>취소 목록</b>에 붙여넣고 저장하면, 그 사람이 인터넷 켠 상태로 앱에 스틱을 연결할 때 스틱이 잠깁니다. (펌웨어 1.8 이상)</div>
-      <textarea id="aRvkLine" readonly style="width:100%;height:64px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fcc"></textarea>
+    <div id="aRvkRes" style="display:none;margin-top:12px;border:1px solid #f76707;border-radius:6px;padding:10px">
+      <div class="set-help" style="margin:0 0 6px">아래 한 줄을 <b>취소 목록</b>에 붙여넣고 저장하면, 그 사람이 인터넷 켠 상태로 앱에 스틱을 연결할 때 스틱이 잠깁니다.<br><span class="note2">펌웨어 1.8 이상</span></div>
+      <textarea id="aRvkLine" readonly style="width:100%;height:64px;font:12px ui-monospace,Consolas,monospace;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#fcc"></textarea>
       <div class="tools" style="margin-top:8px"><button id="btnRvkGh" class="primary">복사하고 목록 열기 (GitHub)</button><button id="btnRvkHere">이 스틱에 바로</button></div>
     </div>
     <div id="aMsg2" class="help" style="margin-top:8px;text-align:center"></div>
     <button id="btnAdmForget" style="width:100%;margin-top:14px;font-size:14px">이 휴대폰에서 관리자 잠그기 (기억 지우기)</button>
   </div>
   <div class="card" id="admPeople" style="display:none">
-    <div class="ttl" style="display:flex;align-items:center;gap:8px">👥 허락한 사람 <span id="pplCount" class="help" style="margin:0"></span></div>
-    <div class="prow" style="margin-top:4px"><input id="pplQ" type="search" placeholder="이름 또는 스틱 ID 검색" style="flex:1;min-width:0;font:600 15px system-ui;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:var(--ink)"><button id="btnPplAdd">＋ 직접 추가</button></div>
+    <div class="ttl" style="display:flex;align-items:center;gap:8px">허락한 사람 <span id="pplCount" class="help" style="margin:0"></span></div>
+    <div class="prow" style="margin-top:4px"><input id="pplQ" type="search" placeholder="이름 또는 스틱 ID 검색" style="flex:1;min-width:0;font:600 15px Pretendard,system-ui;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:var(--ink)"><button id="btnPplAdd">＋ 직접 추가</button></div>
     <div id="pplList" class="ppl"></div>
     <div class="tools" style="margin-top:10px"><button id="btnPplExport">⬇ 내보내기</button><button id="btnPplImport">⬆ 가져오기</button><button id="btnPplSync">↻ 새로고침</button></div>
     <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
@@ -438,7 +532,7 @@
     <div class="prow only-break" style="margin-top:0;margin-bottom:10px"><select id="bPre" aria-label="길들이기 프리셋"></select><button id="bPreSave">저장</button><button id="bPreDel" aria-label="프리셋 삭제">삭제</button></div>
     <div class="only-break" style="margin-bottom:10px">
       <div id="bStages" class="bstages"></div>
-      <button id="bAddStage" style="width:100%;margin:8px 0 12px;font-weight:800">+ 구간 추가</button>
+      <button id="bAddStage" style="width:100%;margin:8px 0 12px;font-weight:700">+ 구간 추가</button>
       <div class="cgrid" style="margin-bottom:12px">
         <label>사이클 뒤 쉬기 (분)<span class="nstep"><button class="stp" data-for="bRestM" data-d="-1" aria-label="줄이기">−</button><input id="bRestM" type="number" inputmode="numeric" min="0" max="60" step="1"><button class="stp" data-for="bRestM" data-d="1" aria-label="늘리기">+</button></span></label>
         <label>쉬기 (초)<span class="nstep"><button class="stp" data-for="bRestS" data-d="-1" aria-label="줄이기">−</button><input id="bRestS" type="number" inputmode="numeric" min="0" max="55" step="5"><button class="stp" data-for="bRestS" data-d="1" aria-label="늘리기">+</button></span></label>
@@ -476,7 +570,7 @@
     <div class="cbar"><div id="cBar"></div></div>
     <div class="tools" style="grid-template-columns:2fr 1fr;margin-top:10px">
       <button id="btnCStart" class="primary" style="padding:14px">▶ 시작</button>
-      <button id="btnCStop" style="background:#c92a2a;border-color:#c92a2a;color:#fff;font-weight:800">■ 정지</button>
+      <button id="btnCStop" style="background:#c92a2a;border-color:#c92a2a;color:#fff;font-weight:700">■ 정지</button>
     </div>
     <div id="cMsg" class="help" style="margin-top:8px;text-align:center"></div>
   </div>
@@ -582,7 +676,7 @@
         <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 처리 속도를 낮춥니다.</div></span><input type="checkbox" id="cSave"></label>
       </div>
       <div class="set-row">
-        <button id="btnStickSave" style="width:100%;padding:14px;font-size:17px;font-weight:800">스틱에 저장</button>
+        <button id="btnStickSave" style="width:100%;padding:14px;font-size:17px;font-weight:700">스틱에 저장</button>
         <div id="saveState" class="set-help" style="text-align:center;margin-top:8px">&nbsp;</div>
         <button id="btnDefaults" style="width:100%;margin-top:10px;font-size:14px">기본값으로 되돌리기</button>
       </div>
@@ -616,7 +710,7 @@
   <div class="card">
     <div class="ttl">정보</div>
     <div style="display:flex;gap:8px;align-items:center;margin:4px 0 8px">
-      <span style="flex:1"><span class="set-help">스틱 ID</span><br><span id="infoId" style="font:800 26px ui-monospace,Consolas,monospace;letter-spacing:2px">---- ----</span></span>
+      <span style="flex:1"><span class="set-help">스틱 ID</span><br><span id="infoId" style="font:700 26px ui-monospace,Consolas,monospace;letter-spacing:2px">---- ----</span></span>
       <button id="btnInfoId">복사</button>
       <button id="btnInfoShare">카톡</button>
     </div>
@@ -635,17 +729,17 @@
     <p id="hint" class="help" style="margin:8px 0 0"></p>
   </div>
 
-  <div id="lockBox" class="card" style="display:none;border-color:#e8590c">
+  <div id="lockBox" class="card" style="display:none;border-color:#f76707">
     <b style="font-size:18px">활성화가 필요한 스틱입니다</b>
-    <p class="help" style="margin:6px 0">① <b>활성화 요청 보내기</b>를 눌러 제작자에게 카톡으로 보내세요.<br>② 답장으로 온 <b>활성화 링크</b>를 누르면 끝입니다. (스틱은 켜 두세요)</p>
+    <p class="help" style="margin:6px 0">① <b>활성화 요청 보내기</b>를 눌러 제작자에게 카톡으로 보내세요.<br>② 답장으로 온 <b>활성화 링크</b>를 누르면 끝입니다.<br><span class="note2">스틱은 켜 두세요</span></p>
     <div style="display:flex;gap:8px;align-items:center">
-      <span id="devId" style="font:800 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">---- ----</span>
+      <span id="devId" style="font:700 28px ui-monospace,Consolas,monospace;letter-spacing:2px;flex:1">---- ----</span>
       <button id="btnCopyId">ID 복사</button>
     </div>
     <button id="btnReq" class="primary" style="margin-top:10px">활성화 요청 보내기</button>
     <button id="btnPasteAct" style="margin-top:8px;width:100%">복사한 활성화 링크 붙여넣기</button>
     <details style="margin-top:10px"><summary class="help">링크 대신 코드를 직접 넣기</summary>
-    <textarea id="actCode" placeholder="활성화 링크 또는 코드 붙여넣기" style="width:100%;height:70px;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1217;color:#fff"></textarea>
+    <textarea id="actCode" placeholder="활성화 링크 또는 코드 붙여넣기" style="width:100%;height:70px;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#fff"></textarea>
     <button id="btnAct" style="margin-top:10px;width:100%">활성화</button></details>
     <div id="actMsg" class="help" style="margin-top:8px;text-align:center"></div>
   </div>
@@ -894,10 +988,10 @@ async function copyAppUrl() {
   const n = noBtNotice(), bar = document.createElement('div');
   bar.id = 'noBt';
   bar.style.cssText = 'position:sticky;top:0;z-index:70;background:#3b1d1d;border-bottom:1px solid #c92a2a;padding:10px 14px;font-size:15px;line-height:1.45;display:flex;gap:10px;align-items:center';
-  const btn = 'background:#e8590c;color:#fff;font-weight:800;padding:10px 12px;border-radius:10px;text-decoration:none;white-space:nowrap;display:inline-block';
+  const btn = 'background:#f76707;color:#fff;font-weight:700;padding:10px 12px;border-radius:6px;text-decoration:none;white-space:nowrap;display:inline-block';
   bar.innerHTML = `<div style="flex:1">${n.html}</div>` +
     (n.android ? `<a id="btnToChrome" href="#" style="${btn}">크롬으로 열기</a>` : '') +
-    (n.ios ? `<div style="display:flex;flex-direction:column;gap:6px"><a id="btnToBluefy" href="#" style="${btn}">Bluefy로 열기</a><a href="${BLUEFY_URL}" target="_blank" rel="noopener" style="${btn};background:#1971c2">Bluefy 받기</a><a id="btnCopyUrl" href="#" style="${btn};background:#495057">주소 복사</a></div>` : '');
+    (n.ios ? `<div style="display:flex;flex-direction:column;gap:6px"><a id="btnToBluefy" href="#" style="${btn}">Bluefy로 열기</a><a href="${BLUEFY_URL}" target="_blank" rel="noopener" style="${btn};background:#2a2a2e">Bluefy 받기</a><a id="btnCopyUrl" href="#" style="${btn};background:#495057">주소 복사</a></div>` : '');
   document.body.prepend(bar);
   const fit = () => document.documentElement.style.setProperty('--nobt', bar.offsetHeight + 'px'); fit(); addEventListener('resize', fit);
   if (n.android) $('btnToChrome').onclick = e => { e.preventDefault(); location.href = chromeUrl(); };
@@ -914,7 +1008,7 @@ async function connect() {
   if (navigator.bluetooth) stayAwake();                 // started from the tap, before any await
   if (!navigator.bluetooth) {
     const n = noBtNotice();
-    $('hint').innerHTML = n.html + (n.android ? ' <a href="#" onclick="location.href=chromeUrl();return false" style="color:#ffa94d;font-weight:800">크롬으로 열기</a>' : '');
+    $('hint').innerHTML = n.html + (n.android ? ' <a href="#" onclick="location.href=chromeUrl();return false" style="color:#ffa94d;font-weight:700">크롬으로 열기</a>' : '');
     if (n.ios) { notify('아이폰은 Bluefy 앱에서 열어야 연결됩니다', false); return; }
     notify((/SamsungBrowser/i.test(navigator.userAgent) ? '삼성 인터넷' : '이 브라우저') + '에서는 블루투스가 안 됩니다 · 크롬으로 여세요', false);
     if (n.android && confirm('이 브라우저에서는 스틱 연결이 안 됩니다.\n크롬으로 열까요?')) location.href = chromeUrl();
@@ -1094,11 +1188,11 @@ function renderSettings() {
   // save state
   const d = diffKeys();
   const st = $('saveState'), btn = $('btnStickSave');
-  if (saving) { st.textContent = '스틱에 저장하는 중…'; st.style.color = '#ffd8a8'; }
+  if (saving) { st.textContent = '스틱에 저장하는 중…'; st.style.color = '#8d8d93'; }
   else if (!conn) { st.textContent = '스틱을 연결하면 스틱에 저장된 설정을 불러옵니다.'; st.style.color = 'var(--mute)'; }
   else if (!stickSet) { st.textContent = '스틱 펌웨어를 0.9 이상으로 업데이트하면 저장할 수 있습니다.'; st.style.color = 'var(--mute)'; }
   else if (d.length) { st.textContent = '저장 안 됨 · ' + d.map(k => SET_NAMES[k]).join(', '); st.style.color = '#ffa94d'; }
-  else { st.textContent = '✓ 스틱에 저장됨'; st.style.color = '#69db7c'; }
+  else { st.textContent = '✓ 스틱에 저장됨'; st.style.color = 'var(--ink)'; }
   btn.disabled = !has || saving || lockedOut();
   if (lockedOut()) { st.textContent = '다른 휴대폰으로 잠긴 스틱입니다 · 스틱의 A+B 버튼을 함께 3초 누르면 풀립니다'; st.style.color = '#ff6b6b'; }
   const lk = $('lockState'), hasLock = !!(stickLock && conn);
@@ -1106,7 +1200,7 @@ function renderSettings() {
   $('cLock').checked = !!(stickLock && stickLock.lck && stickLock.unl);
   $('cLock').disabled = !hasLock || lockedOut();
   lk.textContent = !conn ? '스틱을 연결하면 바꿀 수 있습니다.' : !stickLock ? '스틱 펌웨어 1.4 이상에서 쓸 수 있습니다.'
-    : lockedOut() ? '🔒 다른 휴대폰으로 잠겨 있습니다' : stickLock.lck ? '🔒 이 휴대폰으로 잠겨 있습니다' : '잠금 꺼짐 · 누구나 바꿀 수 있음';
+    : lockedOut() ? '다른 휴대폰으로 잠겨 있습니다' : stickLock.lck ? '이 휴대폰으로 잠겨 있습니다' : '잠금 꺼짐 · 누구나 바꿀 수 있음';
   lk.style.color = lockedOut() ? '#ff6b6b' : 'var(--mute)';
   btn.classList.toggle('go', has && d.length > 0);
   $('aVib').checked = appSet.vib; $('aSnd').checked = appSet.snd; $('aHot').checked = appSet.hot; $('aWake').checked = appSet.wake; $('aSay').checked = appSet.say !== false; $('aRVib').checked = appSet.rvib !== false; $('aWarn').checked = appSet.warn !== false; $('aAuto').checked = appSet.auto !== false; $('aRelay').checked = !!appSet.relay; if ($('cRelayOn')) $('cRelayOn').checked = !!appSet.relay;
@@ -1286,22 +1380,22 @@ $('tileFw').onclick = async () => {
   const linked = !!(cmdChar && stickVer);
   let bt;
   if (!linked) bt = `<div style="color:#c9d1dc">스틱을 먼저 블루투스로 연결하세요. 연결하면 버전을 확인합니다.</div><button id="fmConn" class="primary" style="margin-top:10px;width:100%">스틱 연결 (블루투스)</button>`;
-  else if (!fwNewer()) bt = `<div style="color:#8ce99a;font-weight:700">최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
+  else if (!fwNewer()) bt = `<div style="color:var(--ink);font-weight:700">최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
   else if (stickOta && otaChar) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b>${fwLatest.note ? '<br><span style="color:var(--mute);font-size:14px">' + esc(fwLatest.note) + '</span>' : ''}</div><button id="fmUp" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>`;
   else bt = `<div>스틱 ${esc(stickVer)}은 블루투스 업데이트가 안 되는 버전입니다. 아래 <b>USB 설치</b>를 한 번 해 주세요.</div>`;
   const usb = ios
     ? '<div style="color:#ffa8a8">아이폰은 USB 설치가 안 됩니다. 안드로이드폰이나 컴퓨터(크롬·엣지)에서 설치 페이지를 여세요.</div>'
     : (android ? '<div style="color:#c9d1dc">스틱을 <b>USB-C 선</b>(C-C 선 또는 OTG 젠더)으로 이 폰에 꽂고 [폰으로 설치]를 누르세요. 활성화·설정은 그대로 남습니다.</div>'
                : '<div style="color:#c9d1dc">스틱을 USB-C 선으로 이 컴퓨터에 꽂고 설치하세요. 활성화·설정은 그대로 남습니다.</div>') +
-      '<a href="index.html" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:12px;background:#e8590c;color:#fff;text-decoration:none;font-weight:800">설치 페이지 열기 (USB)</a>';
+      '<a href="index.html" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:6px;background:#f76707;color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기 (USB)</a>';
   const ov = document.createElement('div'); ov.id = 'fwMenu';
   ov.style.cssText = 'position:fixed;inset:0;z-index:88;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
-  ov.innerHTML = '<div style="width:100%;max-width:440px;background:#1b1f27;border:1px solid #2c3340;border-radius:18px;padding:20px;line-height:1.5;color:#e8ebf1">' +
-    `<div style="font-size:20px;font-weight:800;text-align:center">스틱 펌웨어</div><div style="text-align:center;color:#8a94a6;font-size:14px;margin-bottom:12px">최신 버전 ${esc(latest)}</div>` +
-    '<div style="background:#151a21;border:1px solid var(--line);border-radius:10px;padding:12px 14px"><div style="font-weight:800;margin-bottom:6px">업데이트 (블루투스)</div>' + bt +
-    '<div style="font-size:13px;color:#8a94a6;margin-top:6px">펌웨어 2.0 이상이 깔린 스틱만 됩니다.</div></div>' +
-    '<div style="background:#151a21;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px"><div style="font-weight:800;margin-bottom:6px">최초 설치 (USB)</div>' + usb +
-    '<div style="font-size:13px;color:#8a94a6;margin-top:6px">처음 쓰는 스틱, 또는 블루투스 업데이트가 안 될 때.</div></div>' +
+  ov.innerHTML = '<div style="width:100%;max-width:440px;background:#1b1f27;border:1px solid #222225;border-radius:6px;padding:20px;line-height:1.5;color:#f1f1f1">' +
+    `<div style="font-size:20px;font-weight:700;text-align:center">스틱 펌웨어</div><div style="text-align:center;color:#8d8d93;font-size:14px;margin-bottom:12px">최신 버전 ${esc(latest)}</div>` +
+    '<div style="background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:12px 14px"><div style="font-weight:700;margin-bottom:6px">업데이트 (블루투스)</div>' + bt +
+    '<div style="font-size:13px;color:#8d8d93;margin-top:6px">펌웨어 2.0 이상이 깔린 스틱만 됩니다.</div></div>' +
+    '<div style="background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-top:12px"><div style="font-weight:700;margin-bottom:6px">최초 설치 (USB)</div>' + usb +
+    '<div style="font-size:13px;color:#8d8d93;margin-top:6px">처음 쓰는 스틱, 또는 블루투스 업데이트가 안 될 때.</div></div>' +
     '<button id="fmClose" style="margin-top:14px;width:100%">닫기</button></div>';
   document.body.appendChild(ov);
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
@@ -1631,7 +1725,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26r';
+const APP_BUILD = '2026-11-26s';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
@@ -1730,10 +1824,10 @@ function fwAutoAsk() {
   fwAsked = fwLatest.ver;
   const ov = document.createElement('div'); ov.id = 'fwAsk';
   ov.style.cssText = 'position:fixed;inset:0;z-index:89;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:24px';
-  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:12px;padding:22px;text-align:center;line-height:1.5">' +
-    `<div style="font-size:20px;font-weight:800">스틱 새 버전 ${esc(fwLatest.ver)}</div>` +
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:6px;padding:22px;text-align:center;line-height:1.5">' +
+    `<div style="font-size:20px;font-weight:700">스틱 새 버전 ${esc(fwLatest.ver)}</div>` +
     `<div style="margin-top:6px;color:#c9d1dc">지금 스틱 ${esc(stickVer)}${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}</div>` +
-    '<div style="margin-top:10px;font-size:14px;color:#8a94a6">2~5분 걸리고 그동안 측정은 멈춥니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜집니다.</div>' +
+    '<div style="margin-top:10px;font-size:14px;color:#8d8d93">2~5분 걸리고 그동안 측정은 멈춥니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜집니다.</div>' +
     '<button id="fwAskGo" class="primary" style="margin-top:14px;width:100%">지금 업데이트</button>' +
     '<button id="fwAskNo" style="margin-top:8px;width:100%">나중에 (홈 화면에서 할 수 있어요)</button></div>';
   document.body.appendChild(ov);
@@ -1751,8 +1845,8 @@ function fwRender(msg) {
       `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
     $('btnFw').onclick = fwStart;
   } else {
-    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 컴퓨터에서 USB로</b> 설치해야 합니다 (휴대폰으로는 안 됩니다). 그 다음부터는 블루투스로 업데이트됩니다.` +
-      `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:8px;background:var(--acc);color:#fff;text-decoration:none;font-weight:800">설치 페이지 열기 (컴퓨터 + USB)</a>`;
+    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 컴퓨터에서 USB로</b> 설치해야 합니다.<br><span class="note2">휴대폰으로는 안 됩니다</span> 그 다음부터는 블루투스로 업데이트됩니다.` +
+      `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:8px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기 (컴퓨터 + USB)</a>`;
   }
 }
 const FW_ERR = { 1: '준비 정보가 빠졌습니다', 2: '스틱 배터리가 부족합니다 (25% 이상 또는 USB 연결)', 3: '잠긴 스틱입니다 (잠금 해제 후)', 4: '스틱이 준비하지 못했습니다',
@@ -1771,8 +1865,8 @@ function fwShow(pc, text, btn) {
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'fwOv';
     ov.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(10,12,16,.92);display:flex;align-items:center;justify-content:center;padding:24px';
-    ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #2c3340;border-radius:18px;padding:22px;text-align:center">' +
-      '<div style="font-size:20px;font-weight:800">스틱 업데이트</div><div id="fwPc" style="font-size:44px;font-weight:900;margin:10px 0">0%</div>' +
+    ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid #222225;border-radius:6px;padding:22px;text-align:center">' +
+      '<div style="font-size:20px;font-weight:700">스틱 업데이트</div><div id="fwPc" style="font-size:44px;font-weight:900;margin:10px 0">0%</div>' +
       '<div style="height:14px;background:#0f1218;border-radius:8px;overflow:hidden"><div id="fwBar" style="height:100%;width:0;background:var(--acc)"></div></div>' +
       '<div id="fwTxt" style="margin-top:12px;line-height:1.5;color:#c9d1dc"></div><button id="fwBtn" style="margin-top:14px;width:100%"></button></div>';
     document.body.appendChild(ov);
@@ -1797,7 +1891,7 @@ async function fwStart(asked) {
   $('fwBtn').onclick = () => { fwCancel = true; };
   const end = (msg, ok) => {
     fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); };
-    if (ok) $('fwBar').style.background = '#2f9e44';
+    if (ok) $('fwBar').style.background = 'var(--acc)';
     fwBusy = false; try { wake && wake.release(); } catch (e) {}
   };
   try {
@@ -1834,7 +1928,7 @@ async function fwStart(asked) {
       for (const t = Date.now(); Date.now() - t < 75000;) {
         if (fwCancel) throw new Error('취소했습니다 · 스틱은 지금 버전 그대로입니다');
         if (cmdChar && otaChar && connGen !== gen) { await sleep(800); return await begin(); }
-        fwShow(null, '블루투스가 끊겼습니다 · 다시 연결되면 <b>이어서</b> 보냅니다…<br><span style="color:#8a94a6">스틱 가까이 오세요</span>');
+        fwShow(null, '블루투스가 끊겼습니다 · 다시 연결되면 <b>이어서</b> 보냅니다…<br><span style="color:#8d8d93">스틱 가까이 오세요</span>');
         await sleep(600);
       }
       throw new Error('다시 연결되지 않았습니다 · 스틱은 지금 버전 그대로입니다. 연결 후 [업데이트]를 누르면 이어서 보냅니다');
@@ -1860,7 +1954,7 @@ async function fwStart(asked) {
       if (st.state !== 1) throw new Error(FW_ERR[st.err] || '실패 ' + st.err);
       off = st.written; misses = 0;
       const pc = Math.floor(off * 100 / data.length), sec = (Date.now() - t0) / 1000, done = off - off0, left = done > 0 ? Math.round(sec * (data.length - off) / done) : 0;
-      fwShow(pc, `스틱에 보내는 중… ${(off / 1024) | 0} / ${(data.length / 1024) | 0} KB` + (left ? `<br>남은 시간 약 ${left >= 60 ? Math.ceil(left / 60) + '분' : left + '초'}` : '') + '<br><span style="color:#8a94a6">휴대폰을 가까이 두고 화면을 켜 두세요</span>');
+      fwShow(pc, `스틱에 보내는 중… ${(off / 1024) | 0} / ${(data.length / 1024) | 0} KB` + (left ? `<br>남은 시간 약 ${left >= 60 ? Math.ceil(left / 60) + '분' : left + '초'}` : '') + '<br><span style="color:#8d8d93">휴대폰을 가까이 두고 화면을 켜 두세요</span>');
     }
     // 4. finish: the stick checks the hash and signature, then restarts
     fwShow(100, '스틱이 확인하는 중…');
@@ -1974,7 +2068,7 @@ function drawChart() {
   let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
   if (hi - lo < 10) { const m = (hi + lo) / 2; lo = m - 5; hi = m + 5; }
   lo -= (hi - lo) * 0.1; hi += (hi - lo) * 0.1;
-  g.strokeStyle = '#2b323e'; g.fillStyle = '#8e98aa'; g.font = '22px system-ui'; g.lineWidth = 1;
+  g.strokeStyle = '#222225'; g.fillStyle = '#8e98aa'; g.font = '22px system-ui'; g.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const y = 10 + (H - 30) * i / 4, v = hi - (hi - lo) * i / 4;
     g.beginPath(); g.moveTo(pad, y); g.lineTo(W, y); g.stroke();
@@ -2010,7 +2104,7 @@ function renderRecs() {
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
       <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
       <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
-      ${cb ? `<span class="chip cchip" style="background:${cb[1]}">${r.condBad ? (r.measBad ? '⚠ 측정<br>불안정' : '⚠ 전원<br>불안정') : `<b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip st">${esc(st)}</span>` : ''}
+      ${cb ? `<span class="chip cchip"${cb[1] === 'var(--red)' ? ' style="border-color:var(--red);color:var(--red)"' : ''}>${r.condBad ? (r.measBad ? '측정<br>불안정' : '전원<br>불안정') : `<b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip st">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('') + (more > 0 ? `<button class="recMore" data-more="1">이전 기록 ${more}개 더 보기</button>` : recShow > 5 && list.length > 5 ? '<button class="recMore" data-more="0">접기</button>' : '');
 }
@@ -2278,7 +2372,7 @@ function dpsRender() {
   $('dV').textContent = n(st.v, 2); $('dA').textContent = n(st.i, 3); $('dW').textContent = n(st.p, 2);
   if (on && st.t) {
     $('dpsInfo').textContent = dpsName() + ' 연결됨 · 출력 ' + (st.on ? 'ON' : 'OFF');
-    $('dpsSub').textContent = [st.vin ? '입력 ' + st.vin.toFixed(1) + ' V' : '', st.temp ? st.temp.toFixed(0) + ' °C' : '', st.on ? (st.cc ? 'CC (전류 제한 중)' : 'CV') : '', st.prot ? '⚠ ' + st.prot : ''].filter(Boolean).join(' · ');
+    $('dpsSub').textContent = [st.vin ? '입력 ' + st.vin.toFixed(1) + ' V' : '', st.temp ? st.temp.toFixed(0) + ' °C' : '', st.on ? (st.cc ? 'CC (전류 제한 중)' : 'CV') : '', st.prot ? '' + st.prot : ''].filter(Boolean).join(' · ');
   } else if (!on) $('dpsSub').textContent = '';
   cleanRenderBtns();
   if (typeof psuRender === 'function' && $('psuCard')) psuRender();
@@ -2425,7 +2519,7 @@ function breakStagesRender() {
   const st = (id, mn, mx, stp, v, im) => `<span class="nstep"><button class="stp" data-for="${id}" data-d="-1" aria-label="줄이기">−</button><input id="${id}" type="number" inputmode="${im || 'decimal'}" min="${mn}" max="${mx}" step="${stp}" value="${v}"><button class="stp" data-for="${id}" data-d="1" aria-label="늘리기">+</button></span>`;
   const n = bStages.length;
   box.innerHTML = bStages.map((x, i) => `<div class="bstage" data-i="${i}"><div class="h"><span class="sp">구간 ${i + 1}</span>` +
-    (n > 1 ? `<button data-mv="-1" data-i="${i}" aria-label="위로"${i ? '' : ' disabled'}>↑</button><button data-mv="1" data-i="${i}" aria-label="아래로"${i < n - 1 ? '' : ' disabled'}>↓</button><button data-del="${i}" aria-label="구간 삭제">🗑</button>` : '') + `</div>
+    (n > 1 ? `<button data-mv="-1" data-i="${i}" aria-label="위로"${i ? '' : ' disabled'}>↑</button><button data-mv="1" data-i="${i}" aria-label="아래로"${i < n - 1 ? '' : ' disabled'}>↓</button><button data-del="${i}" aria-label="구간 삭제">삭제</button>` : '') + `</div>
     <div class="cgrid">
       <label>길들이기 전압 (V)${st('bV' + i, 0.3, 12, 0.1, x.v)}</label>
       <label>방향<select id="bD${i}"><option value="fwd"${x.dir === 'fwd' ? ' selected' : ''}>정방향</option><option value="rev"${x.dir === 'rev' ? ' selected' : ''}>역방향</option><option value="alt"${x.dir === 'alt' ? ' selected' : ''}>번갈아 (사이클마다)</option></select></label>
@@ -2614,7 +2708,7 @@ function cleanHistRender() {
   box.innerHTML = h.map((x, i) => {
     const prev = i ? h[i - 1].hz : 0, dd = x.hz && prev ? x.hz - prev : null;
     const w = x.hz > 0 ? Math.max(2, Math.min(100, (x.hz - lo) / (tg - lo) * 100)) : 0;
-    return `<div class="r${tgOn && x.hz >= tg ? ' ok' : ''}"><span>${x.k}회</span><span class="bar"><i style="width:${w.toFixed(0)}%"></i></span><span style="text-align:right">${x.hz > 0 ? x.hz.toFixed(1) + ' Hz' : '측정 안 됨'}${dd !== null ? `<br><small style="color:${dd >= 0 ? '#69db7c' : '#ff8787'}">${dd >= 0 ? '+' : ''}${dd.toFixed(1)}</small>` : ''}</span></div>`;
+    return `<div class="r${tgOn && x.hz >= tg ? ' ok' : ''}"><span>${x.k}회</span><span class="bar"><i style="width:${w.toFixed(0)}%"></i></span><span style="text-align:right">${x.hz > 0 ? x.hz.toFixed(1) + ' Hz' : '측정 안 됨'}${dd !== null ? `<br><small style="color:${dd >= 0 ? 'var(--ink)' : '#ff8787'}">${dd >= 0 ? '+' : ''}${dd.toFixed(1)}</small>` : ''}</span></div>`;
   }).join('');
   const last = h[h.length - 1].hz;
   $('bSum').textContent = !tgOn ? (h.length > 1 && h[0].hz > 0 && last > 0 ? `처음보다 ${last - h[0].hz >= 0 ? '+' : ''}${(last - h[0].hz).toFixed(1)} Hz` : '') : last > 0 ? (last >= tg ? '목표 도달' : `목표까지 ${(tg - last).toFixed(1)} Hz`) : '';
@@ -2721,7 +2815,7 @@ async function psuDir(d) {
 function psuRender() {
   const on = !!dps.link, st = dps.st || {}, n = (x, d) => (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '-.' + '-'.repeat(d);
   $('btnPsu').textContent = on ? '끊기' : '연결';
-  $('psuLive').textContent = on && st.t ? (st.model ? st.model + ' · ' : '') + (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ⚠ ' + st.prot : '') : (on ? '연결 중…' : '연결 안 됨');
+  $('psuLive').textContent = on && st.t ? (st.model ? st.model + ' · ' : '') + (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ' + st.prot : '') : (on ? '연결 중…' : '연결 안 됨');
   $('pV').textContent = n(st.v, 2); $('pA').textContent = n(st.i, 3); $('pW').textContent = n(st.p, 2);
   const free = psuFree();
   $('psuOut').textContent = st.on ? '출력 끄기' : '출력 켜기';
@@ -2768,7 +2862,7 @@ if (!('usb' in navigator) && !('serial' in navigator)) {      // iPhone (Bluefy,
 }
 $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mode: standalone)').matches ? ' · 설치된 앱' : '');
 
-// ---------------------------------------------------------------- 🩺 motor condition: current, rpm per volt, steadiness, forward/reverse
+// ---------------------------------------------------------------- motor condition: current, rpm per volt, steadiness, forward/reverse
 // Compared with the selected motor's own records at about the same voltage (median of the earlier ones).
 var condLast = null, condT = 0;                       // var: condRender can run before this line (clean module init)
 function median(a) { const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
@@ -2844,7 +2938,7 @@ function condLiveStick(c) {
 function condSnapshot() { const c = condLast; return c && c.cv !== null ? { cond: c.score } : {}; }
 condRender(true);
 
-// ---------------------------------------------------------------- ⏱ 컨디션 측정: a fixed window at one voltage -> score 0~100
+// ---------------------------------------------------------------- 컨디션 측정: a fixed window at one voltage -> score 0~100
 // Checks that the power supply really held the voltage (else "전원 불안정", not scored), then rates
 // pano steadiness, pano drift, current level/steadiness and (when there are earlier checks) the change from them.
 // Result goes to the stick screen over Bluetooth when the firmware says it can show it (CND=1 in INFO, or 2.4+).
@@ -2928,7 +3022,7 @@ function ckFinish() {
   notify('컨디션 측정 끝: ' + (r.unstable ? g[0] : r.score + '점 ' + g[0]), !r.unstable && g[2] < 2);
   ckSay(r.unstable ? g[0] + '. 다시 재 주세요' : r.score + '점, ' + g[0], g[2]);
   $('ckLive').textContent = '';
-  recs.unshift(Object.assign({ t: r.t, memo: '⏱ ' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
+  recs.unshift(Object.assign({ t: r.t, memo: '' + CK_TAGS[r.tag] + ' ' + r.dur + '초', motor: r.motor, mode: cur ? cur.mode : 0, big: +r.hz.toFixed(1), vib: 0, mic: 0, status: '',
     volt: +r.v.toFixed(2), amp: +r.i.toFixed(3), ck: 1 }, r.dir !== null && r.dir !== undefined ? { dir: r.dir } : {}, r.unstable ? (r.measBad ? { condBad: 1, measBad: 1 } : { condBad: 1 }) : { cond: r.score }));
   if (recs.length > 500) recs.length = 500;
   saveRecs(recs); renderRecs();
@@ -2944,7 +3038,7 @@ async function ckSendStick(r) {                       // 'G' grade score hz*10 m
 function ckShow(r) {
   const g = ckGrade(r), pct = (d, badUp) => d === null || d === undefined ? '' : ` <span class="${(badUp ? d > 5 : d < -3) ? 'up' : (badUp ? d < -5 : d > 3) ? 'dn' : ''}">(이전 ${d >= 0 ? '+' : ''}${d.toFixed(1)}%)</span>`;
   const rows = [
-    ['전압', `${r.v.toFixed(2)} V · 흔들림 ${r.vr.toFixed(2)} V ${r.unstable ? '⚠' : '✓'}`],
+    ['전압', `${r.v.toFixed(2)} V · 흔들림 ${r.vr.toFixed(2)} V ${r.unstable ? '' : '✓'}`],
     ['파노', `${r.hz.toFixed(1)} Hz · ±${r.hcv.toFixed(2)}% · 변화 ${r.drift >= 0 ? '+' : ''}${r.drift.toFixed(1)}%`],
     ['전류', `${r.i.toFixed(3)} A · 출렁임 ±${r.icv.toFixed(1)}%` + pct(r.dI, true)],
     ['전압당 회전', `${Math.round(r.rpv).toLocaleString()} rpm/V` + pct(r.dR, false)]
@@ -3051,7 +3145,7 @@ function ckRearm() { if (ck && ck.auto) { clearInterval(ck.timer); ck = null; } 
 setInterval(ckAutoTick, 500);
 window.ckReady = true; ckShowLast(); ckRender();
 
-// ---------------------------------------------------------------- ⚠ 이상 경고: a sudden current jump or a shaky pano while the motor runs
+// ---------------------------------------------------------------- 이상 경고: a sudden current jump or a shaky pano while the motor runs
 // Compares the last 1.5 s with the 10 s before it at the same voltage (a voltage change, a stop or a direction
 // change starts over). Each kind warns at most once in 30 s. Settings: 이상 경고 (appSet.warn).
 var warnBuf = warnBuf || [], warnCvT = 0, warnLast = {};
@@ -3075,13 +3169,13 @@ function warnCheck(c) {
 function warnFire(kind, msg) {
   warnLast = warnLast || {}; const now = Date.now(); if (now - (warnLast[kind] || 0) < 30000) return; warnLast[kind] = now;
   const d = new Date(), el = $('condWarn');
-  if (el) { el.innerHTML = `⚠ ${esc(msg)} <small style="color:#ffa8a8;font-weight:600">(${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} · 눌러서 닫기)</small>`; el.classList.add('show'); el.onclick = () => el.classList.remove('show'); }
-  notify('⚠ 이상 감지: ' + (kind === 'i' ? '전류 급등' : '파노 흔들림'), false);
+  if (el) { el.innerHTML = `${esc(msg)} <small style="color:#ffa8a8;font-weight:600">(${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} · 눌러서 닫기)</small>`; el.classList.add('show'); el.onclick = () => el.classList.remove('show'); }
+  notify('이상 감지: ' + (kind === 'i' ? '전류 급등' : '파노 흔들림'), false);
   ckSay(kind === 'i' ? '전류가 갑자기 올랐습니다. 점검하세요' : '파노가 흔들립니다. 점검하세요', 2);
 }
 
-// ---------------------------------------------------------------- 📊 기록 · 비교: per-motor score history, ranking, result card
-// Uses what is already saved: condition checks (panocheck-condchk) and quick records with a live 🩺 score.
+// ---------------------------------------------------------------- 기록 · 비교: per-motor score history, ranking, result card
+// Uses what is already saved: condition checks (panocheck-condchk) and quick records with a live score.
 var bkSel = bkSel || null, bkVolt = bkVolt || '*';
 function bookPoints() {
   const pts = ckLoad().filter(r => !r.unstable).map(r => ({ t: r.t, motor: r.motor || '', tag: r.tag || 0, score: r.score, hz: r.hz, v: r.v, i: r.i, dur: r.dur, src: r }));
@@ -3106,7 +3200,7 @@ function bookRender() {
     const g = ckGrade({ score: r.last.score });
     return `<div class="r${r.m === bkSel ? ' sel' : ''}" data-m="${esc(r.m)}"><div class="no">${medal[k] || k + 1}</div>
       <div style="min-width:0"><div class="nm">${r.m ? esc(r.m) : '(이름 없음)'}</div><div class="sub">${r.last.hz ? r.last.hz.toFixed(1) + ' Hz' : ''}${r.last.v ? ' @ ' + r.last.v.toFixed(1) + ' V' : ''} · ${r.n}번${r.gain !== null ? ` · 청소 효과 ${r.gain >= 0 ? '+' : ''}${r.gain}점` : ''}</div></div>
-      <span class="chip" style="background:${g[1]}">${g[0]}</span><div class="sc" style="color:${g[1]}">${r.last.score}</div></div>`;
+      <span class="chip"${g[2] === 2 ? ' style="border-color:var(--red);color:var(--red)"' : ''}>${g[0]}</span><div class="sc" style="color:${g[1]}">${r.last.score}</div></div>`;
   }).join('') : '<div class="empty">아직 점수 기록이 없습니다</div>';
   bookDetail(pts.filter(p => p.motor === bkSel));
 }
@@ -3116,7 +3210,7 @@ function bookDetail(a) {
   $('bkName').textContent = (bkSel || '(이름 없음)') + ' · 점수 변화';
   const p2 = n => String(n).padStart(2, '0'), tm = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
   const aft = a.find(p => p.tag === 2), bef = aft ? a.find(p => p.tag === 1 && p.t < aft.t) : a.find(p => p.tag === 1);
-  $('bkCmp').innerHTML = bef && aft ? `청소 전 <b>${bef.score}점</b> → 청소 후 <b>${aft.score}점</b> <b style="color:${aft.score >= bef.score ? '#69db7c' : '#ff8787'}">(${aft.score >= bef.score ? '+' : ''}${aft.score - bef.score})</b>` +
+  $('bkCmp').innerHTML = bef && aft ? `청소 전 <b>${bef.score}점</b> → 청소 후 <b>${aft.score}점</b> <b style="color:${aft.score >= bef.score ? 'var(--ink)' : '#ff8787'}">(${aft.score >= bef.score ? '+' : ''}${aft.score - bef.score})</b>` +
     (bef.i && aft.i ? ` · 전류 ${((aft.i - bef.i) / bef.i * 100).toFixed(1)}%` : '') + (bef.hz && aft.hz ? ` · 파노 ${aft.hz - bef.hz >= 0 ? '+' : ''}${(aft.hz - bef.hz).toFixed(1)} Hz` : '')
     : bef ? '청소 전 점수가 있습니다. [청소 후]로 재면 여기서 비교합니다.' : '';
   $('bkList').innerHTML = a.slice(0, 8).map(p => { const g = ckGrade({ score: p.score });
@@ -3144,23 +3238,23 @@ $('bkV').onclick = e => { const b = e.target.closest('button'); if (b) { bkVolt 
 $('bkRank').onclick = e => { const r = e.target.closest('[data-m]'); if (r) { bkSel = r.dataset.m; bookRender(); } };
 $('bkRen').onclick = async () => { if (bkSel === null) return; const n = await renameMotor(bkSel); if (n) bkSel = n; bookRender(); };
 
-// 📤 result card: one picture with the score, pano, current (and the before/after change) for KakaoTalk etc.
+// result card: one picture with the score, pano, current (and the before/after change) for KakaoTalk etc.
 async function shareCard(r) {
   if (!r || r.score === undefined) { notify('공유할 점수가 없습니다', false); return; }
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1080; const g = c.getContext('2d'), gr = ckGrade(r);
-  const col = { 0: '#2f9e44', 1: '#e0b000', 2: '#e03131', 3: '#e8590c' }[gr[2]];
+  const col = { 0: '#2f9e44', 1: '#e0b000', 2: '#e03131', 3: '#f76707' }[gr[2]];
   const F = (w, px) => `${w} ${px}px system-ui,-apple-system,"Malgun Gothic",sans-serif`;
-  g.fillStyle = '#111418'; g.fillRect(0, 0, 1080, 1080);
-  g.fillStyle = '#e8590c'; g.fillRect(0, 0, 1080, 14);
+  g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, 1080, 1080);
+  g.fillStyle = '#f76707'; g.fillRect(0, 0, 1080, 14);
   g.textAlign = 'left'; g.fillStyle = '#ffffff'; g.font = F(800, 54); g.fillText('파노체크', 70, 120);
   const d = new Date(r.t || Date.now()), p2 = n => String(n).padStart(2, '0');
   g.fillStyle = '#8e98aa'; g.font = F(600, 34); g.textAlign = 'right'; g.fillText(`${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, 1010, 118);
-  g.textAlign = 'center'; g.fillStyle = '#ffd8a8'; g.font = F(800, 56); g.fillText((r.motor || '모터') + ' · ' + CK_TAGS[r.tag || 0], 540, 250, 940);
+  g.textAlign = 'center'; g.fillStyle = '#8d8d93'; g.font = F(800, 56); g.fillText((r.motor || '모터') + ' · ' + CK_TAGS[r.tag || 0], 540, 250, 940);
   g.fillStyle = col; g.font = F(900, 300); g.fillText(String(r.score), 540, 560);
   g.font = F(700, 50); g.fillStyle = '#8e98aa'; g.fillText('/ 100점', 540, 630);
   g.fillStyle = col; const gw = g.measureText(gr[0]).width + 90; g.beginPath(); g.roundRect ? g.roundRect(540 - gw / 2, 660, gw, 84, 42) : g.rect(540 - gw / 2, 660, gw, 84); g.fill();
   g.fillStyle = '#000'; g.font = F(800, 50); g.fillText(gr[0], 540, 720);
-  const box = (x, k, v) => { g.fillStyle = '#1b2028'; g.fillRect(x, 790, 300, 150); g.fillStyle = '#8e98aa'; g.font = F(600, 30); g.fillText(k, x + 150, 835); g.fillStyle = '#fff'; g.font = F(800, 50); g.fillText(v, x + 150, 905, 280); };
+  const box = (x, k, v) => { g.fillStyle = '#141415'; g.fillRect(x, 790, 300, 150); g.fillStyle = '#8e98aa'; g.font = F(600, 30); g.fillText(k, x + 150, 835); g.fillStyle = '#fff'; g.font = F(800, 50); g.fillText(v, x + 150, 905, 280); };
   box(70, '파노', r.hz ? r.hz.toFixed(1) + ' Hz' : '-'); box(390, '전압', r.v ? r.v.toFixed(2) + ' V' : '-'); box(710, '전류', r.i ? r.i.toFixed(2) + ' A' : '-');
   const same = bookPoints().filter(p => p.motor === (r.motor || '') && p.t <= (r.t || Infinity));
   const bef = r.tag === 2 ? same.find(p => p.tag === 1 && p.t < r.t) : null;
@@ -3219,7 +3313,7 @@ presetBox('panocheck-clean-presets', 'cPre', '클리닝 프리셋',
   v => { $('cMin').value = v.min; $('cMax').value = v.max; $('cAmp').value = v.amp; $('cPer').value = v.per; $('cRep').value = v.rep; $('cDir').value = v.dir; $('cMsg').textContent = ''; cleanRead(); },
   () => cl.run || cl.busy);
 
-// ---------------------------------------------------------------- 👥 people this phone gave permission to (kept on this phone)
+// ---------------------------------------------------------------- people this phone gave permission to (kept on this phone)
 const PPL_KEY = 'panocheck-admin-people';
 function pplLoad() { try { return JSON.parse(localStorage.getItem(PPL_KEY) || 'null') || null; } catch (e) { return null; } }
 function pplStore(o) { try { localStorage.setItem(PPL_KEY, JSON.stringify(o)); } catch (e) {} }
@@ -3257,7 +3351,7 @@ async function pplRender(fetchList) {
     const when = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '';
     return `<div class="row" data-id="${id}"><div style="min-width:0"><div class="nm">${esc(e.name || '(이름 없음)')}<span class="pst ${cls}">${txt}</span></div>
       <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div></div>
-      <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">🗑</button></div></div>`;
+      <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">삭제</button></div></div>`;
   }).join('') : '<div class="help" style="padding:10px 0">' + (ids.length ? '검색 결과가 없습니다' : '아직 기록이 없습니다') + '</div>';
 }
 $('pplQ').oninput = () => pplRender();
