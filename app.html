@@ -375,6 +375,14 @@ body{word-break:keep-all;overflow-wrap:break-word;line-height:1.55}
 .help,.set-help,.ts,.condRows{line-height:1.5}
 body .prow #psuPreSave,body .prow #cPreSave,body .prow #bPreSave{flex:0 0 68px;width:68px;min-width:68px;padding:0;font-size:15px;font-weight:600}
 .note2{display:inline-block;margin-top:2px;font-size:12px;color:var(--mute)}
+/* ===== 4차: 정역·상태 줄·정지 버튼·그래프·기록 ===== */
+.seg button.sel2{background:var(--ink);border-color:var(--ink);color:#000;font-weight:600}
+.psuAct #psuDir button{min-height:44px;font-size:15px;font-weight:600}
+main .status{background:none !important;color:var(--mute);font-size:12px;font-weight:600;padding:2px 0 0;margin-top:6px;letter-spacing:.04em}
+#btnCStop{background:var(--card);border:1px solid var(--line);color:var(--mute);font-weight:600}
+#btnCStop:not(:disabled){background:var(--red);border-color:var(--red);color:#fff}
+.rec .meta{white-space:normal;overflow:visible;line-height:1.6}
+.rec .mtag{display:inline-block;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 </style>
 </head>
 <body>
@@ -570,7 +578,7 @@ body .prow #psuPreSave,body .prow #cPreSave,body .prow #bPreSave{flex:0 0 68px;w
     <div class="cbar"><div id="cBar"></div></div>
     <div class="tools" style="grid-template-columns:2fr 1fr;margin-top:10px">
       <button id="btnCStart" class="primary" style="padding:14px">▶ 시작</button>
-      <button id="btnCStop" style="background:#c92a2a;border-color:#c92a2a;color:#fff;font-weight:700">■ 정지</button>
+      <button id="btnCStop">■ 정지</button>
     </div>
     <div id="cMsg" class="help" style="margin-top:8px;text-align:center"></div>
   </div>
@@ -758,7 +766,7 @@ body .prow #psuPreSave,body .prow #cPreSave,body .prow #bPreSave{flex:0 0 68px;w
   <div class="card">
     <div class="ttl">최근 60초</div>
     <canvas id="chart" width="1040" height="360"></canvas>
-    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#ff922b"></i>진동</span><span><i style="background:#3bc9db"></i>소리</span></div>
+    <div class="legend"><span><i style="background:#ffffff"></i>파노</span><span><i style="background:#8d8d93"></i>진동</span><span><i style="background:#4a4a50"></i>소리</span></div>
   </div>
 
   <div class="card" id="psuCard">
@@ -1725,7 +1733,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26s';
+const APP_BUILD = '2026-11-26t';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
@@ -2075,7 +2083,7 @@ function drawChart() {
     g.fillText(v.toFixed(0), 0, y + 7);
   }
   const now = Date.now(), x = t => pad + (W - pad) * (1 - (now - t) / 60000), y = v => 10 + (H - 30) * (hi - v) / (hi - lo);
-  for (const [k, col, w] of [['vib', '#ff922b', 2], ['mic', '#3bc9db', 2], ['big', '#ffffff', 4]]) {
+  for (const [k, col, w] of [['vib', '#8d8d93', 2], ['mic', '#4a4a50', 2], ['big', '#ffffff', 4]]) {
     g.strokeStyle = col; g.lineWidth = w; g.beginPath(); let on = false;
     for (const h of hist) { if (h[k] > 0) { on ? g.lineTo(x(h.t), y(h[k])) : g.moveTo(x(h.t), y(h[k])); on = true; } else on = false; }
     g.stroke();
@@ -2102,8 +2110,8 @@ function renderRecs() {
     const d = new Date(r.t), tm = `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
     const st = (r.status || '').split('  ')[0], cb = condBand(r);
     return `<div class="rec"><div class="hz">${r.big.toFixed(1)}</div>
-      <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${r.memo ? esc(r.memo) : '+ 메모'}</a>
-      <div class="meta">${tm} · ${Math.round(r.big * 60).toLocaleString()}rpm${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
+      <div class="mid"><a href="#" class="memo" data-memo="${i}">${r.memo ? esc(r.memo.replace(/^⏱\s*/, '')) : '+ 메모'}</a>
+      <div class="meta">${r.motor ? `<span class="mtag">${esc(r.motor)}</span>` : ''}${tm}${r.volt !== undefined ? ` · ${r.volt.toFixed(2)}V ${r.amp.toFixed(2)}A${r.dir !== undefined ? (r.dir ? ' 역' : ' 정') : ''}` : ''}</div></div>
       ${cb ? `<span class="chip cchip"${cb[1] === 'var(--red)' ? ' style="border-color:var(--red);color:var(--red)"' : ''}>${r.condBad ? (r.measBad ? '측정<br>불안정' : '전원<br>불안정') : `<b>${r.cond}</b>점<br>${cb[0]}`}</span>` : ''}${st ? `<span class="chip st">${esc(st)}</span>` : ''}
       <button class="del" data-del="${i}">×</button></div>`;
   }).join('') + (more > 0 ? `<button class="recMore" data-more="1">이전 기록 ${more}개 더 보기</button>` : recShow > 5 && list.length > 5 ? '<button class="recMore" data-more="0">접기</button>' : '');
