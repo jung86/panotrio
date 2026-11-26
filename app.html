@@ -954,7 +954,7 @@ async function sendTime() {                          // the stick's standby cloc
 }
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
-  notify('블루투스 연결 끊김', false);
+  if (!lcParked && !lcClosed) notify('블루투스 연결 끊김', false); else $('conn').textContent = '쉬는 중 · 앱으로 돌아오면 다시 연결';
   cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; stickBtnSeq = null; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
@@ -1597,20 +1597,44 @@ window.addEventListener('hashchange', checkReqHash);
 })();
 showView();
 checkReqHash();
-// App updates: the installed app keeps running in the background, so look for a new version whenever it comes
-// back to the front, and reload once when the new version has taken over (not while the motor is running).
-const APP_BUILD = '2026-11-26m';
+// App updates: the installed app keeps running in the background, so whenever it comes back to the front (and on
+// opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
+// within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
+// later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
+const APP_BUILD = '2026-11-26n';
+var lcFront = Date.now(), appNewer = '', appReloading = false;
+function appCanReload() {
+  if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
+  const fresh = Date.now() - lcFront < 15000 && document.visibilityState === 'visible';
+  if (IOS && device) return !cmdChar && !reconnecting;   // Bluefy cannot reconnect by itself after a reload: only while not connected
+  return fresh || (!dps.link && !cmdChar && !reconnecting);
+}
+function appReload() {
+  if (appReloading || !appNewer) return;
+  if (!appCanReload()) { if (!appReload.told) { appReload.told = 1; notify('새 버전(' + appNewer + ')이 있습니다 · 측정이 끝나고 앱으로 돌아오면 바뀝니다', true); } return; }
+  try { if (sessionStorage.getItem('pc-reloadFor') === appNewer) return; sessionStorage.setItem('pc-reloadFor', appNewer); } catch (e) {}   // once per version (no loop if the server is slow to change)
+  appReloading = true; location.reload();
+}
+var appChecking = false, appCheckedAt = 0;
+async function appCheck() {
+  if (appChecking || !navigator.onLine || Date.now() - appCheckedAt < 20000) { appReload(); return; }
+  appChecking = true; appCheckedAt = Date.now();
+  try {
+    const r = await fetch('app.html', { cache: 'no-store' });
+    const m = r.ok && /const APP_BUILD = '([^']+)'/.exec(await r.text());
+    if (m && m[1] > APP_BUILD) appNewer = m[1];
+  } catch (e) {}
+  appChecking = false;
+  appReload();
+}
 if ('serviceWorker' in navigator && window.isSecureContext) {
-  const hadCtrl = !!navigator.serviceWorker.controller;
-  let reloading = false, pendingReload = false;
-  const doReload = () => { if (reloading) return; if (cl.run || cl.busy || dps.link || cmdChar || fwBusy || reconnecting) { pendingReload = true; return; } reloading = true; location.reload(); };   // never drop a live USB / Bluetooth link
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl) doReload(); });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
-    const check = () => { if (reg && reg.update) reg.update().catch(() => {}); if (pendingReload) doReload(); };
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
-    setInterval(check, 30 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && reg && reg.update) reg.update().catch(() => {}); });
   }).catch(() => {});
 }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { lcFront = Date.now(); setTimeout(appCheck, 300); } });
+setTimeout(appCheck, 1200);
+setInterval(appCheck, 30 * 60 * 1000);
 applyWake();
 
 // ---------------------------------------------------------------- stick info
@@ -3238,6 +3262,56 @@ $('pplFile').onchange = async () => {
   } catch (e) { notify('가져오지 못했습니다: ' + e.message, false); }
 };
 $('btnPplSync').onclick = async () => { await pplRender(true); notify(rvkList ? '취소 상태를 새로 확인했습니다' : '취소 목록을 읽지 못했습니다 (인터넷 확인)', !!rvkList); };
+
+// ---------------------------------------------------------------- app close / open: tidy up what this app holds
+// Closed (pagehide: closed, reloaded, swiped away, left for another page): DPS output OFF first (nobody is watching
+// the motor any more), stick and power supply links closed, screen-on locks, speech and sounds stopped.
+// A short switch to another app (Kakao, a call...) does NOT stop a running job. When the app has been in the background
+// for 3 minutes with nothing running and the DPS output OFF, the links are let go too, and come back on return.
+// Records and settings (localStorage) are never touched here.
+var lcParked = false, lcClosed = false, lcHideT = 0;
+function lcBusy() { return !!(cl.run || cl.busy || ck || ckOne || fwBusy); }
+function lcLocksOff() {
+  for (const l of [wakeLock, stayLock, cl.wake]) { try { if (l) l.release(); } catch (e) {} }
+  wakeLock = null; stayLock = null; cl.wake = null;
+  try { if (stayVid) stayVid.pause(); } catch (e) {}
+}
+function lcClose() {
+  if (lcClosed) return; lcClosed = true; clearTimeout(lcHideT);
+  cl.run = false; clearInterval(cl.timer);
+  try { if (ck && ck.timer) clearInterval(ck.timer); } catch (e) {}
+  clearInterval(dps.poll);
+  const l = dps.link;
+  if (l) {                                            // written straight away (not queued): the page may be gone in a moment
+    dps.link = null;
+    try { Promise.resolve(l.write(dpsFrame(0xB1, DPS_OUT, [0]))).catch(() => {}).then(() => l.write(dpsFrame(0xC1, 0, [0]))).catch(() => {}).then(() => l.close()).catch(() => {}); } catch (e) {}
+  }
+  try { if (device && device.gatt && device.gatt.connected) device.gatt.disconnect(); } catch (e) {}
+  lcLocksOff();
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+  try { if (audio && audio.state === 'running') audio.suspend(); } catch (e) {}
+}
+async function lcPark() {
+  if (document.visibilityState === 'visible' || lcBusy() || (dps.link && dps.st && dps.st.on)) return;
+  lcParked = true;
+  try { if (device && device.gatt && device.gatt.connected) device.gatt.disconnect(); } catch (e) {}
+  try { if (dps.link) await dpsDisconnect(); } catch (e) {}
+  try { if (audio && audio.state === 'running') audio.suspend(); } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(lcHideT);
+  if (document.visibilityState === 'hidden') { lcHideT = setTimeout(lcPark, 3 * 60 * 1000); return; }
+  lcParked = false;                                   // the stick / power supply reconnect handlers above take it from here
+  try { if (audio && audio.state === 'suspended') audio.resume(); } catch (e) {}
+});
+addEventListener('pagehide', lcClose);
+addEventListener('pageshow', e => {                   // came back from the browser's back / forward cache
+  if (!e.persisted || !lcClosed) return;
+  lcClosed = false; lcFront = Date.now();
+  if (device && !(device.gatt && device.gatt.connected)) { if (cmdChar) onDisconnected(); else reconnect(); }
+  dps.st = {}; dpsRender(); setTimeout(() => dpsConnect({ silent: true }), 400);
+  applyWake(); setTimeout(appCheck, 300);
+});
 </script>
 </body>
 </html>
