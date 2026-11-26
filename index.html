@@ -55,14 +55,25 @@
       <button id="btnPhone" style="display:block;width:100%">폰으로 설치</button>
       <div id="phBar" style="display:none;margin-top:12px;height:14px;border-radius:7px;background:var(--line);overflow:hidden"><div id="phFill" style="height:100%;width:0;background:var(--acc);transition:width .2s"></div></div>
       <div id="phStat" style="margin-top:8px;font-weight:700"></div>
-      <details style="margin-top:8px"><summary class="small">안 될 때</summary>
+      <div id="phDl" style="display:none;margin-top:12px;padding:12px;border-radius:10px;border:2px solid var(--acc)">
+        <b>자동 연결이 안 되면: 다운로드 모드로 설치</b>
+        <ol style="margin:6px 0 10px">
+          <li>스틱을 폰에 꽂은 채로, 스틱 <b>옆면 전원 버튼을 약 2초</b> 누릅니다.</li>
+          <li>스틱 안의 <b>초록 불이 깜빡이면</b> 손을 뗍니다. (화면은 꺼져 있어도 됩니다)</li>
+          <li>아래 버튼 → 목록에서 스틱 선택 → 허용.</li>
+        </ol>
+        <button id="btnPhoneDl" style="display:block;width:100%;background:#1971c2">다운로드 모드로 설치</button>
+        <div class="small" style="margin-top:6px">설치가 끝나도 화면이 안 켜지면 전원 버튼을 한 번 누르세요.</div>
+      </div>
+      <details id="phHelp" style="margin-top:8px"><summary class="small">안 될 때 · 기록 보기</summary>
         <ul class="small">
           <li>목록에 스틱이 없으면: 선을 뺐다 다시 꽂거나, 다른 USB-C 선(충전 전용 선은 안 됨)을 써 보세요.</li>
-          <li>"연결하지 못했습니다"가 나오면: 스틱을 빼고 다시 꽂은 뒤 한 번 더 누르세요.</li>
-          <li>폰에 따라 USB 기기를 못 잡는 경우가 있습니다. 그럴 땐 컴퓨터로 설치하세요.</li>
+          <li>"연결하지 못했습니다"가 나오면: 아래 <b>다운로드 모드로 설치</b>를 해 보세요.</li>
+          <li>그래도 안 되면 아래 기록을 <b>[기록 복사]</b>해서 제작자에게 보내 주세요. 그동안은 컴퓨터로 설치하세요.</li>
           <li>활성화와 설정은 설치해도 지워지지 않습니다.</li>
         </ul>
-        <pre id="phLog" style="display:none;max-height:160px;overflow:auto;font-size:11px;background:rgba(127,127,127,.12);padding:6px;border-radius:6px;white-space:pre-wrap"></pre>
+        <pre id="phLog" style="max-height:220px;overflow:auto;font-size:11px;background:rgba(127,127,127,.12);padding:6px;border-radius:6px;white-space:pre-wrap;min-height:2em"></pre>
+        <button id="btnLogCopy" style="width:100%;padding:10px;font-size:14px;background:#495057">기록 복사</button>
       </details>
     </div>
     <div id="phoneNoChrome" style="display:none;text-align:left;line-height:1.55">
@@ -171,38 +182,54 @@
     return;
   }
   document.getElementById('phoneInstall').style.display = '';
-  const btn = document.getElementById('btnPhone'), stat = document.getElementById('phStat');
+  const btn = document.getElementById('btnPhone'), btnDl = document.getElementById('btnPhoneDl'), stat = document.getElementById('phStat');
   const bar = document.getElementById('phBar'), fill = document.getElementById('phFill'), logEl = document.getElementById('phLog');
+  const t0 = Date.now();
+  const log = t => { logEl.textContent += '[' + ((Date.now() - t0) / 1000).toFixed(1) + 's] ' + String(t).replace(/\s+$/, '') + '\n'; logEl.scrollTop = 1e9; };
+  log('기기: ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '') + ' · usb ' + !!navigator.usb + ' · serial ' + !!navigator.serial);
+  document.getElementById('btnLogCopy').onclick = async () => {
+    const txt = '[파노체크 폰 설치 기록]\n' + logEl.textContent;
+    try { await navigator.clipboard.writeText(txt); document.getElementById('btnLogCopy').textContent = '복사했습니다 · 카톡으로 보내 주세요'; }
+    catch (e) { prompt('이 기록을 복사해서 보내 주세요', txt); }
+  };
   let busy = false, wake = null;
-  btn.onclick = async () => {
+  const run = async (mode) => {
     if (busy) return;
     let dev;
     try {
-      const m = await import('./install/phone-flash.js?v=1');
-      try { dev = await m.pickDevice(); } catch (e) { stat.style.color = ''; stat.textContent = '스틱을 고르지 않았습니다. 선을 꽂고 다시 누르세요.'; return; }
-      busy = true; btn.disabled = true; btn.style.opacity = .5;
-      bar.style.display = ''; fill.style.width = '0'; stat.style.color = ''; logEl.textContent = '';
+      const m = await import('./install/phone-flash.js?v=2');
+      try { dev = await m.pickDevice(log); }
+      catch (e) { log('장치 선택: ' + (e && e.name) + ' ' + (e && e.message)); stat.style.color = ''; stat.textContent = '스틱을 고르지 않았습니다. 목록이 비어 있으면 선을 다시 꽂거나 다른 선을 써 보세요.'; return; }
+      busy = true; btn.disabled = btnDl.disabled = true; btn.style.opacity = btnDl.style.opacity = .5;
+      bar.style.display = ''; fill.style.width = '0'; stat.style.color = '';
       try { wake = await navigator.wakeLock?.request('screen'); } catch (e) {}
       const r = await m.flash(dev, {
-        status: t => stat.textContent = t,
+        status: t => { stat.textContent = t; log('· ' + t); },
         progress: f => { fill.style.width = (f * 100).toFixed(1) + '%'; if (f > 0 && f < 1) stat.textContent = '설치 중… ' + Math.round(f * 100) + '% (선을 빼지 마세요)'; },
-        log: t => { logEl.textContent += t + (/\n$/.test(t) ? '' : '\n'); }
-      });
+        log
+      }, { mode });
       stat.style.color = '#2b8a3e';
       stat.innerHTML = '✅ 설치 끝! 파노체크 ' + r.version + '이 켜집니다. 선을 빼고 <a href="app.html">앱</a>에서 연결하세요.';
+      log('설치 끝');
     } catch (e) {
       const msg = String(e && e.message || e);
+      log('[오류] ' + msg);
       stat.style.color = '#c92a2a';
-      stat.textContent = msg.startsWith('CONNECT:') ? '❌ 스틱과 연결하지 못했습니다. 선을 뺐다 다시 꽂고 한 번 더 눌러 보세요.'
+      stat.textContent = msg.startsWith('CONNECT:') ? (mode === 'no_reset'
+          ? '❌ 다운로드 모드 스틱과도 연결하지 못했습니다. 아래 기록을 [기록 복사]해서 보내 주세요.'
+          : '❌ 스틱과 자동으로 연결하지 못했습니다. 아래 "다운로드 모드로 설치"를 해 보세요.')
         : /Unable to find interface/.test(msg) ? '❌ 고른 기기는 USB 설치를 받을 수 없습니다. 목록에서 스틱(ESP32-S3 / USB JTAG)을 골랐는지 확인하세요.'
-        : /NetworkError|transfer|disconnected|device/i.test(msg) ? '❌ 설치 중 연결이 끊겼습니다. 다시 꽂고 한 번 더 누르세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)'
+        : /NetworkError|transfer|disconnected|device/i.test(msg) ? '❌ 연결이 끊겼습니다. 아래 "다운로드 모드로 설치"를 해 보세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)'
         : '❌ 실패: ' + msg;
-      logEl.textContent += '\n[오류] ' + msg; logEl.style.display = '';
+      document.getElementById('phDl').style.display = '';
+      document.getElementById('phHelp').open = true;
     } finally {
-      busy = false; btn.disabled = false; btn.style.opacity = '';
+      busy = false; btn.disabled = btnDl.disabled = false; btn.style.opacity = btnDl.style.opacity = '';
       try { wake && wake.release(); } catch (e) {} wake = null;
     }
   };
+  btn.onclick = () => run('default_reset');
+  btnDl.onclick = () => run('no_reset');
 })();
 (() => {                                           // Android, not Chrome (Samsung Internet, in-app browsers): open the app in Chrome
   const ua = navigator.userAgent;
