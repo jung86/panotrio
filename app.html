@@ -513,6 +513,7 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div class="prow" style="margin-top:4px"><input id="pplQ" type="search" placeholder="이름 또는 스틱 ID 검색" style="flex:1;min-width:0;font:600 15px Pretendard,system-ui;padding:10px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:var(--ink)"><button id="btnPplAdd">＋ 직접 추가</button></div>
     <div id="pplList" class="ppl"></div>
     <div class="tools" style="margin-top:10px"><button id="btnPplExport">⬇ 내보내기</button><button id="btnPplImport">⬆ 가져오기</button><button id="btnPplSync">↻ 새로고침</button></div>
+    <button id="btnPplUsage" style="width:100%;margin-top:8px">사용 현황 보기</button>
     <input id="pplFile" type="file" accept=".json,application/json" style="display:none">
     <div class="help" style="margin-top:6px">링크를 만들 때마다 여기에 자동으로 기록됩니다. 목록은 이 휴대폰에만 저장되니 가끔 내보내기로 백업하세요.</div>
   </div>
@@ -1734,7 +1735,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26x';
+const APP_BUILD = '2026-11-26y';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1749,6 +1750,17 @@ function usageSend(k, info, n) {
     const body = JSON.stringify({ id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), k, n: n || 1 });
     fetch(USAGE_URL + '/p', { method: 'POST', body, keepalive: true, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
   } catch (e) {}
+}
+function usageAdminUrl() {                          // admin page; the admin phone's people list rides along in the # part (never sent to any server by the browser;
+  let h = '';                                        // the admin page uploads it only after the password is entered)
+  try {
+    const o = pplLoad();
+    if (o) {
+      const list = Object.keys(o).map(id => { let st = 'ok'; try { st = pplStatus(o[id], id)[0]; } catch (e) {} return [id, (o[id].name || '').slice(0, 30), st, o[id].made || 0]; });
+      h = '#p=' + btoa(unescape(encodeURIComponent(JSON.stringify(list)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+  } catch (e) {}
+  return USAGE_URL + '/admin' + h;
 }
 function usageStick(kv) {                            // fresh INFO from the stick: once per stick per app opening
   try {
@@ -2896,7 +2908,7 @@ $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mo
   $('appBuild').addEventListener('click', () => {
     const now = Date.now(); n = now - t < 700 ? n + 1 : 1; t = now;
     if (n < 5 || !USAGE_URL) return;
-    n = 0; const u = USAGE_URL + '/admin';
+    n = 0; const u = usageAdminUrl();
     try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
   });
 })();
@@ -3424,6 +3436,12 @@ $('pplFile').onchange = async () => {
     for (const [id, e] of Object.entries(add)) { if (!/^[0-9A-F]{8}$/.test(id) || typeof e !== 'object') continue; o[id] = Object.assign({}, e, o[id] || {}); n++; }
     pplStore(o); pplRender(); notify(`${n}명을 가져왔습니다`, true);
   } catch (e) { notify('가져오지 못했습니다: ' + e.message, false); }
+};
+$('btnPplUsage').onclick = async () => {
+  if (!USAGE_URL) return;
+  try { await loadRvkList(true); } catch (e) {}
+  const u = usageAdminUrl();
+  try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
 };
 $('btnPplSync').onclick = async () => { await pplRender(true); notify(rvkList ? '취소 상태를 새로 확인했습니다' : '취소 목록을 읽지 못했습니다 (인터넷 확인)', !!rvkList); };
 
