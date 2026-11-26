@@ -141,6 +141,11 @@
   .ppl .meta { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums; }
   .ppl .acts { display:flex; gap:4px; }
   .ppl .acts button { padding:7px 9px; font-size:13px; }
+  .ppl .pg { border-bottom:1px solid var(--line); padding:4px 0 6px; }
+  .ppl .pg .row { border-bottom:0; }
+  .ppl .pgh { display:grid; grid-template-columns:1fr auto; gap:6px; align-items:center; padding:9px 2px 2px; }
+  .ppl .pg.multi .row { padding-left:14px; border-left:2px solid var(--line); margin-left:4px; }
+  .ppl .pg.multi .row .nm { font-size:14px; }
   .pst { font-size:12px; font-weight:700; border-radius:6px; padding:1px 6px; margin-left:6px; }
   .pst.ok { background:#2a2a2e; color:#fff; } .pst.no { background:#c92a2a; color:#fff; } .pst.re { background:#2a2a2e; color:#fff; }
   .tile.wide { grid-column:1 / -1; flex-direction:row; justify-content:flex-start; padding:16px 20px; gap:16px; }
@@ -1074,7 +1079,7 @@ async function openGatt() {
   notify((device.name || '스틱') + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
-  try { if (device.id) localStorage.setItem('panocheck-stick', device.id); } catch (e) {}   // for connecting by itself next time
+  stickRemember(device.id);                                                 // for connecting by itself next time
 }
 async function sendTime() {                          // the stick's standby clock uses the phone's local time
   const ch = cmdChar; if (!ch) return;
@@ -1106,27 +1111,46 @@ async function reconnect() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && device && !cmdChar) { $('conn').textContent = '다시 연결 중…'; reconnect(); } });
 // App opened: connect by itself to the stick this phone used last time, when the browser allows it
 // (Chrome with getDevices). Waits for the stick to advertise (it may be off), up to 2 minutes.
+// One person may use several sticks (S3 and Plus2...): every stick this phone connected to is remembered
+// (newest first, up to 8) and the app watches them all; the first one that is switched on connects.
+function stickIds() {
+  let a = [], last = '';
+  try { a = JSON.parse(localStorage.getItem('panocheck-sticks') || '[]'); if (!Array.isArray(a)) a = []; } catch (e) { a = []; }
+  try { last = localStorage.getItem('panocheck-stick') || ''; } catch (e) {}
+  if (last && !a.includes(last)) a.unshift(last);
+  return a.filter(x => typeof x === 'string' && x).slice(0, 8);
+}
+function stickRemember(id) {
+  if (!id) return;
+  const a = [id, ...stickIds().filter(x => x !== id)].slice(0, 8);
+  try { localStorage.setItem('panocheck-stick', id); localStorage.setItem('panocheck-sticks', JSON.stringify(a)); } catch (e) {}
+}
 async function stickAuto() {
   if (device || appSet.auto === false || !navigator.bluetooth || !navigator.bluetooth.getDevices) return;
-  let list = [], id = '';
+  let list = [];
   try { list = await navigator.bluetooth.getDevices(); } catch (e) { return; }
-  try { id = localStorage.getItem('panocheck-stick') || ''; } catch (e) {}
-  list = list.filter(d => /^(PanoTrio|파노체크)/.test(d.name || '') || d.id === id);
-  const d = list.find(x => x.id === id) || (list.length === 1 ? list[0] : null);
-  if (!d || device) return;
+  const ids = stickIds(), rank = d => { const i = ids.indexOf(d.id); return i < 0 ? 99 : i; };
+  list = list.filter(d => /^(PanoTrio|파노체크)/.test(d.name || '') || ids.includes(d.id)).sort((a, b) => rank(a) - rank(b));
+  if (!list.length || device) return;
   let done = false;
-  const go = async () => {
+  const go = async d => {
     if (done || device || cmdChar) return; done = true;
     device = d; d.addEventListener('gattserverdisconnected', onDisconnected);
     try { await openGatt(); }
     catch (e) { if (!cmdChar && device === d) { d.removeEventListener('gattserverdisconnected', onDisconnected); try { d.gatt.disconnect(); } catch (e2) {} device = null; $('conn').textContent = '연결 안 됨'; $('conn').className = 'conn'; } }
   };
-  if (d.watchAdvertisements) {
-    const ac = new AbortController();
-    d.addEventListener('advertisementreceived', () => { try { ac.abort(); } catch (e) {} go(); }, { once: true });
-    try { await d.watchAdvertisements({ signal: ac.signal }); if (!device) $('conn').textContent = '스틱 찾는 중…'; setTimeout(() => { try { ac.abort(); } catch (e) {} if (!device && !done) $('conn').textContent = '연결 안 됨'; }, 120000); }
-    catch (e) { go(); }
-  } else go();
+  const watch = list.filter(d => d.watchAdvertisements);
+  if (!watch.length) { if (ids.length || list.length === 1) go(list[0]); return; }   // no advertisement watching: the last stick, as before
+  const acs = [], stopAll = () => acs.forEach(ac => { try { ac.abort(); } catch (e) {} });
+  let started = 0;
+  for (const d of watch) {
+    const ac = new AbortController(); acs.push(ac);
+    d.addEventListener('advertisementreceived', () => { stopAll(); go(d); }, { once: true });
+    try { await d.watchAdvertisements({ signal: ac.signal }); started++; } catch (e) {}
+  }
+  if (!started) { go(list[0]); return; }
+  if (!device) $('conn').textContent = list.length > 1 ? '스틱 찾는 중… (' + list.length + '개)' : '스틱 찾는 중…';
+  setTimeout(() => { stopAll(); if (!device && !done) $('conn').textContent = '연결 안 됨'; }, 120000);
 }
 setTimeout(stickAuto, 700);
 async function send(kind, val) {
@@ -1771,7 +1795,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27g';
+const APP_BUILD = '2026-11-27h';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -3732,27 +3756,57 @@ async function pplUsageFetch(force) {
   $('pplUsageMsg').textContent = pplUseErr || (pplUse ? '버전·마지막 사용은 사용 현황 서버에서 읽었습니다 · 주황은 최신이 아닌 버전' : '');
   if (pplUse || pplUseErr) pplRender();
 }
+// One person can have several sticks (S3 and Plus2, ...): sticks with the same name are shown together under that name.
+// Each stick still has its own activation link and removal (both are made for a stick ID).
+const pplKey = e => (e.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+function pplHw(id, e) { const u = pplUse && pplUse.sticks[id]; const hw = (u && u.hw) || e.hw || ''; return hw === 'P2' ? 'Plus2' : hw ? 'S3' : ''; }
+function pplStickRow(id, e, inGroup) {
+  const [cls, txt] = pplStatus(e, id), d = e.made ? new Date(e.made) : null;
+  const when = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '', hw = pplHw(id, e);
+  const title = inGroup ? fmtId(id) : esc(e.name || '(이름 없음)');
+  const meta = [inGroup ? '' : fmtId(id), hw, when, e.lv ? '레벨 ' + e.lv : ''].filter(Boolean).join(' · ');
+  return `<div class="row" data-id="${id}"><div style="min-width:0"><div class="nm">${title}<span class="pst ${cls}">${txt}</span></div>
+    <div class="meta">${meta}</div>${pplUsageLine(id)}</div>
+    <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">삭제</button></div></div>`;
+}
 async function pplRender(fetchList) {
   if (!$('pplList')) return;
   if (fetchList) { await loadRvkList(true); pplUsageFetch(true); }
   const o = pplAll(), q = ($('pplQ').value || '').trim().toUpperCase().replace(/-/g, '');
   const ids = Object.keys(o).sort((a, b) => (o[b].made || 0) - (o[a].made || 0));
-  const shown = ids.filter(id => !q || id.includes(q) || (o[id].name || '').toUpperCase().includes(q));
+  const groups = new Map();                          // name -> ids, newest first; no name = its own group
+  ids.forEach(id => { const k = pplKey(o[id]) || '#' + id; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(id); });
   const cnt = { ok: 0, no: 0 };
   ids.forEach(id => { const st = pplStatus(o[id], id)[0]; if (st === 'no') cnt.no++; else cnt.ok++; });
-  $('pplCount').textContent = `${ids.length}명 · 허락 ${cnt.ok} · 취소 ${cnt.no}`;
-  $('pplList').innerHTML = shown.length ? shown.map(id => {
-    const e = o[id], [cls, txt] = pplStatus(e, id);
-    const d = e.made ? new Date(e.made) : null;
-    const when = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '';
-    return `<div class="row" data-id="${id}"><div style="min-width:0"><div class="nm">${esc(e.name || '(이름 없음)')}<span class="pst ${cls}">${txt}</span></div>
-      <div class="meta">${fmtId(id)}${when ? ' · ' + when : ''}${e.lv ? ' · 레벨 ' + e.lv : ''}</div>${pplUsageLine(id)}</div>
-      <div class="acts"><button data-a="link">링크</button><button data-a="rvk">취소</button><button data-a="edit" aria-label="이름 바꾸기">✎</button><button data-a="del" aria-label="목록에서 빼기">삭제</button></div></div>`;
+  $('pplCount').textContent = `${groups.size}명 · 스틱 ${ids.length}개 · 허락 ${cnt.ok} · 취소 ${cnt.no}`;
+  const shown = [...groups.entries()].filter(([, g]) => !q || g.some(id => id.includes(q) || (o[id].name || '').toUpperCase().includes(q)));
+  $('pplList').innerHTML = shown.length ? shown.map(([k, g]) => {
+    const name = o[g[0]].name || '';
+    if (g.length === 1) return `<div class="pg" data-k="${esc(k)}">` + pplStickRow(g[0], o[g[0]], false) +
+      (name ? `<div style="padding:0 2px 4px"><button data-a="add" style="padding:5px 9px;font-size:12px">＋ 이 사람 스틱 추가</button></div>` : '') + '</div>';
+    return `<div class="pg multi" data-k="${esc(k)}"><div class="pgh"><div class="nm">${esc(name)}<span class="pst ok">스틱 ${g.length}개</span></div>
+      <div class="acts"><button data-a="add">＋ 스틱</button><button data-a="gname" aria-label="이름 바꾸기">✎</button></div></div>` +
+      g.map(id => pplStickRow(id, o[id], true)).join('') + '</div>';
   }).join('') : '<div class="help" style="padding:10px 0">' + (ids.length ? '검색 결과가 없습니다' : '아직 기록이 없습니다') + '</div>';
+}
+async function pplAddStick(name) {                   // another stick for the same person: its own activation link
+  const raw = await askText(`${name}의 다른 스틱 ID (8자리)`, ''); if (raw === null) return;
+  const id = raw.toUpperCase().replace(/[^0-9A-F]/g, '');
+  if (id.length !== 8) { notify('스틱 ID는 8자리(0-9, A-F)입니다', false); return; }
+  $('aId').value = fmtId(id); $('aName').value = name; $('aLvInfo').textContent = '';
+  if (admKey) { $('btnAdmMake').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); }
+  else { pplRecord(id, { name, lv: 0, made: Date.now() }); notify('추가했습니다', true); }
 }
 $('pplQ').oninput = () => pplRender();
 $('pplList').onclick = async e => {
-  const b = e.target.closest('button'), row = e.target.closest('.row'); if (!b || !row) return;
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.a === 'add' || b.dataset.a === 'gname') {
+    const pg = b.closest('.pg'), ids = [...pg.querySelectorAll('.row')].map(r => r.dataset.id), o = pplAll(), name = (o[ids[0]] && o[ids[0]].name) || '';
+    if (b.dataset.a === 'add') { pplAddStick(name); return; }
+    const n = await askText('이름 (이 사람의 스틱 ' + ids.length + '개 모두)', name); if (n === null) return;
+    ids.forEach(id => { if (o[id]) o[id].name = n.trim().slice(0, 30); }); pplStore(o); pplRender(); return;
+  }
+  const row = e.target.closest('.row'); if (!row) return;
   const id = row.dataset.id, o = pplAll(), ent = o[id]; if (!ent) return;
   $('aId').value = fmtId(id); $('aName').value = ent.name || ''; $('aLvInfo').textContent = '';
   if (b.dataset.a === 'link') { $('btnAdmMake').click(); $('admMake').scrollIntoView({ behavior: 'smooth' }); }
