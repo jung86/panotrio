@@ -114,7 +114,7 @@ td.id{font-family:ui-monospace,Consolas,monospace;white-space:nowrap}.old{color:
 <div class="mute" style="margin-top:8px">메모 칸을 눌러 누구 스틱인지 적어 두면 저장됩니다. 주황 글씨는 최신이 아닌 버전입니다. "스틱 없음"은 스틱을 연결하지 않고 앱만 연 경우입니다.</div></div>
 </div></main>
 <script>
-const $=id=>document.getElementById(id);let tk='';try{tk=sessionStorage.getItem('pc-admin')||''}catch(e){}
+const $=id=>document.getElementById(id);let tk='';try{tk=localStorage.getItem('pc-admin')||''}catch(e){}
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function ago(t,now){const m=Math.floor((now-t)/60000);if(m<1)return'방금';if(m<60)return m+'분 전';const h=Math.floor(m/60);if(h<24)return h+'시간 전';const d=Math.floor(h/24);return d+'일 전'}
 function dt(t){const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
@@ -122,7 +122,7 @@ async function api(p,body){const r=await fetch(p,{method:body?'POST':'GET',heade
 let latest={};
 async function loadLatest(){for(const [k,u] of [['app','https://jung86.github.io/panotrio/app.html'],['s3','https://jung86.github.io/panotrio/fw/latest.json'],['p2','https://jung86.github.io/panotrio/fw/latest-plus2.json']]){try{const r=await fetch(u,{cache:'no-store'});if(!r.ok)continue;const t=await r.text();if(k==='app'){const m=/const APP_BUILD = '([^']+)'/.exec(t);if(m)latest.app=m[1]}else latest[k]=JSON.parse(t).ver}catch(e){}}}
 async function load(){
-  let d;try{d=await api('/api/sticks')}catch(e){if(e.message==='auth'){$('err').textContent='비밀번호가 맞지 않습니다';show(false);try{sessionStorage.removeItem('pc-admin')}catch(_){};return}$('err').textContent=e.message;return}
+  let d;try{d=await api('/api/sticks')}catch(e){if(e.message==='auth'){$('err').textContent='비밀번호가 맞지 않습니다';show(false);try{localStorage.removeItem('pc-admin')}catch(_){};return}$('err').textContent=e.message;return}
   show(true);const now=d.now,S=d.sticks,real=S.filter(s=>s.id!=='NOSTICK');
   const act7=real.filter(s=>now-s.last_seen<7*864e5).length,act1=real.filter(s=>now-s.last_seen<864e5).length;
   $('sum').innerHTML='<div><span class="mute">등록된 스틱</span><b>'+real.length+'</b></div><div><span class="mute">오늘(24시간) 쓴 스틱</span><b>'+act1+'</b></div><div><span class="mute">7일 안에 쓴 스틱</span><b>'+act7+'</b></div><div><span class="mute">7일 측정 합계</span><b>'+S.reduce((a,s)=>a+(s.meas7||0),0)+'</b></div>';
@@ -139,7 +139,7 @@ async function load(){
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm(b.dataset.del+' 기록을 지울까요?'))return;await api('/api/delete',{id:b.dataset.del});load()});
 }
 function show(on){$('login').style.display=on?'none':'';$('view').style.display=on?'':'none'}
-$('f').onsubmit=e=>{e.preventDefault();tk=$('tk').value.trim();try{sessionStorage.setItem('pc-admin',tk)}catch(_){};$('err').textContent='';load()};
-$('re').onclick=load;$('out').onclick=()=>{tk='';try{sessionStorage.removeItem('pc-admin')}catch(_){};show(false)};
+$('f').onsubmit=e=>{e.preventDefault();tk=$('tk').value.trim();try{localStorage.setItem('pc-admin',tk)}catch(_){};$('err').textContent='';load()};
+$('re').onclick=load;$('out').onclick=()=>{tk='';try{localStorage.removeItem('pc-admin')}catch(_){};show(false)};
 loadLatest().then(()=>{if(tk)load()});
 </script></body></html>`;

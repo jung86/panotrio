@@ -1734,7 +1734,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26w';
+const APP_BUILD = '2026-11-26x';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2891,6 +2891,15 @@ if (!('usb' in navigator) && !('serial' in navigator)) {      // iPhone (Bluefy,
   $('btnDps').style.background = 'var(--grey)'; $('btnDps').style.borderColor = 'var(--grey)';
 }
 $('appBuild').textContent = '앱 버전 ' + APP_BUILD + (matchMedia('(display-mode: standalone)').matches ? ' · 설치된 앱' : '');
+(() => {                                             // maker only: tap the version line 5 times quickly → usage admin page (password asked there)
+  let n = 0, t = 0;
+  $('appBuild').addEventListener('click', () => {
+    const now = Date.now(); n = now - t < 700 ? n + 1 : 1; t = now;
+    if (n < 5 || !USAGE_URL) return;
+    n = 0; const u = USAGE_URL + '/admin';
+    try { if (!window.open(u, '_blank', 'noopener')) location.href = u; } catch (e) { location.href = u; }
+  });
+})();
 
 // ---------------------------------------------------------------- motor condition: current, rpm per volt, steadiness, forward/reverse
 // Compared with the selected motor's own records at about the same voltage (median of the earlier ones).
