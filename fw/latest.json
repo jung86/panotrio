@@ -1,8 +1,8 @@
 {
- "ver": "2.6",
- "size": 1054880,
- "sha256": "081a3bb3dc69519ed0473149262f387db0b1584433d893ef628885372d3b7813",
- "sig": "4hOFfi_g6cl1aPOWqGf_xGIL-821rVFWgqpVxN9kghwm9xJrobr6NjhDUu-aoLPdr904nvOTAeboFI82MMCdEw",
- "bin": "fw/PanoCheck-2.6.app.bin",
- "note": "측정 후 점수 표시 · 대기 0초 설정"
+ "ver": "2.7",
+ "size": 1055232,
+ "sha256": "d7f7c49bd02e59dfcb0d14664eb551bd681310dc11cc928895dd337b74a93542",
+ "sig": "CHpclpUHoPXEzAJj0Gt1mlMWf4RRtczQcP0FXDdwpR3qtRG2MqSofnAU400uQ4hSgsIybjeQ5hsE9SVU1S7xbw",
+ "bin": "fw/PanoCheck-2.7.app.bin",
+ "note": "스틱 버튼으로 조작: 앱 연결 중 A 1초 = 측정 시작/멈춤, B 1초 = 정·역"
 }
