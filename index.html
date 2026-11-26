@@ -40,10 +40,34 @@
 
   <div class="card install">
     <div id="mobileInstall" style="display:none;text-align:left;line-height:1.55">
-      <b style="color:#ff6b6b">📵 휴대폰으로는 USB 설치가 안 됩니다.</b><br>
-      <b>컴퓨터</b>(윈도우·맥의 크롬 또는 엣지)에 스틱을 USB 선으로 꽂고, 컴퓨터에서 이 주소를 열어 설치하세요.<br>
+      <b style="color:#ff6b6b">📵 아이폰으로는 USB 설치가 안 됩니다.</b><br>
+      <b>안드로이드폰</b>(크롬)이나 <b>컴퓨터</b>(윈도우·맥의 크롬 또는 엣지)에서 이 주소를 열어 설치하세요.<br>
       <span style="color:#2f9e44;font-weight:700">2.0을 한 번 설치하면, 그 다음부터는 휴대폰 앱에서 블루투스로 업데이트됩니다.</span>
-      <button id="btnCopyInst" style="display:block;margin-top:10px;width:100%;padding:12px;border-radius:10px;border:0;background:#495057;color:#fff;font-weight:700;font-size:15px">이 주소 복사 (컴퓨터로 보내기)</button>
+      <button id="btnCopyInst" style="display:block;margin-top:10px;width:100%;padding:12px;border-radius:10px;border:0;background:#495057;color:#fff;font-weight:700;font-size:15px">이 주소 복사</button>
+    </div>
+    <div id="phoneInstall" style="display:none;text-align:left;line-height:1.55">
+      <h2 style="margin:0 0 6px">📱 폰으로 설치 (안드로이드)</h2>
+      <ol style="margin:4px 0 12px">
+        <li>스틱을 <b>USB-C 선</b>으로 폰에 꽂습니다. (C-C 선, 또는 OTG 젠더)</li>
+        <li>아래 <b>[폰으로 설치]</b> → 목록에서 스틱(USB JTAG/serial 또는 ESP32-S3) 선택 → <b>허용</b>.</li>
+        <li>약 1분 기다립니다. 끝날 때까지 선을 빼지 마세요.</li>
+      </ol>
+      <button id="btnPhone" style="display:block;width:100%">폰으로 설치</button>
+      <div id="phBar" style="display:none;margin-top:12px;height:14px;border-radius:7px;background:var(--line);overflow:hidden"><div id="phFill" style="height:100%;width:0;background:var(--acc);transition:width .2s"></div></div>
+      <div id="phStat" style="margin-top:8px;font-weight:700"></div>
+      <details style="margin-top:8px"><summary class="small">안 될 때</summary>
+        <ul class="small">
+          <li>목록에 스틱이 없으면: 선을 뺐다 다시 꽂거나, 다른 USB-C 선(충전 전용 선은 안 됨)을 써 보세요.</li>
+          <li>"연결하지 못했습니다"가 나오면: 스틱을 빼고 다시 꽂은 뒤 한 번 더 누르세요.</li>
+          <li>폰에 따라 USB 기기를 못 잡는 경우가 있습니다. 그럴 땐 컴퓨터로 설치하세요.</li>
+          <li>활성화와 설정은 설치해도 지워지지 않습니다.</li>
+        </ul>
+        <pre id="phLog" style="display:none;max-height:160px;overflow:auto;font-size:11px;background:rgba(127,127,127,.12);padding:6px;border-radius:6px;white-space:pre-wrap"></pre>
+      </details>
+    </div>
+    <div id="phoneNoChrome" style="display:none;text-align:left;line-height:1.55">
+      <b>📱 폰으로 설치하려면 크롬으로 여세요.</b> 지금 브라우저에서는 USB 연결이 안 됩니다.
+      <a id="phChromeLink" href="#" style="display:block;margin-top:10px;text-align:center;background:#e8590c;color:#fff;font-weight:700;text-decoration:none;padding:12px;border-radius:10px">크롬으로 열기</a>
     </div>
     <esp-web-install-button manifest="manifest.json">
       <span slot="unsupported" class="warn">이 브라우저는 지원하지 않습니다.<br>PC의 크롬(Chrome) 또는 엣지(Edge)로 열어주세요.</span>
@@ -110,22 +134,67 @@
     <ul>
       <li>허락받은 스틱만 쓸 수 있습니다. 활성화 링크는 스틱마다 달라서 다른 스틱에는 쓸 수 없습니다.</li>
       <li>설치하면 스틱에 있던 기존 프로그램은 지워집니다.</li>
-      <li>휴대폰(아이폰)과 사파리에서는 설치되지 않습니다. PC 크롬/엣지를 쓰세요.</li>
+      <li>PC 크롬/엣지, 또는 안드로이드폰 크롬(USB-C 선)으로 설치할 수 있습니다. 아이폰과 사파리에서는 설치되지 않습니다.</li>
       <li>앱에서 바꾼 설정은 <b>스틱에 저장</b>을 누르면 스틱에 들어가고, 스틱을 연결할 때도 자동으로 맞춰집니다.</li>
       <li>버전 2.6입니다. 2.0부터는 앱에서 블루투스로 스틱을 업데이트할 수 있어서, USB 설치는 이번 한 번이면 됩니다.</li>
     </ul>
   </div>
 </main>
 <script>
-if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-  document.getElementById('mobileInstall').style.display = '';
+(() => {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  if (!isIOS && !isAndroid) return;                  // PC: ESP Web Tools 그대로
   document.querySelector('esp-web-install-button').style.display = 'none';
-  document.getElementById('btnCopyInst').onclick = async () => {
-    const u = location.origin + location.pathname;
-    try { await navigator.clipboard.writeText(u); document.getElementById('btnCopyInst').textContent = '복사했습니다 · 카톡 등으로 컴퓨터에 보내세요'; }
-    catch (e) { prompt('이 주소를 컴퓨터에서 여세요', u); }
+  if (isIOS) {
+    document.getElementById('mobileInstall').style.display = '';
+    document.getElementById('btnCopyInst').onclick = async () => {
+      const u = location.origin + location.pathname;
+      try { await navigator.clipboard.writeText(u); document.getElementById('btnCopyInst').textContent = '복사했습니다'; }
+      catch (e) { prompt('이 주소를 안드로이드폰이나 컴퓨터에서 여세요', u); }
+    };
+    return;
+  }
+  if (!navigator.usb) {                              // 삼성 인터넷·앱 안 브라우저 등
+    document.getElementById('phoneNoChrome').style.display = '';
+    document.getElementById('phChromeLink').href = 'intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;end';
+    return;
+  }
+  document.getElementById('phoneInstall').style.display = '';
+  const btn = document.getElementById('btnPhone'), stat = document.getElementById('phStat');
+  const bar = document.getElementById('phBar'), fill = document.getElementById('phFill'), logEl = document.getElementById('phLog');
+  let busy = false, wake = null;
+  btn.onclick = async () => {
+    if (busy) return;
+    let dev;
+    try {
+      const m = await import('./install/phone-flash.js?v=1');
+      try { dev = await m.pickDevice(); } catch (e) { stat.style.color = ''; stat.textContent = '스틱을 고르지 않았습니다. 선을 꽂고 다시 누르세요.'; return; }
+      busy = true; btn.disabled = true; btn.style.opacity = .5;
+      bar.style.display = ''; fill.style.width = '0'; stat.style.color = ''; logEl.textContent = '';
+      try { wake = await navigator.wakeLock?.request('screen'); } catch (e) {}
+      const r = await m.flash(dev, {
+        status: t => stat.textContent = t,
+        progress: f => { fill.style.width = (f * 100).toFixed(1) + '%'; if (f > 0 && f < 1) stat.textContent = '설치 중… ' + Math.round(f * 100) + '% (선을 빼지 마세요)'; },
+        log: t => { logEl.textContent += t + (/\n$/.test(t) ? '' : '\n'); }
+      });
+      stat.style.color = '#2b8a3e';
+      stat.innerHTML = '✅ 설치 끝! 파노체크 ' + r.version + '이 켜집니다. 선을 빼고 <a href="app.html">앱</a>에서 연결하세요.';
+    } catch (e) {
+      const msg = String(e && e.message || e);
+      stat.style.color = '#c92a2a';
+      stat.textContent = msg.startsWith('CONNECT:') ? '❌ 스틱과 연결하지 못했습니다. 선을 뺐다 다시 꽂고 한 번 더 눌러 보세요.'
+        : /Unable to find interface/.test(msg) ? '❌ 고른 기기는 USB 설치를 받을 수 없습니다. 목록에서 스틱(ESP32-S3 / USB JTAG)을 골랐는지 확인하세요.'
+        : /NetworkError|transfer|disconnected|device/i.test(msg) ? '❌ 설치 중 연결이 끊겼습니다. 다시 꽂고 한 번 더 누르세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)'
+        : '❌ 실패: ' + msg;
+      logEl.textContent += '\n[오류] ' + msg; logEl.style.display = '';
+    } finally {
+      busy = false; btn.disabled = false; btn.style.opacity = '';
+      try { wake && wake.release(); } catch (e) {} wake = null;
+    }
   };
-}
+})();
 (() => {                                           // Android, not Chrome (Samsung Internet, in-app browsers): open the app in Chrome
   const ua = navigator.userAgent;
   if (navigator.bluetooth) return;
