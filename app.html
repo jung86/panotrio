@@ -862,6 +862,7 @@ const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
 var connGen = 0, otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false, fwAsked = '';
+var stickHw = '', fwLatestUrl = '';                  // stick model from INFO HW= ('' = M5StickS3, 'P2' = M5StickC Plus2)
 // 모터클리닝 / DPS-150 (or DPS100) state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
 const cl = { mode: 'clean', phase: '', hist: [], vSending: false, run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
@@ -1382,7 +1383,7 @@ $('btnShareInst').onclick = async () => {               // share the install pag
 };
 // 최초 설치 · 업데이트: first install over USB (Android phone or PC) and Bluetooth update in one place
 $('tileFw').onclick = async () => {
-  if (!fwLatest) { try { const r = await fetch('fw/latest.json', { cache: 'no-cache' }); if (r.ok) fwLatest = await r.json(); } catch (e) {} }
+  await fwLoad();
   const old = $('fwMenu'); if (old) old.remove();
   const ios = isIOS(), android = /Android/i.test(navigator.userAgent);
   const latest = fwLatest ? fwLatest.ver : '-';
@@ -1734,7 +1735,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26u';
+const APP_BUILD = '2026-11-26v';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
@@ -1782,7 +1783,8 @@ function onInfo(dv, whole) {
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo(kv.ID || (device && device.id) || '');
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
-  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
+  stickHw = kv.HW || '';
+  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}${stickHw === 'P2' ? ' (M5StickC Plus2)' : ''} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
   renderSettings();
   devId = kv.ID || '';
   onActivation(kv);
@@ -1815,12 +1817,19 @@ function stickButton(k) {
 // ---------------------------------------------------------------- stick firmware update over Bluetooth (firmware 2.0+)
 // fw/latest.json names the newest firmware. When the connected stick is older, the home screen offers it.
 // The file is signed; the stick checks the signature itself, so a wrong file is never started.
+// Each stick model has its own firmware file: M5StickS3 fw/latest.json, M5StickC Plus2 fw/latest-plus2.json.
+// (The Plus2 firmware also refuses an S3 file by its signature and chip check, so a wrong offer can't install.)
+function fwUrl() { return stickHw === 'P2' ? 'fw/latest-plus2.json' : 'fw/latest.json'; }
+async function fwLoad() {
+  const u = fwUrl();
+  if (fwLatest && fwLatestUrl === u) return;
+  fwLatest = null; fwLatestUrl = u;
+  try { const r = await fetch(u, { cache: 'no-cache' }); if (r.ok && fwLatestUrl === u) fwLatest = await r.json(); } catch (e) {}
+}
 function verNum(v) { const m = /^(\d+)\.(\d+)/.exec(v || ''); return m ? +m[1] * 1000 + +m[2] : 0; }
 async function fwCheck() {
   if (!stickVer) return fwRender();
-  if (!fwLatest) {
-    try { const r = await fetch('fw/latest.json', { cache: 'no-cache' }); if (r.ok) fwLatest = await r.json(); } catch (e) {}
-  }
+  await fwLoad();
   fwRender();
   fwAutoAsk();
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>파노체크 설치 - M5StickS3 모터 파노 측정기</title>
+<title>파노체크 설치 - M5StickS3 · M5StickC Plus2 모터 파노 측정기</title>
 <link rel="icon" href="icon-192.png">
 <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 <style>
@@ -28,6 +28,10 @@
   th { color:var(--mute); font-weight:600; width:32%; }
   code { background:rgba(127,127,127,.15); padding:1px 5px; border-radius:4px; }
   .small { font-size:14px; color:var(--mute); }
+  .mdl { display:flex; gap:8px; margin:0 0 12px; }
+  .mdl button { flex:1; padding:10px 6px; font-size:14px; border-radius:8px; background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .mdl button.on { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  html:not(.p2) .p2only, html.p2 .s3only { display:none !important; }
 </style>
 </head>
 <body>
@@ -35,7 +39,7 @@
   <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
     <img src="icon-192.png" alt="" style="width:72px;height:72px;border-radius:16px">
     <div><h1>파노체크 2.6</h1>
-    <p class="sub" style="margin:0">M5StickS3로 미니카 모터의 회전 주파수(파노)를 진동과 소리로 재는 프로그램입니다.</p></div>
+    <p class="sub" style="margin:0">M5StickS3 또는 M5StickC Plus2로 미니카 모터의 회전 주파수(파노)를 진동과 소리로 재는 프로그램입니다.</p></div>
   </div>
 
   <div class="card install">
@@ -47,7 +51,14 @@
     </div>
     <div id="phoneInstall" style="display:none;text-align:left;line-height:1.55">
       <h2 style="margin:0 0 6px">📱 폰으로 설치 (안드로이드)</h2>
-      <ol style="margin:4px 0 12px">
+      <div class="small" style="margin:0 0 6px">내 스틱</div>
+      <div class="mdl"><button type="button" data-mdl="s3">M5StickS3</button><button type="button" data-mdl="p2">M5StickC Plus2</button></div>
+      <ol class="p2only" style="margin:4px 0 12px">
+        <li>스틱을 <b>USB-C 선</b>으로 폰에 꽂습니다. (C-C 선, 또는 OTG 젠더)</li>
+        <li>아래 <b>[폰으로 설치]</b> → 목록에서 스틱(USB Single Serial) 선택 → <b>허용</b>. 버튼은 누르지 않아도 됩니다.</li>
+        <li>"✅ 설치 끝"이 나오면 선을 뺍니다. 화면이 안 켜지면 <b>왼쪽 옆 전원 버튼</b>을 한 번 누릅니다.</li>
+      </ol>
+      <ol class="s3only" style="margin:4px 0 12px">
         <li>스틱을 <b>USB-C 선</b>으로 폰에 꽂습니다. (C-C 선, 또는 OTG 젠더)</li>
         <li>스틱 <b>옆면 전원 버튼을 약 2초</b> 누르고, 스틱 안의 <b>초록 불이 깜빡이면</b> 손을 뗍니다. (설치 모드, 화면은 꺼져도 됩니다)</li>
         <li>아래 <b>[폰으로 설치]</b> → 목록에서 스틱(USB JTAG/serial) 선택 → <b>허용</b>.</li>
@@ -56,7 +67,7 @@
       <button id="btnPhone" style="display:block;width:100%">폰으로 설치</button>
       <div id="phBar" style="display:none;margin-top:12px;height:14px;border-radius:7px;background:var(--line);overflow:hidden"><div id="phFill" style="height:100%;width:0;background:var(--acc);transition:width .2s"></div></div>
       <div id="phStat" style="margin-top:8px;font-weight:700"></div>
-      <div id="phDl" style="display:none;margin-top:12px;padding:12px;border-radius:10px;border:2px solid var(--acc)">
+      <div id="phDl" class="s3only" style="display:none;margin-top:12px;padding:12px;border-radius:10px;border:2px solid var(--acc)">
         <b>연결이 안 되면: 설치 모드로 다시</b>
         <ol style="margin:6px 0 10px">
           <li>스틱을 폰에 꽂은 채로, 스틱 <b>옆면 전원 버튼을 약 2초</b> 누릅니다. (이미 했다면 선을 뺐다 꽂고 다시)</li>
@@ -69,7 +80,8 @@
       <details id="phHelp" style="margin-top:8px"><summary class="small">안 될 때 · 기록 보기</summary>
         <ul class="small">
           <li>목록에 스틱이 없으면: 선을 뺐다 다시 꽂거나, 다른 USB-C 선(충전 전용 선은 안 됨)을 써 보세요.</li>
-          <li>"연결하지 못했습니다"가 나오면: 선을 뺐다 꽂고, 전원 버튼 2초 → 초록 불 깜빡임을 확인한 뒤 다시 누르세요.</li>
+          <li class="s3only">"연결하지 못했습니다"가 나오면: 선을 뺐다 꽂고, 전원 버튼 2초 → 초록 불 깜빡임을 확인한 뒤 다시 누르세요.</li>
+          <li class="p2only">"연결하지 못했습니다"가 나오면: 선을 뺐다 꽂고 다시 누르세요. 다른 폰이나 컴퓨터로도 해 보세요.</li>
           <li>그래도 안 되면 아래 기록을 <b>[기록 복사]</b>해서 제작자에게 보내 주세요. 그동안은 컴퓨터로 설치하세요.</li>
           <li>활성화와 설정은 설치해도 지워지지 않습니다.</li>
         </ul>
@@ -102,8 +114,8 @@
   <div class="card">
     <h2>설치 방법</h2>
     <ol>
-      <li>M5StickS3를 USB-C 케이블로 PC에 연결합니다. (충전 전용 케이블은 안 됩니다)</li>
-      <li>위의 <b>CONNECT</b> 버튼을 누르고, 목록에서 <b>USB JTAG/serial debug unit</b> (COM 번호)을 선택합니다.</li>
+      <li>스틱(M5StickS3 또는 M5StickC Plus2)을 USB-C 케이블로 PC에 연결합니다. (충전 전용 케이블은 안 됩니다)</li>
+      <li>위의 <b>CONNECT</b> 버튼을 누르고, 목록에서 스틱의 COM 번호를 선택합니다. M5StickS3는 <b>USB JTAG/serial debug unit</b>, M5StickC Plus2는 <b>USB Single Serial</b>(또는 USB-Enhanced-SERIAL CH9102)입니다. 스틱 종류는 자동으로 알아봅니다.</li>
       <li><b>INSTALL 파노체크</b> → <b>INSTALL</b>을 누르고 끝날 때까지 기다립니다.</li>
       <li>끝나면 스틱이 자동으로 다시 켜지고 파노체크 시작 화면이 나옵니다.</li>
       <li><b>활성화:</b> 스틱 화면에 나오는 <b>스틱 ID</b>(예: 1DD6-25E0)를 제작자에게 보내고, 받은 <b>활성화 링크</b>를 안드로이드 크롬으로 연 뒤 스틱을 연결하면 끝납니다.</li>
@@ -113,7 +125,8 @@
   <div class="card">
     <h2>목록에 스틱이 안 보일 때</h2>
     <ul>
-      <li>스틱 <b>옆면 전원 버튼을 약 2초</b> 누르고 있다가, 초록 LED가 깜빡이면 놓습니다 (다운로드 모드). 그 다음 다시 CONNECT를 누르세요.</li>
+      <li><b>M5StickS3</b>: 스틱 <b>옆면 전원 버튼을 약 2초</b> 누르고 있다가, 초록 LED가 깜빡이면 놓습니다 (다운로드 모드). 그 다음 다시 CONNECT를 누르세요.</li>
+      <li><b>M5StickC Plus2</b>: 윈도우에서 목록에 안 보이면 CH9102 USB 드라이버(WCH의 CH343SER)를 설치한 뒤 다시 꽂으세요. 맥·안드로이드는 드라이버가 필요 없습니다.</li>
       <li>다른 USB 케이블이나 다른 USB 포트를 써 보세요.</li>
       <li>Arduino IDE나 다른 시리얼 프로그램이 켜져 있으면 끄고 다시 시도하세요.</li>
       <li>설치가 끝났는데 화면이 그대로면 전원 버튼을 한 번 눌러 다시 켜세요.</li>
@@ -123,6 +136,7 @@
   <div class="card">
     <h2>사용법</h2>
     <table>
+      <tr><th>버튼 위치</th><td>A = 화면 옆 큰 버튼(M5), B = 옆면 버튼. M5StickC Plus2는 반대쪽 옆면에 전원 버튼이 따로 있습니다.</td></tr>
       <tr><th>앞 버튼 A 짧게</th><td>모드 변경: VIB(진동) → MIC(소리) → VIB+MIC</td></tr>
       <tr><th>앞 버튼 A 3초</th><td>전원 끄기</td></tr>
       <tr><th>옆 버튼 B 짧게</th><td>탐색 범위: AUTO 250–700 Hz / LOW 40–260 Hz (저전압 길들이기) / WIDE 40–700 Hz</td></tr>
@@ -148,6 +162,7 @@
       <li>설치하면 스틱에 있던 기존 프로그램은 지워집니다.</li>
       <li>PC 크롬/엣지, 또는 안드로이드폰 크롬(USB-C 선)으로 설치할 수 있습니다. 아이폰과 사파리에서는 설치되지 않습니다.</li>
       <li>앱에서 바꾼 설정은 <b>스틱에 저장</b>을 누르면 스틱에 들어가고, 스틱을 연결할 때도 자동으로 맞춰집니다.</li>
+      <li>M5StickS3와 M5StickC Plus2를 지원합니다. 설치할 때 스틱 종류를 자동으로 알아보고 맞는 파일을 씁니다.</li>
       <li>버전 2.6입니다. 2.0부터는 앱에서 블루투스로 스틱을 업데이트할 수 있어서, USB 설치는 이번 한 번이면 됩니다.</li>
     </ul>
   </div>
@@ -193,12 +208,21 @@
     try { await navigator.clipboard.writeText(txt); document.getElementById('btnLogCopy').textContent = '복사했습니다 · 카톡으로 보내 주세요'; }
     catch (e) { prompt('이 기록을 복사해서 보내 주세요', txt); }
   };
-  let busy = false, wake = null;
+  let busy = false, wake = null, p2 = false;
+  const setMdl = (m) => {                          // which stick: only changes the instructions (the chip is detected anyway)
+    p2 = m === 'p2'; document.documentElement.classList.toggle('p2', p2);
+    document.querySelectorAll('.mdl button').forEach(b => b.classList.toggle('on', b.dataset.mdl === m));
+    try { localStorage.setItem('pcModel', m); } catch (e) {}
+  };
+  document.querySelectorAll('.mdl button').forEach(b => { b.onclick = () => setMdl(b.dataset.mdl); });
+  let m0 = 's3'; try { m0 = localStorage.getItem('pcModel') || (/[?&]m=p2/.test(location.search) ? 'p2' : 's3'); } catch (e) {}
+  if (/[?&]m=p2/.test(location.search)) m0 = 'p2';
+  setMdl(m0);
   const run = async (mode) => {
     if (busy) return;
     let dev;
     try {
-      const m = await import('./install/phone-flash.js?v=3');
+      const m = await import('./install/phone-flash.js?v=4');
       try { dev = await m.pickDevice(log); }
       catch (e) { log('장치 선택: ' + (e && e.name) + ' ' + (e && e.message)); stat.style.color = ''; stat.textContent = '스틱을 고르지 않았습니다. 목록이 비어 있으면 선을 다시 꽂거나 다른 선을 써 보세요.'; return; }
       busy = true; btn.disabled = btnDl.disabled = true; btn.style.opacity = btnDl.style.opacity = .5;
@@ -210,7 +234,9 @@
         log
       }, { mode });
       stat.style.color = '#2b8a3e';
-      stat.innerHTML = '✅ 설치 끝! (파노체크 ' + r.version + ')<br>선을 빼고 스틱 <b>옆면 전원 버튼을 한 번</b> 눌러 켠 뒤, <a href="app.html">앱</a>에서 연결하세요.';
+      stat.innerHTML = '✅ 설치 끝! (파노체크 ' + r.version + (r.family === 'ESP32' ? ' · M5StickC Plus2' : '') + ')<br>' + (r.family === 'ESP32'
+        ? '선을 빼고, 화면이 안 켜지면 <b>왼쪽 옆 전원 버튼</b>을 한 번 눌러 켠 뒤, <a href="app.html">앱</a>에서 연결하세요.'
+        : '선을 빼고 스틱 <b>옆면 전원 버튼을 한 번</b> 눌러 켠 뒤, <a href="app.html">앱</a>에서 연결하세요.');
       log('설치 끝');
     } catch (e) {
       const msg = String(e && e.message || e);
@@ -219,9 +245,10 @@
       stat.textContent = msg.startsWith('CONNECT:') ? (mode === 'no_reset'
           ? '❌ 설치 모드 스틱과도 연결하지 못했습니다. 아래 기록을 [기록 복사]해서 보내 주세요.'
           : '❌ 스틱과 연결하지 못했습니다. 초록 불이 깜빡이는 설치 모드인지 확인하고 아래 버튼을 눌러 보세요.')
-        : /Unable to find interface/.test(msg) ? '❌ 고른 기기는 USB 설치를 받을 수 없습니다. 목록에서 스틱(ESP32-S3 / USB JTAG)을 골랐는지 확인하세요.'
-        : /NetworkError|transfer|disconnected|device/i.test(msg) ? '❌ 연결이 끊겼습니다. 설치 모드(초록 불 깜빡임)로 다시 해 보세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)'
+        : /Unable to find interface/.test(msg) ? '❌ 고른 기기는 USB 설치를 받을 수 없습니다. 목록에서 스틱(USB JTAG 또는 USB Single Serial)을 골랐는지 확인하세요.'
+        : /NetworkError|transfer|disconnected|device/i.test(msg) ? (p2 ? '❌ 연결이 끊겼습니다. 선을 뺐다 꽂고 다시 해 보세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)' : '❌ 연결이 끊겼습니다. 설치 모드(초록 불 깜빡임)로 다시 해 보세요. (스틱은 다시 설치하면 정상으로 돌아옵니다)')
         : '❌ 실패: ' + msg;
+      if (p2 && msg.startsWith('CONNECT:')) stat.textContent = '❌ 스틱과 연결하지 못했습니다. 선을 뺐다 꽂고 다시 누르세요. 그래도 안 되면 아래 기록을 [기록 복사]해서 보내 주세요.';
       document.getElementById('phDl').style.display = '';
       document.getElementById('phHelp').open = true;
     } finally {
