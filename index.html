@@ -139,6 +139,10 @@
       <li>버전 2.6입니다. 2.0부터는 앱에서 블루투스로 스틱을 업데이트할 수 있어서, USB 설치는 이번 한 번이면 됩니다.</li>
     </ul>
   </div>
+  <div style="text-align:center;margin:22px 0 0">
+    <button id="btnShare" style="width:100%;max-width:420px;padding:14px;border:0;border-radius:12px;background:#fee500;color:#3c1e1e;font-size:17px;font-weight:800;font-family:inherit;cursor:pointer">📤 설치 페이지 공유하기</button>
+    <div id="shareMsg" class="small" style="margin-top:8px;min-height:18px"></div>
+  </div>
 </main>
 <script>
 (() => {
@@ -216,6 +220,16 @@
   w.textContent = (/SamsungBrowser/i.test(ua) ? '지금 삼성 인터넷으로 보고 계십니다.' : '지금 브라우저에서는 블루투스가 안 됩니다.') + ' 위 버튼을 누르면 크롬으로 열립니다.';
   w.style.display = '';
 })();
+</script>
+<script>
+// 설치 페이지 공유: 폰은 공유 창(카톡 등), 안 되면 주소 복사
+document.getElementById('btnShare').onclick = async () => {
+  const url = 'https://jung86.github.io/panotrio/', msg = document.getElementById('shareMsg');
+  const data = { title: '파노체크 설치', text: '파노체크 스틱 설치 페이지 (안드로이드 크롬·PC에서 USB로 설치)', url };
+  if (navigator.share) { try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(url); msg.textContent = '주소를 복사했습니다. 카톡 등에 붙여 넣으세요.'; }
+  catch (e) { prompt('이 주소를 복사해서 보내세요', url); }
+};
 </script>
 </body>
 </html>
