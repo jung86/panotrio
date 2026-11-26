@@ -29,6 +29,13 @@
   li { margin:3px 0; }
   .shot { display:block; margin:12px auto 4px; max-width:100%; border-radius:12px; border:1px solid var(--line); }
   .shot.half { max-width:min(100%, 330px); }
+  .vbox { margin:12px auto 10px; max-width:300px; scroll-margin-top:70px; }
+  .vid { display:block; width:100%; aspect-ratio:720/1558; border-radius:14px; border:2px solid var(--acc); background:#000; }
+  .vcap { text-align:center; color:var(--ink); font-size:14px; font-weight:700; margin:6px 0 0; }
+  .vcap small { display:block; color:var(--mute); font-weight:500; }
+  .vlist { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:8px; }
+  .vlist a { display:block; text-decoration:none; color:var(--ink); font-size:13px; font-weight:700; text-align:center; line-height:1.3; }
+  .vlist img { display:block; width:100%; aspect-ratio:3/4; object-fit:cover; object-position:top; border-radius:10px; border:1px solid var(--line); margin-bottom:4px; }
   .cap { text-align:center; color:var(--mute); font-size:13px; margin:0 0 8px; }
   .tip { background:var(--tip); border-radius:10px; padding:10px 12px; font-size:14px; margin:10px 0 4px; }
   .warn { color:var(--bad); font-weight:700; }
@@ -58,8 +65,22 @@
   <div class="toc">
     <a class="key" href="#s-install">★ 최초 설치</a><a href="#s-start">앱 열기·활성화</a><a href="#s-setup">준비·연결</a><a class="key" href="#s-rule">★ 작동 기준</a><a href="#s-home">홈 화면</a>
     <a href="#s-measure">파노측정</a><a href="#s-psu">전원공급기</a><a href="#s-cond">컨디션 점수</a><a href="#s-rec">기록</a><a href="#s-clean">모터클리닝</a>
-    <a href="#s-break">모터길들이기</a><a href="#s-set">설정</a><a href="#s-up">업데이트</a><a href="#s-ios">아이폰</a><a href="#s-faq">문제 해결</a>
+    <a href="#s-break">모터길들이기</a><a href="#s-set">설정</a><a href="#s-up">업데이트</a><a href="#s-ios">아이폰</a><a href="#s-faq">문제 해결</a><a class="key" href="#s-video">🎬 영상</a>
   </div>
+
+  <!-- ===================================================== videos -->
+  <section id="s-video">
+    <h2>🎬 영상으로 보기</h2>
+    <p class="mute">앱 화면을 녹화한 짧은 안내 영상입니다 (자막, 소리 없음). 누르면 해당 설명으로 가서 재생할 수 있습니다.</p>
+    <div class="vlist">
+      <a href="#v1"><img src="manual/video/1-stick.jpg" alt="" loading="lazy">1. 스틱 연결·파노 측정</a>
+      <a href="#v2"><img src="manual/video/2-psu.jpg" alt="" loading="lazy">2. 전원공급기 연결</a>
+      <a href="#v3"><img src="manual/video/3-cond.jpg" alt="" loading="lazy">3. 컨디션 점수</a>
+      <a href="#v4"><img src="manual/video/4-clean.jpg" alt="" loading="lazy">4. 모터클리닝</a>
+      <a href="#v5"><img src="manual/video/5-breakin.jpg" alt="" loading="lazy">5. 모터길들이기</a>
+      <a href="#v6"><img src="manual/video/6-records.jpg" alt="" loading="lazy">6. 기록·비교·CSV</a>
+    </div>
+  </section>
 
   <!-- ===================================================== install -->
   <section id="s-install" class="key">
@@ -187,6 +208,7 @@
   <!-- ===================================================== measure -->
   <section id="s-measure">
     <h2>6. 파노측정</h2>
+    <div class="vbox" id="v1"><video class="vid" src="manual/video/1-stick.mp4" poster="manual/video/1-stick.jpg" controls playsinline preload="none"></video><p class="vcap">🎬 영상 1. 스틱 연결 · 파노 측정<small>47초 · 블루투스 연결, 측정, HOLD, 범위 LOW</small></p></div>
     <img class="shot" src="manual/m-big.jpg" alt="파노 큰 숫자" loading="lazy">
     <p class="cap">큰 숫자 = 파노(Hz), 아래 = rpm, 진동·소리 값, 맨 아래 상태</p>
     <table>
@@ -209,6 +231,7 @@
   <!-- ===================================================== psu -->
   <section id="s-psu">
     <h2>7. ⚡ 전원공급기 · 정역</h2>
+    <div class="vbox" id="v2"><video class="vid" src="manual/video/2-psu.mp4" poster="manual/video/2-psu.jpg" controls playsinline preload="none"></video><p class="vcap">🎬 영상 2. 전원공급기 연결<small>57초 · DPS-150, DPS100 (첫 목록에 없을 때)</small></p></div>
     <img class="shot half" src="manual/m-psu.jpg" alt="전원공급기 카드" loading="lazy">
     <h3>전원공급기 연결 (DPS-150 / DPS100)</h3>
     <table>
@@ -234,13 +257,13 @@
       <text x="304" y="52" fill="#74c0fc" font-size="12" text-anchor="middle">DPS100 고르기</text>
       <text x="304" y="72" fill="#9aa3b5" font-size="11" text-anchor="middle">(USB Serial 등)</text>
       <rect x="60" y="104" width="240" height="38" rx="10" fill="#1f3326" stroke="#40c057"/>
-      <text x="180" y="128" fill="#b2f2bb" font-size="14" font-weight="800" text-anchor="middle">"DPS100 연결됨" + 전압·전류 숫자</text>
+      <text x="180" y="128" fill="#b2f2bb" font-size="14" font-weight="800" text-anchor="middle">"DPS100 · 출력 OFF" + 전압·전류 숫자</text>
     </svg>
     <ol class="steps">
       <li>전원공급기에 PD 충전기를 꽂아 켜고, 데이터선으로 휴대폰(또는 PC)과 잇습니다.</li>
       <li>파노측정 화면 ⚡ 카드의 <b>[연결]</b>을 누릅니다.</li>
       <li>첫 목록에 전원공급기가 있으면 고르고 [연결]. <b>DPS100이 안 보이면 [취소]</b>를 누르세요. <b>모든 USB 장치 목록</b>이 다시 뜹니다. 거기서 새로 생긴 장치(USB Serial, COM 포트 등)를 고릅니다.</li>
-      <li>카드에 <b>"DPS-150 연결됨"</b> 또는 <b>"DPS100 연결됨"</b>과 전압·전류 숫자가 나오면 성공입니다. 한 번 허락하면 다음부터 저절로 연결됩니다.</li>
+      <li>⚡ 카드 위쪽에 <b>"DPS-150 · 출력 OFF"</b> 또는 <b>"DPS100 · 출력 OFF"</b>처럼 이름이 보이고 전압·전류 숫자가 나오면 성공입니다. 한 번 허락하면 다음부터 저절로 연결됩니다.</li>
     </ol>
     <div class="tip">"연결은 됐는데 응답이 없습니다"가 나오면 고른 장치가 전원공급기가 아니거나, 그 전원공급기의 통신 방식이 다른 것입니다. 다른 장치를 골라 보고, 그래도 안 되면 알려 주세요. DPS100은 아직 실물로 확인하지 않았습니다. DPS100이면 전류는 5.0 A까지만 보냅니다.</div>
     <h3>쓰는 법</h3>
@@ -255,6 +278,7 @@
   <!-- ===================================================== condition -->
   <section id="s-cond">
     <h2>8. 🩺 모터 컨디션 점수</h2>
+    <div class="vbox" id="v3"><video class="vid" src="manual/video/3-cond.mp4" poster="manual/video/3-cond.jpg" controls playsinline preload="none"></video><p class="vcap">🎬 영상 3. 컨디션 점수<small>49초 · 청소 전 → 청소 후 측정과 비교</small></p></div>
     <img class="shot" src="manual/m-cond.jpg" alt="모터 컨디션 카드" loading="lazy">
     <ul>
       <li>모터가 돌면 앱이 바로 <b>100점 만점</b> 점수를 냅니다.
@@ -322,6 +346,7 @@
   <!-- ===================================================== records -->
   <section id="s-rec">
     <h2>9. 기록</h2>
+    <div class="vbox" id="v6"><video class="vid" src="manual/video/6-records.mp4" poster="manual/video/6-records.jpg" controls playsinline preload="none"></video><p class="vcap">🎬 영상 6. 기록 · 비교 · CSV<small>43초 · 모터 순위, 점수 그래프, 공유, CSV</small></p></div>
     <img class="shot half" src="manual/m-recs.jpg" alt="기록" loading="lazy">
     <ul>
       <li><b>모터</b>를 고르면 그 모터 이름으로 저장됩니다. <b>✎</b>로 모터 추가·이름 바꾸기.</li>
@@ -342,6 +367,7 @@
   <!-- ===================================================== clean -->
   <section id="s-clean">
     <h2>10. 모터클리닝</h2>
+    <div class="vbox" id="v4"><video class="vid" src="manual/video/4-clean.mp4" poster="manual/video/4-clean.jpg" controls playsinline preload="none"></video><p class="vcap">🎬 영상 4. 모터클리닝<small>40초 · 설정하고 시작 (가운데는 빠르게)</small></p></div>
     <img class="shot half" src="manual/clean.jpg" alt="모터클리닝 화면" loading="lazy">
     <ul>
       <li>맨 위에서 <b>전원공급기 연결 (USB)</b>.</li>
@@ -353,6 +379,7 @@
   <!-- ===================================================== break-in -->
   <section id="s-break">
     <h2>11. 모터길들이기</h2>
+    <div class="vbox" id="v5"><video class="vid" src="manual/video/5-breakin.mp4" poster="manual/video/5-breakin.jpg" controls playsinline preload="none"></video><p class="vcap">🎬 영상 5. 모터길들이기<small>55초 · 구간 설정, 목표 파노 도달까지 (가운데는 빠르게)</small></p></div>
     <img class="shot half" src="manual/breakin.jpg" alt="모터길들이기 화면" loading="lazy">
     <ul>
       <li><b>구간</b>마다 전압, 방향(정/역/번갈아), 시간(분·초), 쿨링(분·초)을 정합니다. <b>+ 구간 추가</b>로 최대 10개.</li>
@@ -439,6 +466,12 @@
   document.getElementById('back').onclick = e => {
     if (document.referrer && /app\.html/.test(document.referrer) && history.length > 1) { e.preventDefault(); history.back(); }
   };
+  // video list: pictures above load late and push the page, so scroll again once they are in
+  document.querySelectorAll('.vlist a').forEach(a => a.onclick = e => {
+    const t = document.querySelector(a.getAttribute('href')); if (!t) return;
+    e.preventDefault(); history.replaceState(null, '', a.getAttribute('href'));
+    const go = () => t.scrollIntoView({ block: 'start' }); go(); setTimeout(go, 500); setTimeout(go, 1300);
+  });
 </script>
 <script>
 // 안드로이드에서 크롬이 아닌 브라우저(카톡 등)면 설치 페이지 링크를 크롬으로 바로 열기

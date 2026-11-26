@@ -1629,7 +1629,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-26p';
+const APP_BUILD = '2026-11-26q';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 function appCanReload() {
   if (lcBusy() || (dps.link && dps.st && dps.st.on)) return false;
@@ -2220,10 +2220,8 @@ async function dpsConnect(opt) {
       if (e.name !== 'NotFoundError' || silent) throw e;
       // the first list shows only the known chips; if it was not there, show every USB / serial device
       dpsMsg('전원공급기가 안 보였다면 다음 목록에서 USB 장치를 고르세요');
-      if (useUsb && android) dps.link = await dpsOpenUsb(null, true);
-      else if (useUsb && 'serial' in navigator) dps.link = await dpsOpenSerial(null, true);
-      else if ('usb' in navigator) dps.link = await dpsOpenUsb(null, true);
-      else throw e;
+      if (useUsb) dps.link = await dpsOpenUsb(null, true);          // Android: every USB serial device
+      else dps.link = await dpsOpenSerial(null, true);              // PC: every serial port (was the WebUSB list, which a PC driver keeps busy)
     }
     dps.st = {};
     await dpsSend(0xC1, 0, [1]);                  // start session
@@ -2718,7 +2716,7 @@ async function psuDir(d) {
 function psuRender() {
   const on = !!dps.link, st = dps.st || {}, n = (x, d) => (typeof x === 'number' && isFinite(x)) ? x.toFixed(d) : '-.' + '-'.repeat(d);
   $('btnPsu').textContent = on ? '끊기' : '연결';
-  $('psuLive').textContent = on && st.t ? (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ⚠ ' + st.prot : '') : (on ? '연결 중…' : '연결 안 됨');
+  $('psuLive').textContent = on && st.t ? (st.model ? st.model + ' · ' : '') + (st.on ? '출력 ON' + (st.cc ? ' · CC' : '') : '출력 OFF') + (st.prot ? ' · ⚠ ' + st.prot : '') : (on ? '연결 중…' : '연결 안 됨');
   $('pV').textContent = n(st.v, 2); $('pA').textContent = n(st.i, 3); $('pW').textContent = n(st.p, 2);
   const free = psuFree();
   $('psuOut').textContent = st.on ? '출력 끄기' : '출력 켜기';
