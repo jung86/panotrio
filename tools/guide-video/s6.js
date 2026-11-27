@@ -22,14 +22,14 @@ module.exports = async () => {
   const S = await open('s6', { seed: seed() });
   const p = S.p;
   await S.wait(2300); S.mark('start');
-  await S.cap('📊 기록 · 비교', '컨디션 측정 결과가 모터별로 쌓입니다'); await S.wait(3000);
+  await S.cap('기록 · 비교', '컨디션 측정 결과가 모터별로 쌓입니다'); await S.wait(3000);
   await S.tap('#tileBook', 1200);
-  await S.cap('🏆 모터 순위', '최근 점수 순 · 등급 색으로 표시'); await S.wait(3500);
+  await S.cap('모터 순위', '최근 점수 순 · 등급 색으로 표시'); await S.wait(3500);
   await S.cap('모터를 누르면 자세히 봅니다'); await S.wait(400);
   await S.tap(p.locator('#bkRank > *').first(), 1500);
   await S.cap('점수 변화 그래프', '주황 = 청소 전 · 초록 = 청소 후'); await S.scrollTo('#bkDet', 'start'); await S.wait(4000);
   await S.cap('청소 전·후 비교와 지난 측정 목록'); await S.scrollTo('#bkCmp', 'start'); await S.wait(3500);
-  await S.cap('📤 결과 카드를 카톡 등으로 공유'); await S.ring('#bkShare'); await S.wait(2200);
+  await S.cap('[결과 카드 공유]: 카톡 등으로 보내기'); await S.ring('#bkShare'); await S.wait(2200);
   await p.click('#btnBookBack'); await S.wait(800);
   await S.cap('파노측정 화면 아래 [기록] 카드'); await S.wait(300);
   await S.tap('#tileMeasure', 1000);

@@ -9,14 +9,14 @@ module.exports = async () => {
   await p.evaluate(() => window.scrollTo(0, 0));
   await S.wait(500);
   S.mark('start');
-  await S.cap('⏱ 모터길들이기', '구간별로 돌리고, 사이클마다 파노를 재서 목표에 닿으면 멈춥니다'); await S.wait(3800);
+  await S.cap('모터길들이기', '구간별로 돌리고, 사이클마다 파노를 재서 목표에 닿으면 멈춥니다'); await S.wait(3800);
   await S.cap('① 구간: 전압 · 방향 · 시간 · 쿨링'); await S.wait(400);
   await S.fill('#bV0', '2.5'); await S.fill('#bM0', '0'); await S.fill('#bS0', '10'); await S.wait(900);
   await S.cap('+ 구간 추가로 구간을 더 넣습니다 (최대 10개)'); await S.wait(400);
   await S.tap('#bAddStage', 900);
   await S.fill('#bV1', '3'); await S.fill('#bM1', '0'); await S.fill('#bS1', '5'); await S.wait(900);
   await S.cap('사이클 뒤 쉬기 시간'); await S.fill('#bRestM', '0'); await S.fill('#bRestS', '5'); await S.wait(900);
-  await S.cap('② 🎯 목표 파노를 켜고 목표·측정 전압', '꺼 두면 정한 횟수만큼 반복합니다'); await S.wait(400);
+  await S.cap('② [목표 파노]를 켜고 목표·측정 전압', '꺼 두면 정한 횟수만큼 반복합니다'); await S.wait(400);
   if (!(await p.isChecked('#bTgtOn'))) await S.tap('#bTgtOn', 500); else await S.ring('#bTgtOn');
   await S.fill('#bTarget', '348'); await S.fill('#bChk', '2'); await S.fill('#bRep', '6'); await S.fill('#bAmp', '3'); await S.wait(1200);
   await S.cap('③ [▶ 시작]'); await S.wait(400);
