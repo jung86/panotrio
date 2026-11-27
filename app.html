@@ -1983,7 +1983,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27p';
+const APP_BUILD = '2026-11-27q';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2863,6 +2863,9 @@ async function dpsConnect(opt) {
   try {
     try {
       if (known) { try { dps.link = known.kind === 'usb' ? await dpsOpenUsb(known.dev) : await dpsOpenSerial(known.dev); } catch (e) { if (silent) throw e; dps.link = null; } }
+      // Chrome shows a device list only right after a tap. After the stick list (a long first step) the tap has expired:
+      // ask for one more tap instead of failing (SecurityError 'Must be handling a user gesture').
+      if (!dps.link && navigator.userActivation && !navigator.userActivation.isActive) { const er = new Error('tap again'); er.name = 'NeedTap'; throw er; }
       if (!dps.link) dps.link = useUsb ? await dpsOpenUsb() : await dpsOpenSerial();
     }
     catch (e) {                                       // nothing picked in the first list: offer the other kind of list
@@ -2889,6 +2892,7 @@ async function dpsConnect(opt) {
     const l = dps.link; dps.link = null; if (l) { try { await l.close(); } catch (e2) {} }
     dpsConnecting = false;
     if (silent) { dpsMsg(''); dpsRender(); return; }
+    if (e.name === 'NeedTap' || (e.name === 'SecurityError' && /gesture/i.test(e.message || ''))) { dpsMsg('<b style="color:#ffd43b">전원공급기 목록을 열려면 [연결]을 한 번 더 눌러 주세요.</b>'); dpsRender(); return; }
     if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 전원공급기가 없습니다.</b>' + DPS_HELP);
     else { dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP); errAuto('전원공급기 연결 실패: ' + (e.name || '') + ': ' + (e.message || ''), e); }
     dpsRender();
