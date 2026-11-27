@@ -1,0 +1,71 @@
+--- build-3.0/PanoTrio/PanoTrio.ino	2026-11-27 19:19:09.130014800 +0900
++++ build-3.1/PanoTrio/PanoTrio.ino	2026-11-27 23:30:05.243993500 +0900
+@@ -43,7 +43,7 @@
+ 
+ 
+ static const char* const APP_NAME = "PanoCheck";
+-static const char* const APP_VER  = "3.0";
++static const char* const APP_VER  = "3.1";
+ 
+ enum PanoMode  : uint8_t { MODE_VIB = 0, MODE_MIC = 1, MODE_BOTH = 2 };
+ enum PanoRange : uint8_t { RANGE_AUTO = 0, RANGE_LOW = 1, RANGE_WIDE = 2 };
+@@ -135,7 +135,7 @@
+ // Idle power save (3.0): while nothing happens the FIFO is read less often (same samples, bigger pieces;
+ // S3 2 KB FIFO lasts ~180 ms, Plus2 1 KB ~30 ms) and the microphone is stopped until vibration is seen.
+ static std::atomic<bool>     gImuIdle{ false };
+-static const uint32_t        IMU_IDLE_MS = PANO_P2 ? 20 : 50;
++static const uint32_t        IMU_IDLE_MS = PANO_P2 ? 15 : 50;   // Plus2 FIFO lasts ~32 ms at 8 B/sample
+ 
+ #if !PANO_P2
+ static bool imuSetup() {
+@@ -764,6 +764,8 @@
+ static float harmonicOf(float q, float ref, float tol = 0.025f) {
+   if (ref <= 0 || q <= 0) return 0;
+   const float fs = accFs.load();
++  if (fabsf(q - ref) <= tol * ref) return q;                             // the line itself first: near fs/4 (S3 ~397 Hz) the folded 3rd
++                                                                          // harmonic lands next to the line and would pull the value down
+   float best = 0, bestErr = tol;                                         // pick the closest explanation
+   auto tryC = [&](float expect, float fund) {
+     const float err = fabsf(q - expect) / ref;
+@@ -938,7 +940,11 @@
+       if (e.valid) {
+         gVibSeenMs = now ? now : 1;                       // wake the microphone early (it needs ~2.6 s of sound)
+         if (++bsStreak >= 2) {                           // seen twice in a row: vibration recognised
+-          if (bs == BS_HOLD && bsVibHz > 0 && (harmonicOf(e.freq, bsVibHz, 0.07f) > 0 || harmonicOf(e.freq, bsVibRaw, 0.07f) > 0)) {   // same motor, same speed: resume
++          // same motor, same speed: resume. Only the line itself (+-7 %), not its harmonics: after a stop the motor can
++          // come back at another speed whose line sits on a folded harmonic of the old one (S3: 1589 - 3 x 416 = 341 Hz),
++          // which would keep the old value and "fix" the new one to it. A new speed is simply measured fresh.
++          auto near7 = [](float q, float ref) { return ref > 0 && fabsf(q - ref) <= 0.07f * ref; };
++          if (bs == BS_HOLD && bsVibHz > 0 && (near7(e.freq, bsVibHz) || near7(e.freq, bsVibRaw))) {
+             bs = BS_RESULT; bsStreak = 0; bsLost = 0; bsLastMeasure = 0; last = now;
+             break;
+           }
+@@ -1262,7 +1268,7 @@
+   snprintf(hw, sizeof(hw), ";HW=P2;RST=%d;BD=%d;BMV=%d", (int)esp_reset_reason(), (int)M5.getBoard(), gBattMv);
+ #endif
+   char s[360];
+-  const int len = snprintf(s, sizeof(s), "ID=%s;ACT=%d;VER=%s;RES=%s;BR=%u;VM=%.0f;WT=%lu;HOT=%.0f;DIM=%u;OFF=%u;PS=%d;SB=%d;BAT=%d;USB=%d;LCK=%d;UNL=%d;RV=%d;DIR=%d;RLY=%d;OTA=1;CND=1;CK=%d;C12=%d;CB=%d;CBR=%u;MIC=%.0f;BN=1%s%s%s", gDevId, gActivated ? 1 : 0, APP_VER, gActResult,
++  const int len = snprintf(s, sizeof(s), "ID=%s;ACT=%d;VER=%s;RES=%s;BR=%u;VM=%.0f;WT=%lu;HOT=%.0f;DIM=%u;OFF=%u;PS=%d;SB=%d;BAT=%d;USB=%d;LCK=%d;UNL=%d;RV=%d;DIR=%d;RLY=%d;OTA=1;CND=1;CK=%d;C12=%d;CB=%d;CBR=%u;MIC=%.0f;BN=1;PO=1%s%s%s", gDevId, gActivated ? 1 : 0, APP_VER, gActResult,
+                         gBright, VIB_MIN_MG, (unsigned long)(gWaitMs / 100), gHotHz, gDimS, gOffMin, (int)gSave, (int)gSbOff, gBatt, (int)usb, (int)(gLockKey != 0), (int)gUnlocked, gRvkLv, (int)gDir, (int)gRelayHigh, (int)gClk, (int)gClk12, (int)gClkBat, gClkBr, gMicAmp * 10.0f,
+                         gBname[0] ? ";BNM=" : "", gBname, hw);
+   if (len >= (int)sizeof(s) && Serial) Serial.printf("INFO cut (%d)\n", len);
+@@ -1344,6 +1350,7 @@
+     else {
+     if (kind == 'M' && val < 3 && val != gMode) applyMode((PanoMode)val);
+     if (kind == 'R' && val < 3 && val != gRange) applyRange((PanoRange)val);
++    if (kind == 'O' && val == 1) { if (Serial) Serial.printf("POWER OFF (app)\n"); powerOffNow(); }   // app: switch the stick off
+     if (kind == 'X') applyMode(gMode);                     // app: reset measuring (clears the held result)
+     if (kind == 'D' && val < 2 && gActivated) applyDir(val);   // app: motor direction relay (0 forward, 1 reverse)
+     }
+@@ -1713,6 +1720,11 @@
+     saveSettings();
+   }
+   if (M5.BtnA.isReleased()) offArmed = true;
++  if (offArmed && M5.BtnA.isPressed() && M5.BtnA.pressedFor(600) && !M5.BtnA.pressedFor(3000)) {   // show how long to keep holding
++    const uint32_t held = millis() - M5.BtnA.lastChange();
++    char t[28]; snprintf(t, sizeof(t), "HOLD: POWER OFF %.1fs", held < 3000 ? (3000 - held) / 1000.0f : 0.0f);
++    showBanner(t, 0xFA20, 300);
++  }
+   if (offArmed && M5.BtnA.pressedFor(3000)) {
+     offArmed = false;
+     M5.Display.fillScreen(TFT_BLACK);
