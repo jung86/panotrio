@@ -1999,7 +1999,7 @@ async function fwLoad() {
   fwLatest = null; fwLatestUrl = u;
   try { const r = await fetch(u, { cache: 'no-cache' }); if (r.ok && fwLatestUrl === u) fwLatest = await r.json(); } catch (e) {}
 }
-function verNum(v) { const m = /^(\d+)\.(\d+)/.exec(v || ''); return m ? +m[1] * 1000 + +m[2] : 0; }
+function verNum(v) { const m = /^(\d+)\.(\d+)(?:\.(\d+))?/.exec(v || ''); return m ? +m[1] * 1000 + +m[2] + (m[3] ? Math.min(+m[3], 99) / 100 : 0) : 0; }   // 2.9.1 -> 2009.01
 async function fwCheck() {
   if (!stickVer) return fwRender();
   await fwLoad();
