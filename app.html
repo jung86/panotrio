@@ -709,6 +709,8 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
         <div class="set-def">기본값: 10분</div>
         <div class="seg" id="segOff" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="5">5분</button><button data-v="10">10분</button><button data-v="20">20분</button><button data-v="30">30분</button></div>
         <div class="set-help">USB에 꽂혀 있으면 꺼지지 않습니다. 앱이 연결돼 있으면 20분 동안 안 쓸 때 꺼집니다(펌웨어 3.0).</div>
+        <button id="stickOffBtn" style="display:none;margin-top:8px;width:100%">스틱 지금 끄기</button>
+        <div class="set-help">스틱에서 끌 때: 앞 <b>A 버튼을 3초</b> 누르고 있으면 화면에 남은 시간이 나오고 꺼집니다.</div>
       </div>
       <div class="set-row">
         <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 처리 속도를 낮추고 마이크를 잠시 끕니다.</div></span><input type="checkbox" id="cSave"></label>
@@ -1439,6 +1441,12 @@ $('btnShareInst').onclick = async () => {               // share the install pag
 // button for 2 s (green light blinks) makes it come back on USB in install mode, which starts the install again.
 // Only the four manifest.json pieces are written (NVS kept: activation and settings stay).
 var usbInst = usbInst || null;
+// switch the stick off from the app (firmware 3.1+, INFO PO=1): 'O', 1
+if ($('stickOffBtn')) $('stickOffBtn').onclick = async () => {
+  if (!cmdChar) return;
+  if (!await askConfirm('스틱을 끌까요?\n\n다시 켤 때는 스틱 옆면 전원 버튼을 누르세요.')) return;
+  try { const ch = cmdChar; await gatt(() => ch.writeValue(new Uint8Array([79, 1]))); notify('스틱을 껐어요', true); } catch (e) { notify('스틱을 끄지 못했어요', false); }
+};
 function usbCanInstall() { return !!navigator.usb && /Android/i.test(navigator.userAgent); }
 function usbInstallOpen(why) {
   if (usbInst) return;
@@ -1975,7 +1983,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27o';
+const APP_BUILD = '2026-11-27p';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2287,6 +2295,7 @@ function onInfo(dv, whole) {
   devId = kv.ID || '';
   onActivation(kv);
   stickBn = kv.BN === '1';
+  { const b = $('stickOffBtn'); if (b) b.style.display = kv.PO === '1' ? '' : 'none'; }
   nickSync(kv);
   nickLabels();
   checkRevoked(kv);

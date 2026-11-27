@@ -1,8 +1,8 @@
 {
- "ver": "3.0",
- "size": 1528160,
- "sha256": "0ab7061fbb84f832a7fcc18115ee933901dac2aec6989596bf0f996dd887aea2",
- "sig": "ABDetMdT24O8dGVzVySnUNLY4D43YYD7bUzevMo_fQl6UtAPBlOKejO4JIcUrIBRXSPYlNvooCvmvKwdM26D1w",
- "bin": "fw/PanoCheck-P2-3.0.app.bin",
- "note": "배터리 오래 감(대기 중 마이크 끄기·진동 센서 천천히), 앱 연결 중에도 20분 안 쓰면 꺼짐, 스틱 이름이 블루투스 이름으로, Plus2 다시 켜짐 고침·배터리 % 표시"
+ "ver": "3.1",
+ "size": 1528512,
+ "sha256": "8f4b5ee393de38ec0a6c0cbf4bd73fb99d43a4c7c2e34b8c786a0daf0a77141b",
+ "sig": "s1lgIC35GipT-Uh_REXYfP3wGPxBexogitCKdqv7zAHOWS_mIgjlU8kN_FGQgWer1hyhEDS3PIoU3a4VujtXkg",
+ "bin": "fw/PanoCheck-P2-3.1.app.bin",
+ "note": "측정 시작 때 잠깐 엉뚱한 값이 나오던 것 고침(다른 속도로 다시 돌릴 때, 400 Hz 근처), 전원 끄기: A 버튼을 누르고 있으면 남은 시간 표시, 앱에서 스틱 끄기"
 }
