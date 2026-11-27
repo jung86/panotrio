@@ -24,6 +24,27 @@
           "offset": 65536
         }
       ]
+    },
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "install/p2/bootloader-2.9.bin",
+          "offset": 4096
+        },
+        {
+          "path": "install/p2/partitions-2.9.bin",
+          "offset": 32768
+        },
+        {
+          "path": "install/p2/otadata-2.9.bin",
+          "offset": 57344
+        },
+        {
+          "path": "fw/PanoCheck-P2-2.9.app.bin",
+          "offset": 65536
+        }
+      ]
     }
   ]
 }
