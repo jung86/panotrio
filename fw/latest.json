@@ -1,9 +1,9 @@
 {
- "ver": "2.9",
- "size": 1054880,
- "sha256": "ec47a59e3a4488742981b201bb78981cc9c7332565905bfac20be532c2464e39",
- "sig": "EQg2JMa5wvh1a3_IKsZdXA2V8kBYtONO9LURE3LfBDwpNo12HeX4t0I7S1XAQ3LaADLfsB-7PfzfI_4Q8EnVhA",
- "bin": "fw/PanoCheck-2.9.app.bin",
- "note": "진동+마이크 모드: 파노가 조금(약 ±7%) 흔들려도 다시 재지 않음",
+ "ver": "3.0",
+ "size": 1048208,
+ "sha256": "a0c7b19ea35075cfbb5197f61aeb67e972711567b26abb9bfff1e43394e66979",
+ "sig": "BmSokiUvwhb3XtXRmMO0wiKc48dPEaykeiBh3z3OjI3Rfe9LBqu5dkDMM6Uhm-pccb-NSvNp7E-7lToCJjr7Sw",
+ "bin": "fw/PanoCheck-3.0.app.bin",
+ "note": "배터리 오래 감(대기 중 마이크 끄기·진동 센서 천천히), 앱 연결 중에도 20분 안 쓰면 꺼짐, 스틱 이름이 블루투스 이름으로",
  "min": "2.9"
 }
