@@ -400,6 +400,11 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
   <button id="btnConnect2" class="primary" style="margin-top:14px">스틱 연결 (블루투스)</button>
   <button id="errBadge" style="display:none;margin-top:12px;width:100%;padding:12px;font-weight:700;background:#2a1012;border:1px solid #e03131;color:#ff8787;border-radius:4px"></button>
   <div id="fwBox" style="display:none;margin-top:14px;background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:12px 14px;font-size:15px;line-height:1.45;text-align:left"></div>
+  <div id="fwHint" style="display:none;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px 14px;font-size:14px;line-height:1.45;text-align:left"></div>
+  <div id="pushAsk" style="display:none;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px;font-size:14px;line-height:1.45;text-align:left">
+    <b>새 펌웨어가 나오면 폰 알림으로 알려 드릴까요?</b><br><span class="note2">앱을 닫아 둬도 알림이 와요. 설정 → 알림에서 언제든 끌 수 있어요.</span>
+    <div style="display:flex;gap:8px;margin-top:10px"><button id="pushAskGo" class="primary" style="flex:1">알림 받기</button><button id="pushAskNo" style="flex:1">괜찮아요</button></div>
+  </div>
   <div class="tiles">
     <div class="tile" id="tileMeasure" role="button">
       <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -732,6 +737,7 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 음성 안내</span><div class="set-def">기본값: 켜짐</div><div class="set-help">"92점, 좋음"처럼 읽어 줍니다.</div></span><input type="checkbox" id="aSay"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">측정 결과 진동</span><div class="set-def">기본값: 켜짐</div><div class="set-help">좋음 1번, 보통 2번, 점검 필요·다시 재기 3번 울립니다.</div></span><input type="checkbox" id="aRVib"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">이상 경고</span><div class="set-def">기본값: 켜짐</div><div class="set-help">전류가 갑자기 뛰거나 파노가 크게 흔들리면 알려 줍니다.</div></span><input type="checkbox" id="aWarn"></label></div>
+    <div class="set-row"><div class="sw" style="display:flex;align-items:center;gap:10px"><span style="flex:1"><span class="set-name">업데이트 폰 알림</span><div class="set-help" id="pushSt">&nbsp;</div></span><button id="pushBtn" style="min-width:92px">알림 받기</button></div></div>
     <div class="set-row"><div class="ttl" style="margin:4px 0 0">연결 · 화면</div></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">앱 열면 스틱 자동 연결</span><div class="set-def">기본값: 켜짐</div><div class="set-help">한 번 연결한 스틱이 켜져 있으면 바로 붙습니다.</div></span><input type="checkbox" id="aAuto"></label></div>
     <div class="set-row"><label class="sw"><span><span class="set-name">화면 꺼짐 방지</span><div class="set-def">기본값: 꺼짐</div></span><input type="checkbox" id="aWake"></label></div>
@@ -1871,7 +1877,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27m';
+const APP_BUILD = '2026-11-27n';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1938,6 +1944,7 @@ function usageStick(kv) {                            // fresh INFO from the stic
     try { localStorage.setItem('panocheck-usage-last', JSON.stringify(usageLast)); } catch (e) {}
     if (usageMetSticks[kv.ID]) return;
     usageMetSticks[kv.ID] = 1; usageSend('open');
+    pushSync(); fwHintRender();
   } catch (e) {}
 }
 function usageMeas() {                               // one measurement saved: sent together within 10 s
@@ -1947,6 +1954,100 @@ function usageMeas() {                               // one measurement saved: s
     usageMeasTimer = setTimeout(() => { const n = usageMeasN; usageMeasN = 0; usageMeasTimer = 0; usageSend('meas', null, n); }, 10000);
   } catch (e) {}
 }
+// ---------------------------------------------------------------- update news: phone notifications + a note after an app update
+// [알림 받기] (home card once, or 설정 → 알림) subscribes this phone to the maker's server (Web Push, Android Chrome / PC Chrome).
+// The server checks fw/latest*.json every 10 minutes and APP_NOTE below; when something new is out the phone shows
+// "파노체크 스틱 펌웨어 2.9" even while the app is closed. Only the push address, stick model and stick ID are kept.
+// iPhone Bluefy has no web push: there the app tells new versions when it is opened (app note below, firmware popup).
+// APP_NOTE: write one line here when an app update is worth telling everyone (sent once per new text; '' = say nothing).
+const APP_NOTE = '';
+var pushBusy = false;
+function pushCan() { return !IOS && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext && !!USAGE_URL; }
+function pushSaved() { try { return JSON.parse(localStorage.getItem('panocheck-push') || 'null'); } catch (e) { return null; } }
+async function pushReg() { return navigator.serviceWorker.ready; }
+function pushKeyBytes(k) { const raw = atob((k + '='.repeat((4 - k.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)); }
+async function pushPost(sub, off) {
+  const s = usageLast || (() => { try { return JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) { return null; } })() || {};
+  const r = await fetch(USAGE_URL + '/push/sub', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ sub: sub.toJSON ? sub.toJSON() : sub, hw: s.hw || '', id: s.id || '', plat: usagePlat(), off: !!off }) });
+  if (!r.ok) throw new Error('서버 ' + r.status);
+  if (!off) try { localStorage.setItem('panocheck-push', JSON.stringify({ hw: s.hw || '', id: s.id || '', t: Date.now() })); } catch (e) {}
+}
+async function pushOn() {
+  if (pushBusy) return; pushBusy = true;
+  try {
+    if (!pushCan()) { notify(IOS ? '아이폰(Bluefy)에서는 폰 알림이 안 돼요 · 앱을 열면 새 버전을 알려 드려요' : '이 브라우저는 폰 알림을 못 받아요 · 크롬에서 열어 주세요', false); return; }
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (perm !== 'granted') { notify('알림이 막혀 있어요 · 크롬 주소창 왼쪽 자물쇠 → 알림 → 허용', false); return; }
+    const reg = await pushReg();
+    let sub = await reg.pushManager.getSubscription();
+    const key = (await (await fetch(USAGE_URL + '/push/key', { credentials: 'omit' })).json()).key;
+    if (sub && sub.options && sub.options.applicationServerKey) {                    // made with another key: start again
+      const a = new Uint8Array(sub.options.applicationServerKey), b = pushKeyBytes(key);
+      if (a.length !== b.length || a.some((v, i) => v !== b[i])) { try { await sub.unsubscribe(); } catch (e) {} sub = null; }
+    }
+    sub = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKeyBytes(key) });
+    await pushPost(sub);
+    notify('업데이트 알림을 켰어요 · 새 버전이 나오면 폰 알림이 와요', true);
+  } catch (e) { notify('알림을 켜지 못했어요 · 인터넷을 확인하고 다시 눌러 주세요', false); }
+  finally { pushBusy = false; pushRender(); }
+}
+async function pushOff() {
+  if (pushBusy) return; pushBusy = true;
+  try {
+    const sub = await (await pushReg()).pushManager.getSubscription();
+    if (sub) { try { await pushPost(sub, true); } catch (e) {} await sub.unsubscribe(); }
+    try { localStorage.removeItem('panocheck-push'); } catch (e) {}
+    notify('업데이트 알림을 껐어요', true);
+  } catch (e) {}
+  finally { pushBusy = false; pushRender(); }
+}
+async function pushIsOn() {
+  if (!pushCan() || Notification.permission !== 'granted') return false;
+  try { const reg = await navigator.serviceWorker.getRegistration(); return !!(reg && await reg.pushManager.getSubscription()); } catch (e) { return false; }
+}
+async function pushRender() {
+  const on = await pushIsOn(), st = $('pushSt'), b = $('pushBtn'), ask = $('pushAsk');
+  if (st) st.textContent = !pushCan() ? (IOS ? '아이폰(Bluefy)에서는 안 돼요. 앱을 열면 새 버전을 알려 드려요.' : '이 브라우저에서는 안 돼요. 크롬에서 열어 주세요.')
+    : on ? '켜짐 · 새 펌웨어가 나오면 앱을 닫아 둬도 폰 알림이 와요.' : Notification.permission === 'denied' ? '알림이 막혀 있어요. 크롬 주소창 왼쪽 자물쇠 → 알림 → 허용 후 다시 눌러 주세요.' : '꺼짐 · 새 펌웨어가 나오면 앱을 닫아 둬도 폰 알림으로 알려 드려요.';
+  if (b) { b.style.display = pushCan() ? '' : 'none'; b.textContent = on ? '끄기' : '알림 받기'; b.onclick = on ? pushOff : pushOn; }
+  if (ask) {
+    let no = false; try { no = !!localStorage.getItem('panocheck-push-no'); } catch (e) {}
+    ask.style.display = pushCan() && !on && !no && Notification.permission === 'default' ? '' : 'none';
+  }
+}
+function pushSync() {                                // already on: tell the server the stick model again when it changes (or once a week)
+  pushIsOn().then(async on => {
+    if (!on) return;
+    const s = usageLast || {}, p = pushSaved() || {};
+    if ((s.hw && s.hw !== p.hw) || (s.id && s.id !== p.id) || Date.now() - (p.t || 0) > 7 * 864e5) {
+      try { await pushPost(await (await pushReg()).pushManager.getSubscription()); } catch (e) {}
+    }
+  });
+}
+function appNewNote() {                              // first opening after the app changed: say so (with APP_NOTE when there is one)
+  let was = ''; try { was = localStorage.getItem('panocheck-appseen') || ''; localStorage.setItem('panocheck-appseen', APP_BUILD); } catch (e) { return; }
+  if (!was || was >= APP_BUILD) return;
+  setTimeout(() => notify('앱이 새 버전(' + APP_BUILD.replace(/^\d{4}-/, '') + ')으로 바뀌었어요' + (APP_NOTE ? ' · ' + APP_NOTE : ''), true), 1800);
+}
+async function fwHintRender() {                      // no stick connected: still tell when the last used stick has a newer firmware
+  const el = $('fwHint'); if (!el) return;
+  if (cmdChar) { el.style.display = 'none'; return; }
+  let s = null; try { s = JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) {}
+  if (!s || !s.fw) { el.style.display = 'none'; return; }
+  let j = null; try { const r = await fetch(s.hw === 'P2' ? 'fw/latest-plus2.json' : 'fw/latest.json', { cache: 'no-cache' }); if (r.ok) j = await r.json(); } catch (e) {}
+  if (cmdChar || !j || verNum(j.ver) <= verNum(s.fw)) { el.style.display = 'none'; return; }
+  el.innerHTML = (j.min && verNum(s.fw) < verNum(j.min) ? '<b style="color:var(--acc)">필수 업데이트</b> ' : '') + `<b>스틱 새 펌웨어 ${esc(j.ver)}</b> · 지금 ${esc(s.fw)}<br><span class="note2">스틱을 켜고 연결하면 업데이트할 수 있어요</span>`;
+  el.style.display = '';
+}
+(function pushInit() {
+  try {
+    if ($('pushAskGo')) $('pushAskGo').onclick = pushOn;
+    if ($('pushAskNo')) $('pushAskNo').onclick = () => { try { localStorage.setItem('panocheck-push-no', '1'); } catch (e) {} pushRender(); };
+    appNewNote();
+    setTimeout(() => { pushRender(); pushSync(); fwHintRender(); }, 1500);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => { pushRender(); fwHintRender(); }, 800); });
+  } catch (e) {}
+})();
 // ---------------------------------------------------------------- error reports (to the maker's usage server)
 // Automatic: uncaught errors and failed stick / power-supply connections and updates, each kind once per opening, at most 10.
 // By hand: [문제 보내기] (home 「오류·문의 신고」 or the update window) with a short note.

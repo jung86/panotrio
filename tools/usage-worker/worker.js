@@ -12,6 +12,8 @@
 //   그 폰은 `Authorization: Sig2 <kid>.<만료>.<서명>`(`PanoCheck|view|v1|<kid>|<만료>` 서명, kid = sha256(x.y) 앞 12자리)으로
 //   GET /api/sticks·/api/errors·/api/tg, POST /api/tg/link·/api/tg/test·/api/me/tg만 씀(나머지는 제작자만). GET /api/admins, POST /api/admins/add {code, name(제작자가 정한 이름)}, /api/admins/name {kid, name}, /api/admins/del {kid}, /api/admins/tg {kid, on}.
 // ADMIN_TOKEN은 코드에 없음: `npx wrangler secret put ADMIN_TOKEN`으로 넣음.
+// 폰 알림(업데이트 소식): GET /push/key · POST /push/sub {sub, hw, id, plat} (off:true면 지움) · GET /push/last?e=<id>, 10분마다 cron이 새 버전을 보고 보냄.
+//   GET /api/push 구독 수·보낸 소식 · POST /api/push/check 지금 확인 (제작자만). 키는 처음 쓸 때 워커가 만들어 kv 표에 둠.
 // 텔레그램 알림(선택): `npx wrangler secret put TG_TOKEN`(BotFather가 준 봇 토큰). 봇에게 아무 말이나 보낸 뒤 관리 화면 [텔레그램 연결]을 누르면
 //   대화 번호를 찾아 kv 표에 저장(POST /api/tg/link), 새 오류 줄이 생길 때마다 그 대화로 알림. GET /api/tg 상태, POST /api/tg/test 시험.
 
@@ -242,12 +244,138 @@ async function sticks(env, me) {
   return json({ now, sticks: r.results || [], people: pp.results || [], role: me.role });
 }
 
+// ---------------------------------------------------------------- phone notifications (Web Push) for new versions
+// The app (Android Chrome / PC) subscribes with [알림 받기]: POST /push/sub {sub, hw, id}. Every 10 minutes the cron
+// below reads fw/latest.json, fw/latest-plus2.json and app.html's APP_NOTE from GitHub Pages. When a firmware version
+// goes up (or APP_NOTE gets new text) it keeps one message and wakes each matching phone with an empty push; the
+// phone's sw.js then reads GET /push/last?e=<its id> and shows it. Empty pushes need no payload encryption.
+// The VAPID key pair is made by the worker on first use and kept in the kv table (no secret to set up, never in the repo).
+// At most 40 phones per run (the free plan allows 50 outgoing requests); the rest follow 10 minutes later.
+const PUSH_HOSTS = /^(fcm\.googleapis\.com|[\w.-]+\.push\.services\.mozilla\.com|[\w.-]+\.notify\.windows\.com|web\.push\.apple\.com|[\w.-]+\.push\.apple\.com)$/;
+const SITE = 'https://jung86.github.io/panotrio/';
+const b64e = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+let pushReady = false, vapid = null;
+async function pushTable(env) {
+  if (pushReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS push (id TEXT PRIMARY KEY, ep TEXT, hw TEXT DEFAULT '', stick TEXT DEFAULT '', plat TEXT DEFAULT '', made INTEGER, last INTEGER, seen INTEGER DEFAULT 0, fails INTEGER DEFAULT 0)").run();
+  pushReady = true;
+}
+const epId = async ep => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ep))).slice(0, 24);
+async function vapidKey(env) {                       // { priv: CryptoKey, pub: b64url of the 65-byte public point }
+  if (vapid) return vapid;
+  let jwk = await kvGet(env, 'vapid');
+  if (!jwk) {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const j = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    await env.DB.prepare('INSERT OR IGNORE INTO kv (k, v) VALUES (?1, ?2)').bind('vapid', JSON.stringify({ kty: 'EC', crv: 'P-256', d: j.d, x: j.x, y: j.y })).run();
+    jwk = await kvGet(env, 'vapid');                 // whoever wrote first wins
+  }
+  const j = JSON.parse(jwk);
+  const priv = await crypto.subtle.importKey('jwk', j, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const pub = b64e(new Uint8Array([4, ...b64u(j.x), ...b64u(j.y)]));
+  return (vapid = { priv, pub, jwt: {} });
+}
+async function vapidAuth(env, ep) {                  // "vapid t=<JWT>, k=<public key>", one JWT per push service, renewed after 11 h
+  const v = await vapidKey(env), aud = new URL(ep).origin, now = Math.floor(Date.now() / 1000);
+  const c = v.jwt[aud];
+  if (c && c.exp - now > 3600) return c.h;
+  const exp = now + 12 * 3600, enc = o => b64e(new TextEncoder().encode(JSON.stringify(o)));
+  const data = enc({ typ: 'JWT', alg: 'ES256' }) + '.' + enc({ aud, exp, sub: SITE });
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, v.priv, new TextEncoder().encode(data));
+  const h = 'vapid t=' + data + '.' + b64e(sig) + ', k=' + v.pub;
+  v.jwt[aud] = { exp, h };
+  return h;
+}
+async function pushSub(req, env) {
+  let b; try { b = JSON.parse(await req.text()); } catch (e) { return json({ error: 'json' }, 400); }
+  const ep = String((b.sub && b.sub.endpoint) || b.endpoint || '');
+  let u; try { u = new URL(ep); } catch (e) { return json({ error: 'ep' }, 400); }
+  if (u.protocol !== 'https:' || !PUSH_HOSTS.test(u.hostname) || ep.length > 800) return json({ error: 'ep' }, 400);
+  await pushTable(env);
+  const id = await epId(ep), now = Date.now();
+  if (b.off) { await env.DB.prepare('DELETE FROM push WHERE id = ?1').bind(id).run(); return json({ ok: true }); }
+  const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM push').first();
+  if (n && n.n > 5000) return json({ error: 'full' }, 429);
+  await env.DB.prepare(`INSERT INTO push (id, ep, hw, stick, plat, made, last, seen) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?6)
+    ON CONFLICT(id) DO UPDATE SET hw = CASE WHEN ?3 = '' THEN hw ELSE ?3 END, stick = CASE WHEN ?4 = '' THEN stick ELSE ?4 END, plat = ?5, last = ?6, fails = 0`)
+    .bind(id, ep, b.hw === 'P2' ? 'P2' : b.hw ? 'S3' : '', /^[0-9A-Fa-f]{4,16}$/.test(b.id || '') ? b.id.toUpperCase() : '', clip(b.plat, 10), now).run();
+  return json({ ok: true, id });
+}
+async function pushMsgs(env) {                       // the kept messages: { app, s3, p2 } each { t, title, body } or null
+  const o = {};
+  for (const k of ['app', 's3', 'p2']) { try { o[k] = JSON.parse(await kvGet(env, 'push_m_' + k) || 'null'); } catch (e) { o[k] = null; } }
+  return o;
+}
+async function pushLast(url, env) {                  // what this phone should show now
+  await pushTable(env);
+  const id = String(url.searchParams.get('e') || '').replace(/[^0-9a-f]/g, '').slice(0, 24);
+  const row = id ? await env.DB.prepare('SELECT hw FROM push WHERE id = ?1').bind(id).first() : null;
+  const m = await pushMsgs(env), hw = row ? row.hw : '', old = Date.now() - 4 * 864e5;
+  const fit = [m.app, hw === 'P2' ? m.p2 : m.s3, hw === '' ? m.p2 : null].filter(x => x && x.t > old).sort((a, b) => b.t - a.t);
+  const x = fit[0] || { title: '파노체크', body: '새 소식이 있어요. 앱을 열어 확인해 주세요.', tag: 'pc-news' };
+  return json({ title: x.title, body: x.body, tag: x.tag || 'pc-update', url: SITE + 'app.html' });
+}
+async function pushCheck(env) {                      // cron: look for new versions, then wake the phones that have not heard yet
+  await pushTable(env);
+  const now = Date.now(), get = async u => { try { const r = await fetch(SITE + u + '?t=' + now, { cf: { cacheTtl: 0 } }); return r.ok ? await r.text() : ''; } catch (e) { return ''; } };
+  const [s3, p2, app] = await Promise.all([get('fw/latest.json'), get('fw/latest-plus2.json'), get('app.html')]);
+  const fw = async (k, txt, model) => {
+    let j; try { j = JSON.parse(txt); } catch (e) { return; }
+    if (!j || !j.ver) return;
+    const was = await kvGet(env, 'push_v_' + k);
+    if (was === j.ver) return;
+    await kvSet(env, 'push_v_' + k, j.ver);
+    const num = v => { const m = /^(\d+)\.(\d+)/.exec(v || ''); return m ? +m[1] * 1000 + +m[2] : 0; };
+    if (!was || num(j.ver) <= num(was)) return;      // first look, or a step back: remember only
+    const must = j.min && num(j.min) >= num(j.ver);
+    await kvSet(env, 'push_m_' + k, JSON.stringify({ t: now, tag: 'pc-fw-' + k, title: '파노체크 스틱 펌웨어 ' + j.ver + (must ? ' (필수 업데이트)' : ''),
+      body: (model ? model + ' · ' : '') + '앱을 열고 스틱을 연결하면 블루투스로 업데이트할 수 있어요.' + (j.note ? '\n' + String(j.note).slice(0, 120) : '') }));
+  };
+  await fw('s3', s3, '');
+  await fw('p2', p2, 'M5StickC Plus2');
+  const nm = /const APP_NOTE = '([^']*)'/.exec(app), bm = /const APP_BUILD = '([^']+)'/.exec(app);
+  if (nm && bm) {
+    const note = nm[1].trim(), was = await kvGet(env, 'push_note');
+    if (note !== was) {                              // APP_NOTE got new text: tell everyone (not on the very first look)
+      const known = await kvGet(env, 'push_v_app');
+      await kvSet(env, 'push_note', note);
+      if (note && known) await kvSet(env, 'push_m_app', JSON.stringify({ t: now, tag: 'pc-app', title: '파노체크 앱 새 버전', body: note.slice(0, 160) }));
+    }
+    await kvSet(env, 'push_v_app', bm[1]);
+  }
+  const m = await pushMsgs(env), old = now - 4 * 864e5, t = x => (x && x.t > old ? x.t : 0);
+  const ta = t(m.app), ts = t(m.s3), tp = t(m.p2);
+  if (!ta && !ts && !tp) return 0;
+  const rows = (await env.DB.prepare("SELECT id, ep FROM push WHERE seen < ?1 OR (hw != 'P2' AND seen < ?2) OR (hw IN ('P2', '') AND seen < ?3) ORDER BY last DESC LIMIT 40")
+    .bind(ta, ts, tp).all()).results || [];
+  let sent = 0;
+  await Promise.all(rows.map(async r => {
+    let st = 0;
+    try {
+      const res = await fetch(r.ep, { method: 'POST', headers: { Authorization: await vapidAuth(env, r.ep), TTL: '172800', Urgency: 'normal', 'Content-Length': '0' } });
+      st = res.status;
+    } catch (e) { st = 0; }
+    if (st >= 200 && st < 300) { sent++; await env.DB.prepare('UPDATE push SET seen = ?2, fails = 0 WHERE id = ?1').bind(r.id, now).run(); }
+    else if (st === 404 || st === 410 || st === 403) await env.DB.prepare('DELETE FROM push WHERE id = ?1').bind(r.id).run();   // gone, or made with another key
+    else await env.DB.prepare('UPDATE push SET fails = fails + 1, seen = CASE WHEN fails >= 5 THEN ?2 ELSE seen END WHERE id = ?1').bind(r.id, now).run();
+  }));
+  return sent;
+}
+async function pushState(env) {
+  await pushTable(env);
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(hw = 'P2') AS p2, SUM(plat = 'Android') AS android FROM push").first();
+  return { n: (n && n.n) || 0, p2: (n && n.p2) || 0, android: (n && n.android) || 0, msgs: await pushMsgs(env) };
+}
+
 async function route(req, env, ctx) {
     const url = new URL(req.url), p = url.pathname;
     try {
       if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' } });
       if (p === '/p' && req.method === 'POST') return await ping(req, env);
       if (p === '/e' && req.method === 'POST') return await errReport(req, env, ctx);
+      if (p === '/push/key' && req.method === 'GET') return json({ key: (await vapidKey(env)).pub }, 200, { 'Cache-Control': 'max-age=3600' });
+      if (p === '/push/sub' && req.method === 'POST') return await pushSub(req, env);
+      if (p === '/push/last' && req.method === 'GET') return await pushLast(url, env);
       if (p === '/admin' || p === '/') return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
       if (p.startsWith('/api/')) {
         const me = await who(req, env);
@@ -267,6 +395,8 @@ async function route(req, env, ctx) {
         if (p === '/api/admins/del' && req.method === 'POST') { await adminsTable(env); await env.DB.prepare('DELETE FROM admins WHERE kid = ?1').bind(String((await req.json()).kid || '')).run(); return json({ ok: true }); }
         if (p === '/api/admins/tg' && req.method === 'POST') { const b = await req.json(); await adminsTable(env); await env.DB.prepare('UPDATE admins SET tg = ?2 WHERE kid = ?1').bind(String(b.kid || ''), b.on ? 1 : 0).run(); return json({ ok: true }); }
         if (p === '/api/people' && req.method === 'POST') return await setPeople(req, env);
+        if (p === '/api/push' && req.method === 'GET') return json(await pushState(env));
+        if (p === '/api/push/check' && req.method === 'POST') return json({ sent: await pushCheck(env) });
         if (p === '/api/tg/link' && req.method === 'POST') return await tgLink(env);
         if (p === '/api/tg/test' && req.method === 'POST') return json({ ok: await tgSend(env, '[파노체크] 시험 알림이에요. 잘 왔으면 준비 끝!') });
         if (p === '/api/errors/done' && req.method === 'POST') { const b = await req.json(); await errorsTable(env); await env.DB.prepare('UPDATE errors SET done = ?2 WHERE n = ?1').bind(+b.id || 0, b.done ? 1 : 0).run(); return json({ ok: true }); }
@@ -291,11 +421,13 @@ async function route(req, env, ctx) {
 export default {
   async fetch(req, env, ctx) {                            // the app's admin screen (jung86.github.io) may read /api/ too, with the password
     const res = await route(req, env, ctx), h = cors(req);
-    if (!h['Access-Control-Allow-Origin'] || !new URL(req.url).pathname.startsWith('/api/')) return res;
+    const pp = new URL(req.url).pathname;
+    if (!h['Access-Control-Allow-Origin'] || !(pp.startsWith('/api/') || pp.startsWith('/push/'))) return res;
     const r = new Response(res.body, res);
     for (const k in h) r.headers.set(k, h[k]);
     return r;
   },
+  async scheduled(ev, env, ctx) { ctx.waitUntil(pushCheck(env).catch(() => {})); },   // every 10 minutes (wrangler.toml [triggers])
 };
 
 const ADMIN_HTML = `<!doctype html><html lang="ko"><head><meta charset="utf-8">
