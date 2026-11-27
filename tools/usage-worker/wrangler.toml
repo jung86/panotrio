@@ -8,3 +8,7 @@ database_name = "panocheck-usage"
 database_id = "dc9f4bd9-7c31-49cf-909e-9035af3644c4"
 
 # 관리자 비밀번호는 여기 쓰지 않음: npx wrangler secret put ADMIN_TOKEN
+
+# 새 펌웨어·앱 소식 폰 알림: 10분마다 확인
+[triggers]
+crons = ["*/10 * * * *"]
