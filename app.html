@@ -1861,7 +1861,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27k';
+const APP_BUILD = '2026-11-27l';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -3801,22 +3801,53 @@ async function avLoad() {
     if (!r.ok) { $('avList').innerHTML = '<div class="help">' + (r.status === 404 ? '사용 현황 서버 업데이트가 필요해요' : '목록을 읽지 못했습니다') + '</div>'; return; }
     const L = (await r.json()).admins || [];
     $('avCount').textContent = L.length ? L.length + '명' : '';
-    $('avList').innerHTML = L.length ? L.map(a => `<div class="row" data-k="${esc(a.kid)}"><div style="min-width:0"><div class="nm">${esc(a.name || '(이름 없음)')}</div><div class="meta">${a.last ? '마지막 사용 ' + pplAgo(a.last) : '아직 안 씀'} · 텔레그램 ${a.chat ? (a.tg ? '켜짐' : '꺼짐') : '연결 안 함'}</div></div>
-      <div class="acts">${a.chat ? `<button data-av="${a.tg ? 'off' : 'on'}">${a.tg ? '알림 끄기' : '알림 켜기'}</button>` : ''}<button data-av="del">빼기</button></div></div>`).join('') : '<div class="help" style="padding:6px 0">아직 없어요</div>';
+    $('avList').innerHTML = L.length ? L.map(a => `<div class="row" data-k="${esc(a.kid)}"><div style="min-width:0"><div class="nm">${esc(a.name || '(이름 없음)')}${a.asked && a.asked !== a.name ? ` <span class="meta" style="font-weight:400">· 신청: ${esc(a.asked)}</span>` : ''}</div><div class="meta">${a.last ? '마지막 사용 ' + pplAgo(a.last) : '아직 안 씀'} · 텔레그램 ${a.chat ? (a.tg ? '켜짐' : '꺼짐') : '연결 안 함'}</div></div>
+      <div class="acts">${a.chat ? `<button data-av="${a.tg ? 'off' : 'on'}">${a.tg ? '알림 끄기' : '알림 켜기'}</button>` : ''}<button data-av="name">이름</button><button data-av="del">빼기</button></div></div>`).join('') : '<div class="help" style="padding:6px 0">아직 없어요</div>';
     $('avList').onclick = async ev => {
       const b = ev.target.closest('button'), row = ev.target.closest('.row'); if (!b || !row) return;
       const a = L.find(x => x.kid === row.dataset.k); if (!a) return;
+      if (b.dataset.av === 'name') {
+        const nm = await avPickName(a.asked || a.name, a.name); if (nm === null) return;
+        try { await fetch(USAGE_URL + '/api/admins/name', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ kid: a.kid, name: nm }) }); } catch (e) { notify('바꾸지 못했습니다 (인터넷 확인)', false); }
+        avLoad(); return;
+      }
       if (b.dataset.av === 'del' && !(await askConfirm((a.name || '이 사람') + '을(를) 관리자에서 뺄까요?'))) return;
       try { await fetch(USAGE_URL + (b.dataset.av === 'del' ? '/api/admins/del' : '/api/admins/tg'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ kid: a.kid, on: b.dataset.av === 'on' }) }); } catch (e) { notify('바꾸지 못했습니다 (인터넷 확인)', false); }
       avLoad();
     };
   } catch (e) { $('avList').innerHTML = '<div class="help">목록을 읽지 못했습니다 (인터넷 확인)</div>'; }
 }
+// the maker names a new admin: one of the names in 「허락한 사람」, or a new one; the name they typed when asking is only shown
+function avPickName(asked, cur) {
+  return new Promise(done => {
+    const names = [...new Set(Object.values(pplAll()).map(e => (e.name || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:96;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
+    ov.innerHTML = '<div style="width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column;background:#1b1f27;border:1px solid #222225;border-radius:6px;padding:18px;color:#f1f1f1">' +
+      '<div style="font-size:19px;font-weight:700">관리자 이름</div>' +
+      (asked ? '<div class="help" style="margin:4px 0 0">신청한 사람이 적은 이름: ' + esc(asked) + '</div>' : '') +
+      '<input id="avNm" type="text" maxlength="30" placeholder="이름" autocomplete="off" style="margin-top:10px;width:100%;font:700 18px Pretendard,system-ui;padding:11px;border-radius:6px;border:1px solid var(--line);background:#0e0e10;color:#fff">' +
+      '<div class="help" style="margin:10px 0 4px">「허락한 사람」에서 고르기</div>' +
+      '<div id="avNms" style="overflow:auto;flex:1;min-height:60px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start">' +
+      (names.length ? names.map(n => '<button data-n="' + esc(n) + '" style="padding:8px 12px">' + esc(n) + '</button>').join('') : '<span class="help">목록이 비어 있어요</span>') + '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:12px"><button id="avNmOk" class="primary" style="flex:1">저장</button><button id="avNmNo" style="flex:1">취소</button></div></div>';
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#avNm'); inp.value = cur || (asked && names.find(n => n.toLowerCase() === asked.trim().toLowerCase())) || asked || '';
+    const end = v => { ov.remove(); done(v); };
+    ov.querySelector('#avNms').onclick = e => { const b = e.target.closest('button'); if (b) { inp.value = b.dataset.n; inp.focus(); } };
+    ov.querySelector('#avNmOk').onclick = () => { const v = inp.value.trim(); if (!v) { notify('이름을 넣거나 골라 주세요', false); return; } end(v.slice(0, 30)); };
+    ov.querySelector('#avNmNo').onclick = () => end(null);
+    ov.onclick = e => { if (e.target === ov) end(null); };
+  });
+}
+function avCodeName(c) { try { const m = /^PCV1\.([A-Za-z0-9_-]*)\./.exec(c); return m ? new TextDecoder().decode(Uint8Array.from(atob(m[1].replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((m[1].length + 3) % 4)), x => x.charCodeAt(0))).slice(0, 30) : ''; } catch (e) { return ''; } }
 $('btnAvAdd').onclick = async () => {
   const code = await askText('받은 신청 코드를 붙여 넣으세요 (PCV1.로 시작)', ''); if (!code) return;
   const c = (code.match(/PCV1\.[A-Za-z0-9_.-]+/) || [''])[0];
+  if (!/^PCV1\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{43}$/.test(c)) { notify('신청 코드가 맞지 않습니다', false); return; }
+  const nm = await avPickName(avCodeName(c), ''); if (nm === null) return;
   try {
-    const r = await (await fetch(USAGE_URL + '/api/admins/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ code: c }) })).json();
+    const r = await (await fetch(USAGE_URL + '/api/admins/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: await authHdr() }, body: JSON.stringify({ code: c, name: nm }) })).json();
     notify(r.ok ? (r.name || '관리자') + '을(를) 추가했습니다' : r.error === 'full' ? '관리자는 20명까지예요' : '신청 코드가 맞지 않습니다', !!r.ok);
   } catch (e) { notify('추가하지 못했습니다 (인터넷 확인)', false); }
   avLoad();
