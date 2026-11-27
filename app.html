@@ -631,6 +631,12 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
     <div class="hdr-l"><button id="btnClose" class="back" aria-label="메뉴로">‹</button><h1>설정</h1></div>
   </header>
 
+  <div class="card" id="nickCard" style="display:none">
+    <div class="ttl">스틱 이름</div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input id="nickIn" maxlength="16" placeholder="예: 홍길동" style="flex:1;min-width:0;padding:10px;font-size:16px;border-radius:4px;border:1px solid var(--line);background:#0e0e10;color:#fff"><button id="nickSave" style="width:68px">저장</button></div>
+    <div id="nickMsg" class="set-help" style="margin-top:6px">한글 5자, 영어·숫자 16자까지 · 앱 화면에 「파노체크-이름」으로 보여요.<br>블루투스 목록 이름은 펌웨어 3.0부터 같이 바뀌어요.</div>
+  </div>
+
   <div class="card" id="stickSet">
     <div class="ttl">스틱 설정</div>
     <div id="stickRows">
@@ -1076,7 +1082,7 @@ async function openGatt() {
   connGen++;
   sendTime();
   $('conn').textContent = shortName() + batText(); $('conn').className = 'conn on';
-  notify((device.name || '스틱') + ' 연결됨', true);
+  notify(stickName() + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
   stickRemember(device.id);                                                 // for connecting by itself next time
@@ -1485,7 +1491,49 @@ $('btnClose').onclick = goHome;
 $('btnConnect2').onclick = () => { unlockAudio(); connect(); };
 // ---------------------------------------------------------------- stick battery
 let stickBat = null, batWarned = 100;               // {pct, usb}; last warning level
-function shortName() { return ((device && device.name) || '').replace(/-[0-9A-F]{4,8}$/i, '') || '연결됨'; }
+// ---- stick name the user picked (first: the name the maker registered in the activation link)
+// Kept per stick ID on this phone; the maker's lists keep the registered name. Firmware 3.0+ (INFO BN=1)
+// also takes it as its Bluetooth name: 'N' + up to 16 UTF-8 bytes (empty = back to the ID).
+const NICK_KEY = 'panocheck-nick';
+function nickAll() { try { return JSON.parse(localStorage.getItem(NICK_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function nickGet(id) { return (id && nickAll()[String(id).toUpperCase()]) || ''; }
+function nickFit(t) {                                // trim to 16 UTF-8 bytes without cutting a letter
+  t = String(t || '').replace(/[\u0000-\u001f;=]/g, '').trim();
+  const enc = new TextEncoder(); let out = '';
+  for (const ch of t) { if (enc.encode(out + ch).length > 16) break; out += ch; }
+  return out.trim();
+}
+function nickSet(id, name, onlyIfEmpty) {
+  if (!id) return; id = String(id).toUpperCase();
+  const o = nickAll(); name = nickFit(name);
+  if (onlyIfEmpty && o[id]) return;
+  if (name) o[id] = name; else delete o[id];
+  try { localStorage.setItem(NICK_KEY, JSON.stringify(o)); } catch (e) {}
+}
+function curStickId() { return (actState && actState.id) || devId || ''; }
+function stickName() { const n = cmdChar && nickGet(curStickId()); return n ? '파노체크-' + n : ((device && device.name) || '스틱'); }
+function shortName() { const n = cmdChar && nickGet(curStickId()); return n || ((device && device.name) || '').replace(/-[0-9A-F]{4,8}$/i, '') || '연결됨'; }
+var stickBn = stickBn || false;                     // firmware takes the name as its Bluetooth name
+async function nickToStick(name) {
+  if (!stickBn || !cmdChar) return false;
+  const b = new TextEncoder().encode(nickFit(name)), pkt = new Uint8Array(1 + b.length);
+  pkt[0] = 78; pkt.set(b, 1);                        // 'N'
+  try { await gatt(() => cmdChar.writeValue(pkt)); return true; } catch (e) { return false; }
+}
+function renderNick() {
+  const c = $('nickCard'); if (!c) return;
+  const on = !!(cmdChar && actState && actState.id);
+  c.style.display = on ? '' : 'none';
+  if (!on) return;
+  const ok = !!actState.act;
+  $('nickIn').disabled = !ok; $('nickSave').disabled = !ok;
+  if (document.activeElement !== $('nickIn')) $('nickIn').value = nickGet(actState.id);
+  if (!ok) $('nickMsg').textContent = '활성화된 스틱만 이름을 바꿀 수 있어요.';
+}
+function nickLabels() {
+  if (cmdChar) $('conn').textContent = shortName() + batText();
+  renderHome();
+}
 function batText() {
   if (!stickBat || stickBat.pct < 0) return '';
   return ' · ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '');
@@ -1502,8 +1550,9 @@ function onBattery(pct, usb) {
 }
 function renderHome() {
   const on = !!cmdChar;
-  $('homeConn').textContent = on ? (device && device.name || '스틱') + (actState && !actState.act ? ' · 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
+  $('homeConn').textContent = on ? stickName() + (actState && !actState.act ? ' · 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
   $('homeConn').className = on ? 'pill on' : 'pill';
+  try { renderNick(); } catch (e) {}
   $('btnConnect2').style.display = on ? 'none' : '';
   $('tileHz').textContent = on && cur && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '';
 }
@@ -1511,11 +1560,17 @@ function renderHome() {
 // A link "app.html#act=<ID>.<code>" from the owner is remembered and sent when that stick connects.
 let actState = null, actSentFor = '';
 function actKey(id) { return 'panotrio-act-' + id; }
+function actLinkName(t, id) {                     // "&n=<name>" after the code: the maker's registered name, the first stick name
+  const m = /[&?]n=([^&\s]*)/.exec(t || ''); if (!m || !id) return;
+  let n = ''; try { n = decodeURIComponent(m[1]); } catch (e) { return; }
+  if (n) nickSet(id, n, true);
+}
 function checkActHash() {                          // the owner's link was opened (new page or app already open)
   const m = /^#act=([0-9A-Fa-f]{8})\.([A-Za-z0-9_-]{80,90})/.exec(location.hash);
   if (!m) return false;
   const id = m[1].toUpperCase();
   try { localStorage.setItem(actKey(id), m[2]); } catch (e) {}
+  actLinkName(location.hash, id);
   history.replaceState(null, '', location.pathname + '#home');
   actSentFor = '';
   setTimeout(() => notify('활성화 링크를 받았습니다 · 스틱을 연결하면 활성화됩니다', true), document.getElementById('splash') ? 2000 : 0);
@@ -1589,7 +1644,7 @@ function onActivation(kv) {
   $('lockBox').style.display = act ? 'none' : '';
   $('devId').textContent = id ? id.slice(0, 4) + '-' + id.slice(4) : '---- ----';
   if (act) {
-    if (was && !was.act) { notify('✓ 활성화되었습니다', true); try { localStorage.removeItem(actKey(id)); } catch (e) {} $('actMsg').textContent = ''; }
+    if (was && !was.act) { notify('✓ 활성화되었습니다', true); if (nickGet(id)) setTimeout(() => nickToStick(nickGet(id)), 800); try { localStorage.removeItem(actKey(id)); } catch (e) {} $('actMsg').textContent = ''; }
     return;
   }
   if (kv.RES === 'BAD') $('actMsg').innerHTML = '<b style="color:#ff6b6b">이 스틱의 코드가 아닙니다. 스틱 ID를 확인해 주세요.</b>';
@@ -1624,6 +1679,7 @@ $('btnPasteAct').onclick = async () => {              // the owner's reply link 
   if (!t) { $('actCode').closest('details').open = true; $('actCode').focus(); $('actMsg').textContent = '아래 칸을 길게 눌러 붙여넣고 [활성화]를 누르세요'; return; }
   $('actCode').value = t.trim();
   const m = /#act=([0-9A-Fa-f]{8})\.([A-Za-z0-9_-]{80,90})/.exec(t);
+  if (m) actLinkName(t, m[1].toUpperCase());
   if (m && (!cmdChar || !actState)) {                 // not connected yet: remember it like an opened link
     try { localStorage.setItem(actKey(m[1].toUpperCase()), m[2]); } catch (e) {}
     actSentFor = ''; $('actMsg').textContent = '링크를 넣었습니다 · 스틱을 연결하면 활성화됩니다'; return;
@@ -1634,8 +1690,17 @@ $('btnPasteAct').onclick = async () => {              // the owner's reply link 
 $('btnAct').onclick = () => {
   if (!cmdChar || !actState) { $('actMsg').textContent = '먼저 스틱을 연결하세요.'; return; }
   const code = parseActInput($('actCode').value, actState.id);
+  if (code) actLinkName($('actCode').value, actState.id);
   if (!code) { $('actMsg').innerHTML = '<b style="color:#ff6b6b">이 스틱(' + $('devId').textContent + ')의 링크나 코드가 아닙니다.</b>'; return; }
   sendActivation(code);
+};
+$('nickSave').onclick = async () => {
+  if (!cmdChar || !actState || !actState.act) return;
+  const raw = $('nickIn').value, n = nickFit(raw);
+  nickSet(actState.id, n); $('nickIn').value = n;
+  const sent = await nickToStick(n);
+  $('nickMsg').textContent = (n ? '✓ 「파노체크-' + n + '」로 바꿨어요' : '✓ 이름을 지웠어요') + (n !== raw.trim() ? ' (길어서 잘랐어요)' : '') + (sent ? ' · 스틱을 껐다 켜면 블루투스 이름도 바뀌어요' : '');
+  nickLabels();
 };
 // ---------------------------------------------------------------- hidden admin: make activation links on the phone
 // The owner's private key is in admin.key, encrypted with the owner's password (PBKDF2 600k + AES-GCM).
@@ -1755,7 +1820,8 @@ $('btnAdmMake').onclick = async () => {
     $('aLvInfo').textContent = lv > 0 ? '허락을 취소했던 스틱입니다 → 다시 허락하는 새 링크를 만듭니다 (펌웨어 1.8 이상 필요)' : '';
     $('aRvkRes').style.display = 'none';
     admCode = code;
-    admId = id; admLink = APP_URL + '#act=' + id + '.' + admCode;
+    const nm = nickFit($('aName').value.trim() || ((pplAll()[id] || {}).name) || '');
+    admId = id; admLink = APP_URL + '#act=' + id + '.' + admCode + (nm ? '&n=' + encodeURIComponent(nm) : '');
     $('aLink').value = '파노체크 활성화 링크 (스틱 ' + id.slice(0, 4) + '-' + id.slice(4) + ' 전용)\n' + admLink + '\n\n스틱을 켜 두고 링크를 누른 뒤 [스틱 연결]만 누르면 활성화됩니다.';
     $('aRes').style.display = ''; $('aMsg2').textContent = '✓ 만들었습니다' + warn;
     pplRecord(id, { name: $('aName').value.trim(), lv, code, made: Date.now() });
@@ -1795,7 +1861,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27j';
+const APP_BUILD = '2026-11-27k';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2007,10 +2073,12 @@ function onInfo(dv, whole) {
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo(kv.ID || (device && device.id) || '');
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
-  $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}${stickHw === 'P2' ? ' (M5StickC Plus2)' : ''} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
+  $('infoTxt').innerHTML = `${esc(stickName())}${stickHw === 'P2' ? ' (M5StickC Plus2)' : ''} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
   renderSettings();
   devId = kv.ID || '';
   onActivation(kv);
+  stickBn = kv.BN === '1';
+  nickLabels();
   checkRevoked(kv);
   stickDir = kv.DIR !== undefined ? +kv.DIR : null; stickRly = kv.RLY !== undefined ? +kv.RLY : null;
   if ($('clean').classList.contains('open')) cleanRender(); else psuRender();
