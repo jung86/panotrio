@@ -10,7 +10,7 @@
 // 개인 정보는 받지 않음: 스틱 ID, 앱·펌웨어 버전, 스틱 종류, 폰 종류(안드로이드/아이폰/PC)만.
 // 보기 전용 관리자: 그 사람 폰의 앱이 자기 열쇠를 만들고 신청 코드 `PCV1.<이름>.<x>.<y>`(공개 키)를 줌 → 제작자 폰이 POST /api/admins/add {code}.
 //   그 폰은 `Authorization: Sig2 <kid>.<만료>.<서명>`(`PanoCheck|view|v1|<kid>|<만료>` 서명, kid = sha256(x.y) 앞 12자리)으로
-//   GET /api/sticks·/api/errors·/api/tg, POST /api/tg/link·/api/tg/test·/api/me/tg만 씀(나머지는 제작자만). GET /api/admins, POST /api/admins/del {kid}, /api/admins/tg {kid, on}.
+//   GET /api/sticks·/api/errors·/api/tg, POST /api/tg/link·/api/tg/test·/api/me/tg만 씀(나머지는 제작자만). GET /api/admins, POST /api/admins/add {code, name(제작자가 정한 이름)}, /api/admins/name {kid, name}, /api/admins/del {kid}, /api/admins/tg {kid, on}.
 // ADMIN_TOKEN은 코드에 없음: `npx wrangler secret put ADMIN_TOKEN`으로 넣음.
 // 폰 알림(업데이트 소식): GET /push/key · POST /push/sub {sub, hw, id, plat} (off:true면 지움) · GET /push/last?e=<id>, 10분마다 cron이 새 버전을 보고 보냄.
 //   GET /api/push 구독 수·보낸 소식 · POST /api/push/check 지금 확인 (제작자만). 키는 처음 쓸 때 워커가 만들어 kv 표에 둠.
@@ -46,6 +46,7 @@ let adminsReady = false;
 async function adminsTable(env) {
   if (adminsReady) return;
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS admins (kid TEXT PRIMARY KEY, name TEXT, x TEXT, y TEXT, made INTEGER, last INTEGER DEFAULT 0, tg_chat TEXT DEFAULT '', tg INTEGER DEFAULT 1)").run();
+  try { await env.DB.prepare('ALTER TABLE admins ADD COLUMN asked TEXT').run(); } catch (e) {}   // the name the person typed when asking
   adminsReady = true;
 }
 const hex = b => [...new Uint8Array(b)].map(v => v.toString(16).padStart(2, '0')).join('');
@@ -172,15 +173,15 @@ async function tgLinkView(env, a) {                 // view-only admin: the app 
   const ok = await tgSend(env, '파노체크 오류 알림이 연결됐어요(' + (a.name || '관리자') + '). 새 오류가 들어오면 여기로 알려 드릴게요.', String(m.chat.id));
   return json({ ok });
 }
-async function addAdmin(env, code) {
+async function addAdmin(env, code, mine) {
   const m = /^PCV1\.([A-Za-z0-9_-]{0,120})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/.exec(String(code || '').trim()); if (!m) return json({ error: 'code' });
   let name = ''; try { name = new TextDecoder().decode(b64u(m[1])).replace(/[<>]/g, '').slice(0, 30); } catch (e) {}
   try { await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: m[2], y: m[3] }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']); } catch (e) { return json({ error: 'code' }); }
   await adminsTable(env);
   const n = await env.DB.prepare('SELECT COUNT(*) AS c FROM admins').first(); if (n && n.c >= 20) return json({ error: 'full' });
-  const kid = await kidOf(m[2], m[3]);
-  await env.DB.prepare('INSERT INTO admins (kid, name, x, y, made) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(kid) DO UPDATE SET name = ?2').bind(kid, name, m[2], m[3], Date.now()).run();
-  return json({ ok: true, kid, name });
+  const kid = await kidOf(m[2], m[3]), own = String(mine || '').replace(/[<>]/g, '').trim().slice(0, 30) || name;   // the maker's name for them wins
+  await env.DB.prepare('INSERT INTO admins (kid, name, x, y, made, asked) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(kid) DO UPDATE SET name = ?2, asked = ?6').bind(kid, own, m[2], m[3], Date.now(), name).run();
+  return json({ ok: true, kid, name: own, asked: name });
 }
 async function tgState(env, me) {
   if (me && me.role === 'view') return { token: !!env.TG_TOKEN, chat: !!me.a.tg_chat, on: !!me.a.tg, role: 'view' }; return { token: !!env.TG_TOKEN, chat: !!(env.TG_CHAT || (env.TG_TOKEN && await kvGet(env, 'tg_chat'))) }; }
@@ -388,8 +389,9 @@ async function route(req, env, ctx) {
           if (p === '/api/me/tg' && req.method === 'POST') { const b = await req.json(); await env.DB.prepare('UPDATE admins SET tg = ?2 WHERE kid = ?1').bind(me.a.kid, b.on ? 1 : 0).run(); return json({ ok: true }); }
           return json({ error: 'owner' }, 403);
         }
-        if (p === '/api/admins' && req.method === 'GET') { await adminsTable(env); const r = await env.DB.prepare("SELECT kid, name, made, last, tg, tg_chat != '' AS chat FROM admins ORDER BY made").all(); return json({ admins: r.results || [] }); }
-        if (p === '/api/admins/add' && req.method === 'POST') return await addAdmin(env, (await req.json()).code);
+        if (p === '/api/admins' && req.method === 'GET') { await adminsTable(env); const r = await env.DB.prepare("SELECT kid, name, asked, made, last, tg, tg_chat != '' AS chat FROM admins ORDER BY made").all(); return json({ admins: r.results || [] }); }
+        if (p === '/api/admins/add' && req.method === 'POST') { const b = await req.json(); return await addAdmin(env, b.code, b.name); }
+        if (p === '/api/admins/name' && req.method === 'POST') { const b = await req.json(); await adminsTable(env); await env.DB.prepare('UPDATE admins SET name = ?2 WHERE kid = ?1').bind(String(b.kid || ''), String(b.name || '').replace(/[<>]/g, '').trim().slice(0, 30)).run(); return json({ ok: true }); }
         if (p === '/api/admins/del' && req.method === 'POST') { await adminsTable(env); await env.DB.prepare('DELETE FROM admins WHERE kid = ?1').bind(String((await req.json()).kid || '')).run(); return json({ ok: true }); }
         if (p === '/api/admins/tg' && req.method === 'POST') { const b = await req.json(); await adminsTable(env); await env.DB.prepare('UPDATE admins SET tg = ?2 WHERE kid = ?1').bind(String(b.kid || ''), b.on ? 1 : 0).run(); return json({ ok: true }); }
         if (p === '/api/people' && req.method === 'POST') return await setPeople(req, env);

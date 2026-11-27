@@ -9,7 +9,7 @@ module.exports = async () => {
   S.mark('start');
   await S.tag('DPS-150');
   await S.cap('전원공급기 연결 · DPS-150', '휴대폰 USB-C ↔ DPS-150 Micro USB 데이터선, 전원은 PD 충전기'); await S.wait(3500);
-  await S.cap('① 파노측정 화면 ⚡ 카드의 [연결]'); await S.wait(800);
+  await S.cap('① 파노측정 화면 [전원공급기 · 정역] 카드의 [연결]'); await S.wait(800);
   await S.tap('#btnPsu', 900);
   await S.cap('② 목록에서 DPS-150을 고르고 [연결]'); await S.wait(1200);
   await S.tap('.__pick .i', 600); await S.tap('.__pick .p', 1800);
