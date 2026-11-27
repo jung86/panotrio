@@ -1432,6 +1432,101 @@ $('btnShareInst').onclick = async () => {               // share the install pag
   if (navigator.share) { try { await navigator.share({ title: '파노체크 설치', text: '파노체크 스틱 설치 페이지 (안드로이드 크롬·PC에서 USB로 설치)', url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(url); notify('설치 페이지 주소를 복사했습니다. 카톡 등에 붙여 넣으세요', true); } catch (e) { notify(url, true); }
 };
+// ---- cable install inside the app (Android Chrome, WebUSB, install/phone-flash.js like the install page)
+// Plug the stick in and it installs: a stick this phone allowed before is found by getDevices() / the 'connect'
+// event and installs at once; the very first time Chrome needs one tap on [스틱 고르기] (its own rule).
+// Plus2 (CH9102) resets into the installer by itself. M5StickS3 on a phone usually does not: then the side power
+// button for 2 s (green light blinks) makes it come back on USB in install mode, which starts the install again.
+// Only the four manifest.json pieces are written (NVS kept: activation and settings stay).
+var usbInst = usbInst || null;
+function usbCanInstall() { return !!navigator.usb && /Android/i.test(navigator.userAgent); }
+function usbInstallOpen(why) {
+  if (usbInst) return;
+  { const m = $('fwMenu'); if (m) m.remove(); const a = $('fwAsk'); if (a) a.remove(); }
+  if (!usbCanInstall()) { location.href = 'index.html'; return; }
+  const ov = document.createElement('div'); ov.id = 'usbOv';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:91;background:rgba(10,12,16,.95);display:flex;align-items:center;justify-content:center;padding:22px;overflow:auto';
+  ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:6px;padding:22px;text-align:center;line-height:1.5">' +
+    '<div style="font-size:20px;font-weight:700">케이블로 설치</div>' +
+    (why ? `<div style="margin-top:6px;color:#c9d1dc;font-size:14px">${why}</div>` : '') +
+    '<div id="usbStep" style="margin-top:12px;font-size:17px;font-weight:700">스틱을 USB-C 선으로 이 폰에 꽂으세요</div>' +
+    '<div id="usbTxt" style="margin-top:6px;color:#c9d1dc;font-size:14px">꽂으면 바로 설치가 시작돼요. 활성화·설정은 그대로 남아요.</div>' +
+    '<div id="usbBarW" style="display:none;margin-top:12px;height:14px;background:#0f1218;border-radius:8px;overflow:hidden"><div id="usbBar" style="height:100%;width:0;background:var(--acc)"></div></div>' +
+    '<button id="usbPick" class="primary" style="margin-top:14px;width:100%">스틱 고르기 (처음 한 번만)</button>' +
+    '<div id="usbPickHelp" style="margin-top:6px;font-size:12px;color:#8d8d93">처음엔 크롬이 목록을 띄워요. 스틱(USB JTAG / USB Single Serial)을 고르면 다음부터는 꽂기만 하면 돼요.</div>' +
+    '<details style="margin-top:12px;text-align:left;font-size:12px;color:#8d8d93"><summary>기록 보기</summary><pre id="usbLog" style="white-space:pre-wrap;max-height:160px;overflow:auto;margin:6px 0"></pre><button id="usbLogCopy" style="width:100%;font-size:13px">기록 복사</button></details>' +
+    '<button id="usbClose" style="margin-top:12px;width:100%">닫기</button></div>';
+  document.body.appendChild(ov);
+  const t0 = Date.now(), logEl = $('usbLog');
+  const st = usbInst = { busy: false, done: false, dl: false, s3: false, mod: null, wake: null };
+  const log = t => { logEl.textContent += '[' + ((Date.now() - t0) / 1000).toFixed(1) + 's] ' + String(t).replace(/\s+$/, '') + '\n'; logEl.scrollTop = 1e9; };
+  const step = (a, b, color) => { $('usbStep').textContent = a; $('usbStep').style.color = color || ''; if (b !== undefined) $('usbTxt').innerHTML = b; };
+  log('앱 ' + APP_BUILD + ' · ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, ''));
+  const load = async () => st.mod || (st.mod = await import('./install/phone-flash.js?v=5'));
+  const ours = d => d && (d.vendorId === 0x303a || d.vendorId === 0x1a86);
+  const run = async (usbDev) => {
+    if (st.busy || st.done || !usbInst) return;
+    st.busy = true;
+    $('usbPick').style.display = 'none'; $('usbPickHelp').style.display = 'none';
+    try {
+      const m = await load();
+      if (device && device.gatt && device.gatt.connected) { try { device.gatt.disconnect(); } catch (e) {} log('블루투스 연결 끊음 (설치 중 스틱이 다시 켜짐)'); }
+      try { st.wake = await navigator.wakeLock?.request('screen'); } catch (e) {}
+      const dev = m.fromUsb(usbDev, log);
+      st.s3 = usbDev.vendorId === 0x303a;
+      $('usbBarW').style.display = ''; $('usbBar').style.width = '0';
+      step('설치 중… 선을 빼지 마세요', '');
+      const r = await m.flash(dev, {
+        status: t => { log('· ' + t); },
+        progress: f => { $('usbBar').style.width = (f * 100).toFixed(1) + '%'; if (f > 0 && f < 1) step('설치 중… ' + Math.round(f * 100) + '%', '선을 빼지 마세요.'); },
+        log
+      }, { mode: st.dl ? 'no_reset' : 'default_reset' });
+      st.done = true;
+      step('설치 끝 (파노체크 ' + r.version + ')', r.family === 'ESP32'
+        ? '선을 빼고, 화면이 안 켜지면 왼쪽 옆 전원 버튼을 한 번 눌러 켜세요. 그다음 [스틱 연결]을 누르세요.'
+        : '선을 빼고 스틱 옆면 전원 버튼을 한 번 눌러 켜세요. 그다음 [스틱 연결]을 누르세요.', 'var(--acc)');
+      $('usbClose').textContent = '닫기'; $('usbClose').classList.add('primary');
+      log('설치 끝 ' + r.family + ' ' + r.version);
+    } catch (e) {
+      const msg = String(e && e.message || e);
+      log('[오류] ' + msg);
+      if (msg.startsWith('CONNECT:') && st.s3 && !st.dl) {
+        st.dl = true;                                     // M5StickS3: needs install mode once
+        step('스틱 옆면 전원 버튼을 2초 누르세요', '스틱 안 <b>초록 불이 깜빡이면</b> 손을 떼세요. 설치가 자동으로 다시 시작돼요. (화면은 꺼져도 돼요)');
+        $('usbBarW').style.display = 'none';
+      } else {
+        step('설치하지 못했어요', (msg.startsWith('CONNECT:') ? '스틱과 연결하지 못했어요.' : /NetworkError|transfer|disconnect|device/i.test(msg) ? '연결이 끊겼어요.' : '실패: ' + esc(msg)) +
+          ' 선을 뺐다 다시 꽂으면 다시 시작해요. 계속 안 되면 [기록 보기] → [기록 복사]로 보내 주세요.', '#ff6b6b');
+        $('usbBarW').style.display = 'none';
+        errAuto('케이블 설치 실패: ' + msg);
+      }
+      $('usbPick').style.display = ''; $('usbPick').textContent = '다시 시도';
+    } finally {
+      st.busy = false; try { st.wake && st.wake.release(); } catch (e) {} st.wake = null;
+    }
+  };
+  const tryKnown = async () => {
+    try { const ds = (await navigator.usb.getDevices()).filter(ours); if (ds.length) { log('허락된 스틱 찾음'); run(ds[0]); return true; } } catch (e) {}
+    return false;
+  };
+  st.onConnect = e => { log('USB 꽂힘 VID 0x' + (e.device.vendorId || 0).toString(16)); if (ours(e.device)) setTimeout(() => run(e.device), st.dl ? 1200 : 600); };
+  navigator.usb.addEventListener('connect', st.onConnect);
+  $('usbPick').onclick = async () => {
+    if (st.busy) return;
+    if (await tryKnown()) return;
+    try { const m = await load(); const u = await navigator.usb.requestDevice({ filters: m.STICK_VIDS.map(v => ({ vendorId: v })) }); run(u); }
+    catch (e) { log('장치 선택: ' + (e && e.name) + ' ' + (e && e.message)); if (!(e && e.name === 'NotFoundError')) return; step('스틱을 고르지 않았어요', '목록이 비어 있으면 선을 다시 꽂거나 다른 선(데이터선)을 써 보세요.'); }
+  };
+  $('usbLogCopy').onclick = async () => { const txt = '[파노체크 케이블 설치 기록]\n' + logEl.textContent; try { await navigator.clipboard.writeText(txt); notify('기록을 복사했어요. 카톡으로 보내 주세요', true); } catch (e) { notify('복사가 안 돼요', false); } };
+  $('usbClose').onclick = () => {
+    if (st.busy) { notify('설치 중에는 닫을 수 없어요', false); return; }
+    navigator.usb.removeEventListener('connect', st.onConnect); usbInst = null; ov.remove();
+  };
+  tryKnown();
+}
+// Plus2 on firmware 2.9 or older restarts every few seconds, so a Bluetooth update cannot finish: use the cable.
+function fwNeedsCable() { return stickHw === 'P2' && stickVer && verNum(stickVer) <= 2009; }
+
 // 최초 설치 · 업데이트: first install over USB (Android phone or PC) and Bluetooth update in one place
 $('tileFw').onclick = async () => {
   await fwLoad();
@@ -1442,13 +1537,15 @@ $('tileFw').onclick = async () => {
   let bt;
   if (!linked) bt = `<div style="color:#c9d1dc">스틱을 먼저 블루투스로 연결하세요. 연결하면 버전을 확인합니다.</div><button id="fmConn" class="primary" style="margin-top:10px;width:100%">스틱 연결 (블루투스)</button>`;
   else if (!fwNewer()) bt = `<div style="color:var(--ink);font-weight:700">최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
+  else if (fwNeedsCable()) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b><br>이 Plus2 버전은 블루투스 업데이트 중에 다시 켜져서 끊겨요. 아래 <b>케이블로 설치</b>를 한 번 해 주세요.</div>`;
   else if (stickOta && otaChar) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b>${fwLatest.note ? '<br><span style="color:var(--mute);font-size:14px">' + esc(fwLatest.note) + '</span>' : ''}</div><button id="fmUp" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>`;
   else bt = `<div>스틱 ${esc(stickVer)}은 블루투스 업데이트가 안 되는 버전입니다. 아래 <b>USB 설치</b>를 한 번 해 주세요.</div>`;
   const usb = ios
     ? '<div style="color:#ffa8a8">아이폰은 USB 설치가 안 됩니다. 안드로이드폰이나 컴퓨터(크롬·엣지)에서 설치 페이지를 여세요.</div>'
-    : (android ? '<div style="color:#c9d1dc">스틱을 <b>USB-C 선</b>(C-C 선 또는 OTG 젠더)으로 이 폰에 꽂고 [폰으로 설치]를 누르세요. 활성화·설정은 그대로 남습니다.</div>'
-               : '<div style="color:#c9d1dc">스틱을 USB-C 선으로 이 컴퓨터에 꽂고 설치하세요. 활성화·설정은 그대로 남습니다.</div>') +
-      '<a href="index.html" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:6px;background:#f76707;color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기 (USB)</a>';
+    : (usbCanInstall() ? '<div style="color:#c9d1dc">스틱을 <b>USB-C 선</b>(C-C 선 또는 OTG 젠더)으로 이 폰에 꽂으면 바로 설치돼요. 활성화·설정은 그대로 남습니다.</div>' +
+        '<button id="fmUsb" class="primary" style="margin-top:10px;width:100%">케이블로 설치</button>'
+      : '<div style="color:#c9d1dc">스틱을 USB-C 선으로 이 컴퓨터에 꽂고 설치하세요. 활성화·설정은 그대로 남습니다.</div>' +
+        '<a href="index.html" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:6px;background:#f76707;color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기 (USB)</a>');
   const ov = document.createElement('div'); ov.id = 'fwMenu';
   ov.style.cssText = 'position:fixed;inset:0;z-index:88;background:rgba(10,12,16,.88);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
   ov.innerHTML = '<div style="width:100%;max-width:440px;background:#1b1f27;border:1px solid #222225;border-radius:6px;padding:20px;line-height:1.5;color:#f1f1f1">' +
@@ -1463,6 +1560,7 @@ $('tileFw').onclick = async () => {
   document.body.appendChild(ov);
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
   $('fmClose').onclick = () => ov.remove();
+  if ($('fmUsb')) $('fmUsb').onclick = () => usbInstallOpen();
   if ($('fmConn')) $('fmConn').onclick = () => { ov.remove(); unlockAudio(); connect(); };
   if ($('fmUp')) $('fmUp').onclick = () => { ov.remove(); fwStart(); };
   $('fmReport').onclick = () => { ov.remove(); reportOpen(); };
@@ -1877,7 +1975,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27n';
+const APP_BUILD = '2026-11-27o';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2248,7 +2346,7 @@ var fwSkipFor = fwSkipFor || '';
 function fwForce() {
   if (fwBusy || $('fwOv') || $('fwAsk') || document.hidden) return;
   if (fwSkipFor && fwSkipFor === fwLatest.ver + '|' + connGen) return;
-  const ota = !!(stickOta && otaChar);
+  const ota = !!(stickOta && otaChar) && !fwNeedsCable();
   const ov = document.createElement('div'); ov.id = 'fwAsk'; ov.dataset.must = '1';
   ov.style.cssText = 'position:fixed;inset:0;z-index:89;background:rgba(10,12,16,.96);display:flex;align-items:center;justify-content:center;padding:24px';
   ov.innerHTML = '<div style="width:100%;max-width:420px;background:#1b1f27;border:1px solid var(--line);border-radius:6px;padding:22px;text-align:center;line-height:1.5">' +
@@ -2258,8 +2356,9 @@ function fwForce() {
     (ota
       ? '<div style="margin-top:10px;font-size:14px;color:#8d8d93">2~5분 걸립니다. 휴대폰을 가까이 두고 화면을 켜 두세요. 중간에 끊겨도 스틱은 지금 버전 그대로 켜지고, 다시 연결하면 이어서 합니다.</div>' +
         '<button id="fwAskGo" class="primary" style="margin-top:14px;width:100%">지금 업데이트</button>'
-      : '<div style="margin-top:10px;font-size:14px;color:#8d8d93">이 스틱은 한 번만 컴퓨터(또는 안드로이드 크롬)에서 USB로 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.</div>' +
-        '<a href="index.html" class="primary" style="display:block;margin-top:14px;text-align:center;padding:12px;border-radius:4px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기</a>') +
+      : '<div style="margin-top:10px;font-size:14px;color:#8d8d93">이 스틱은 한 번만 USB 선으로 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.</div>' +
+        (usbCanInstall() ? '<button id="fwAskUsb" class="primary" style="margin-top:14px;width:100%">케이블로 설치</button>'
+          : '<a href="index.html" class="primary" style="display:block;margin-top:14px;text-align:center;padding:12px;border-radius:4px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기</a>')) +
     (admKey ? '<button id="fwAskSkip" style="margin-top:8px;width:100%;font-size:13px">관리자: 이번 연결만 넘기기</button>' : '') + '</div>';
   document.body.appendChild(ov);
   if ($('fwAskGo')) $('fwAskGo').onclick = async () => {
@@ -2267,6 +2366,7 @@ function fwForce() {
     if (dps.link && dps.st.on) { try { await dpsOutput(false); dps.st.on = false; await dpsUnguard(); } catch (e) {} try { psuRender(); } catch (e) {} }
     ov.remove(); fwStart(true);
   };
+  if ($('fwAskUsb')) $('fwAskUsb').onclick = () => usbInstallOpen(fwNeedsCable() ? '이 Plus2 버전은 블루투스 업데이트 중에 다시 켜져서 케이블로 한 번 설치해야 해요.' : '');
   if ($('fwAskSkip')) $('fwAskSkip').onclick = () => { fwSkipFor = fwLatest.ver + '|' + connGen; ov.remove(); };
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => { if (fwMust()) fwForce(); }, 600); });
@@ -2276,13 +2376,15 @@ function fwRender(msg) {
   { const a = $('fwAsk'); if (a && a.dataset.must && !fwMust()) a.remove(); }
   if (!cmdChar || !fwNewer()) { box.style.display = 'none'; return; }
   box.style.display = '';
-  if (stickOta && otaChar) {
+  if (stickOta && otaChar && !fwNeedsCable()) {
     box.innerHTML = (fwMust() ? '<b style="color:var(--acc)">필수 업데이트</b> ' : '') + `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})${fwLatest.note ? '<br><span style="color:var(--mute)">' + esc(fwLatest.note) + '</span>' : ''}` +
       `<button id="btnFw" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>` + (msg ? `<div style="margin-top:8px;color:#ffa8a8">${esc(msg)}</div>` : '');
     $('btnFw').onclick = fwStart;
   } else {
-    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 컴퓨터에서 USB로</b> 설치해야 합니다.<br><span class="note2">휴대폰으로는 안 됩니다</span> 그 다음부터는 블루투스로 업데이트됩니다.` +
-      `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:8px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기 (컴퓨터 + USB)</a>`;
+    box.innerHTML = `<b>스틱 새 버전 ${esc(fwLatest.ver)}</b> (지금 ${esc(stickVer)})<br>이 스틱은 <b>한 번만 USB 선으로</b> 설치해야 합니다. 그 다음부터는 블루투스로 업데이트됩니다.` +
+      (usbCanInstall() ? `<button id="btnFwUsb" class="primary" style="margin-top:10px;width:100%">케이블로 설치</button>`
+        : `<a href="index.html" class="primary" style="display:block;margin-top:10px;text-align:center;padding:12px;border-radius:8px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700">설치 페이지 열기 (컴퓨터 + USB)</a>`);
+    if ($('btnFwUsb')) $('btnFwUsb').onclick = () => usbInstallOpen();
   }
 }
 const FW_ERR = { 1: '준비 정보가 빠졌습니다', 2: '스틱 배터리가 부족합니다 (25% 이상 또는 USB 연결)', 3: '잠긴 스틱입니다 (잠금 해제 후)', 4: '스틱이 준비하지 못했습니다',
@@ -2327,7 +2429,8 @@ async function fwStart(asked) {
   $('fwBtn').onclick = () => { fwCancel = true; };
   const end = (msg, ok) => {
     if (!ok) errAuto('펌웨어 업데이트 실패: ' + String(msg).replace(/<[^>]+>/g, ' '));
-    fwShow(null, msg, '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); if (fwMust()) fwForce(); };
+    fwShow(null, msg + (!ok && usbCanInstall() ? '<button id="fwUsbAlt" class="primary" style="margin-top:12px;width:100%">케이블로 설치</button>' : ''), '닫기'); $('fwBtn').onclick = () => { fwClose(); fwRender(); if (fwMust()) fwForce(); };
+    if ($('fwUsbAlt')) $('fwUsbAlt').onclick = () => { fwClose(); usbInstallOpen('블루투스 업데이트가 안 되면 케이블로 설치해요.'); };
     if (ok) $('fwBar').style.background = 'var(--acc)';
     fwBusy = false; try { wake && wake.release(); } catch (e) {}
   };

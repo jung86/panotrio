@@ -41,6 +41,13 @@ export async function pickDevice(log = () => {}, prefer = "usb") {
   throw new Error("NO_USB");
 }
 
+// The app's cable install: a USB device it already has (permitted before, found by getDevices / 'connect')
+export const STICK_VIDS = [ESP_VID, CH_VID];
+export function fromUsb(usb, log = () => {}) {
+  log(`장치(WebUSB) ${usb.productName || ""} VID ${hex(usb.vendorId)} PID ${hex(usb.productId)}`);
+  return { kind: "usb", usb, port: new UsbSerialPort(usb) };
+}
+
 // ui: { status(text), progress(0..1), log(text) }; opts.mode: 'default_reset' (자동) | 'no_reset' (스틱을 직접 다운로드 모드로)
 export async function flash(dev, ui, opts = {}) {
   const say = (t) => ui.status && ui.status(t);

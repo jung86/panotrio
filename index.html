@@ -222,7 +222,7 @@
     if (busy) return;
     let dev;
     try {
-      const m = await import('./install/phone-flash.js?v=4');
+      const m = await import('./install/phone-flash.js?v=5');
       try { dev = await m.pickDevice(log); }
       catch (e) { log('장치 선택: ' + (e && e.name) + ' ' + (e && e.message)); stat.style.color = ''; stat.textContent = '스틱을 고르지 않았습니다. 목록이 비어 있으면 선을 다시 꽂거나 다른 선을 써 보세요.'; return; }
       busy = true; btn.disabled = btnDl.disabled = true; btn.style.opacity = btnDl.style.opacity = .5;
