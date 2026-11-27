@@ -1294,7 +1294,7 @@ function afterStickInfo(sid) {                     // called whenever fresh stic
     if (first) seen.push(sid);
     try { localStorage.setItem(SETINIT_KEY, JSON.stringify(seen.slice(-20))); } catch (e) {}
     if (first) {
-      mySet = Object.assign({}, DEFAULTS, setEditedNow && mySet || {}); saveMySet(); hadMySet = true;   // changes just made in the app are kept syncOnConnect = false;
+      mySet = Object.assign({}, DEFAULTS, setEditedNow && mySet || {}, stickHw === 'P2' ? { ps: 0 } : {}); saveMySet(); hadMySet = true;   // changes just made in the app are kept syncOnConnect = false;
       renderSettings();
       setTimeout(async () => { if (diffKeys().length && await saveToStick(true)) notify('처음 연결한 스틱이라 기본 설정으로 맞췄습니다', true); }, 300);
       return;
@@ -1795,7 +1795,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27h';
+const APP_BUILD = '2026-11-27i';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1951,17 +1951,29 @@ applyWake();
 
 // ---------------------------------------------------------------- stick info
 let devId = '';
+// Plus2 firmware 2.9 and older: slowing the CPU while idle (power save) restarts the stick every few seconds.
+// Keep power save off on those sticks until a fixed firmware is out.
+var p2PsAt = 0;
+function p2NoSlow(kv) {
+  if (kv.HW !== 'P2' || verNum(kv.VER) > 2009 || !stickSet) return;
+  if (mySet && +mySet.ps !== 0) { mySet.ps = 0; saveMySet(); }
+  if (stickSet.ps === 1 && cmdChar && Date.now() - p2PsAt > 3000) {
+    p2PsAt = Date.now(); const ch = cmdChar;
+    gatt(() => ch.writeValue(new Uint8Array([80, 8, 0, 0]))).then(() => setTimeout(() => { if (cmdChar === ch) readInfoNow(); }, 300)).catch(() => {});
+  }
+}
 function onInfo(dv, whole) {
   const txt = new TextDecoder().decode(dv);
   if (txt.indexOf('RES=') < 0 || (txt.indexOf('BR=') >= 0 && txt.indexOf('MIC=') < 0)) { refreshInfo(); return; }   // cut-off notification
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
   const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null, sb: kv.SB !== undefined ? +kv.SB : null, ck: kv.CK !== undefined ? +kv.CK : null, c12: kv.C12 !== undefined ? +kv.C12 : null, cb: kv.CB !== undefined ? +kv.CB : null, cbr: kv.CBR !== undefined ? +kv.CBR : null } : null;
   stickSet = parsed;
+  stickHw = kv.HW || '';
+  p2NoSlow(kv);
   stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo(kv.ID || (device && device.id) || '');
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
-  stickHw = kv.HW || '';
   $('infoTxt').innerHTML = `${esc(device && device.name || '스틱')}${stickHw === 'P2' ? ' (M5StickC Plus2)' : ''} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
   renderSettings();
   devId = kv.ID || '';
