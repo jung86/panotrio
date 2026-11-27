@@ -35,7 +35,11 @@ function seed() {
   await shot(p, '#home', 'home');
   await p.click('#tileFw'); await p.waitForSelector('#fwMenu'); await S.wait(600);
   await shot(p, '#fwMenu > div', 'fw-menu');
-  await p.click('#fmClose'); await S.wait(300);
+  if (await p.locator('#fmUsb').count()) {                 // 앱 안 케이블 설치 창 (안드로이드 크롬)
+    await p.click('#fmUsb'); await p.waitForSelector('#usbOv'); await S.wait(600);
+    await shot(p, '#usbOv > div', 'usb-install');
+    await p.click('#usbClose'); await S.wait(300);
+  } else { await p.click('#fmClose'); await S.wait(300); }
   await p.click('#tileReport'); await p.waitForSelector('#repOv'); await S.wait(400);
   await p.locator('#repOv textarea').first().fill('측정 중에 스틱 연결이 자꾸 끊겨요');
   await shot(p, '#repOv > div', 'report');
@@ -75,6 +79,7 @@ function seed() {
   await p.evaluate(() => scrollTo(0, 0)); await p.addStyleTag({ content: '#toast{display:none!important}' }); await S.wait(200);
   await p.screenshot({ path: path.join(OUT, 'breakin.jpg'), quality: 88, type: 'jpeg', clip: { x: 0, y: 0, width: 390, height: 765 } }); console.log('saved breakin');
   await p.evaluate(() => { location.hash = '#settings'; }); await S.wait(1500);
+  if (await p.locator('#nickCard').isVisible()) { await p.fill('#nickIn', '야멍멍'); await shot(p, '#nickCard', 'set-name'); }
   await shot(p, p.locator('#vWt').locator('xpath=ancestor::div[contains(@class,"set-row")][1]'), 'set-wait');
   await shot(p, p.locator('#vClk').locator('xpath=ancestor::div[contains(@class,"set-row")][1]'), 'set-clock');
   console.log('errors:', S.errs);
