@@ -41,7 +41,7 @@ Cloudflare 무료: 요청 하루 10만 번, D1 쓰기 하루 10만 줄. 기록 �
 ## 비밀번호 바꾸기
 `npx wrangler secret put ADMIN_TOKEN` 다시 실행.
 
-## 업데이트 폰 알림 (앱 2026-11-27j)
+## 업데이트 폰 알림 (앱 2026-11-27k)
 
 - 앱 홈 「새 펌웨어가 나오면 폰 알림으로 알려 드릴까요?」 [알림 받기] 또는 설정 → 알림 → 업데이트 폰 알림. 안드로이드·PC 크롬만(아이폰 Bluefy는 안 됨).
 - 워커가 10분마다(wrangler.toml `[triggers]`) `fw/latest.json`·`fw/latest-plus2.json`의 ver와 app.html의 `APP_NOTE`를 보고, 버전이 오르면(또는 APP_NOTE에 새 글이 들어가면) 구독한 폰에 알림. S3·Plus2는 각자 자기 펌웨어만.

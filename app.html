@@ -1801,7 +1801,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27j';
+const APP_BUILD = '2026-11-27k';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -1809,11 +1809,44 @@ var lcFront = Date.now(), appNewer = '', appReloading = false;
 var USAGE_URL = 'https://panocheck-usage.panocheck.workers.dev';                                 // the Cloudflare worker address; empty = send nothing
 var usageLast = null, usageMetSticks = {}, usageMeasN = 0, usageMeasTimer = 0;
 function usagePlat() { return IOS ? 'iOS' : /Android/i.test(navigator.userAgent) ? 'Android' : 'PC'; }
+// phone model · OS · browser for the maker's usage page, e.g. "Android 14 · SM-S918N · Chrome 131" or "iOS 18.1 · iPhone · Bluefy"
+var usageDevStr = usageDevStr || '';
+function usageDevParse(ua, h) {
+  h = h || {};
+  let os = '', model = '', br = '';
+  const and = /Android ([\d.]+)/.exec(ua), ios = /(iPhone|iPad|iPod).*? OS (\d+)_(\d+)/.exec(ua);
+  if (and) { os = 'Android ' + ((h.platformVersion || '').split('.')[0] || and[1].split('.')[0]); const m = /Android [\d.]+; ([^;)]+)[;)]/.exec(ua); model = h.model || (m && m[1].trim() !== 'K' ? m[1].replace(/ Build\/.*$/, '').trim() : ''); }
+  else if (ios) { os = 'iOS ' + ios[2] + '.' + ios[3]; model = ios[1]; }
+  else if (/Macintosh/.test(ua)) { os = navigator.maxTouchPoints > 1 ? 'iPadOS' : 'macOS'; if (os === 'iPadOS') model = 'iPad'; }
+  else if (/Windows/.test(ua)) os = 'Windows' + (h.platformVersion ? (+h.platformVersion.split('.')[0] >= 13 ? ' 11' : ' 10') : '');
+  else if (/CrOS/.test(ua)) os = 'ChromeOS'; else if (/Linux/.test(ua)) os = 'Linux';
+  const v = re => { const m = re.exec(ua); return m ? m[1].split('.')[0] : ''; };
+  const ch = (h.fullVersionList || []).find(b => /Google Chrome|Chromium/.test(b.brand));
+  if (/Bluefy/i.test(ua)) br = 'Bluefy';
+  else if (/KAKAOTALK/i.test(ua)) br = '카카오톡';
+  else if (/NAVER\(/.test(ua)) br = '네이버';
+  else if (/SamsungBrowser\//.test(ua)) br = '삼성 인터넷 ' + v(/SamsungBrowser\/([\d.]+)/);
+  else if (/Edg[A]?\//.test(ua)) br = 'Edge ' + v(/Edg[A]?\/([\d.]+)/);
+  else if (/; wv\)/.test(ua)) br = 'WebView';
+  else if (/CriOS\//.test(ua)) br = 'Chrome ' + v(/CriOS\/([\d.]+)/);
+  else if (/Chrome\//.test(ua)) br = 'Chrome ' + (ch ? ch.version.split('.')[0] : v(/Chrome\/([\d.]+)/));
+  else if (/Safari\//.test(ua)) br = 'Safari ' + v(/Version\/([\d.]+)/);
+  else if (ios) br = 'WebView';
+  return [os, model, br.trim()].filter(Boolean).join(' · ').slice(0, 64);
+}
+(async () => {
+  try {
+    let h = null;
+    const d = navigator.userAgentData;
+    if (d && d.getHighEntropyValues) { try { h = await d.getHighEntropyValues(['model', 'platformVersion', 'fullVersionList']); } catch (e) {} }
+    usageDevStr = usageDevParse(navigator.userAgent, h);
+  } catch (e) {}
+})();
 function usageSend(k, info, n) {
   try {
     if (!USAGE_URL || navigator.onLine === false) return;
     const s = info || usageLast || {};
-    const body = JSON.stringify({ id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), k, n: n || 1 });
+    const body = JSON.stringify({ id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), dev: usageDevStr, k, n: n || 1 });
     fetch(USAGE_URL + '/p', { method: 'POST', body, keepalive: true, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
   } catch (e) {}
 }
@@ -1960,7 +1993,7 @@ function errSend(k, msg, detail, memo) {
   try {
     if (!USAGE_URL || navigator.onLine === false) return Promise.resolve(false);
     const s = usageLast || (() => { try { return JSON.parse(localStorage.getItem('panocheck-usage-last') || 'null'); } catch (e) { return null; } })() || {};
-    const body = JSON.stringify({ k, id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), msg: String(msg || '').slice(0, 300), detail: String(detail || '').slice(0, 12000), memo: String(memo || '').slice(0, 500) });
+    const body = JSON.stringify({ k, id: s.id || '', hw: s.hw || '', fw: s.fw || '', app: APP_BUILD, plat: usagePlat(), dev: usageDevStr, msg: String(msg || '').slice(0, 300), detail: String(detail || '').slice(0, 12000), memo: String(memo || '').slice(0, 500) });
     return fetch(USAGE_URL + '/e', { method: 'POST', body, keepalive: body.length < 60000, credentials: 'omit', headers: { 'Content-Type': 'text/plain' } }).then(r => r.ok).catch(() => false);
   } catch (e) { return Promise.resolve(false); }
 }
