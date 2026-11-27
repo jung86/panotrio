@@ -76,6 +76,14 @@ async function authed(req, env) {
   return d === 0;
 }
 
+let devReady = false;                              // phone model / OS / browser column, added to older databases on first use
+async function devCols(env) {
+  if (devReady) return;
+  await errorsTable(env);
+  for (const t of ['sticks', 'errors']) { try { await env.DB.prepare('ALTER TABLE ' + t + ' ADD COLUMN dev TEXT').run(); } catch (e) {} }
+  devReady = true;
+}
+const devOf = v => String(v == null ? '' : v).replace(/[^\w.\-+ ·/()가-힣]/g, '').replace(/\s+/g, ' ').trim().slice(0, 64);
 async function ping(req, env) {
   const h = cors(req);
   if (!h['Access-Control-Allow-Origin'] && req.headers.get('Origin')) return new Response('', { status: 403 });
@@ -86,11 +94,12 @@ async function ping(req, env) {
   const n = Math.max(1, Math.min(50, +b.n || 1));
   const now = Date.now(), day = kstDay(now);
   const hw = clip(b.hw, 8), app = clip(b.app, 24), fw = clip(b.fw, 12), plat = clip(b.plat, 8);
-  const o = k === 'open' ? n : 0, m = k === 'meas' ? n : 0;
+  const o = k === 'open' ? n : 0, m = k === 'meas' ? n : 0, dev = devOf(b.dev);
+  await devCols(env);
   await env.DB.batch([
-    env.DB.prepare(`INSERT INTO sticks (id, hw, app, fw, plat, first_seen, last_seen, opens, meas) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8)
+    env.DB.prepare(`INSERT INTO sticks (id, hw, app, fw, plat, first_seen, last_seen, opens, meas, dev) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8, NULLIF(?9, ''))
       ON CONFLICT(id) DO UPDATE SET hw = COALESCE(NULLIF(?2, ''), hw), app = COALESCE(NULLIF(?3, ''), app), fw = COALESCE(NULLIF(?4, ''), fw),
-        plat = COALESCE(NULLIF(?5, ''), plat), last_seen = ?6, opens = opens + ?7, meas = meas + ?8`).bind(id, hw, app, fw, plat, now, o, m),
+        plat = COALESCE(NULLIF(?5, ''), plat), last_seen = ?6, opens = opens + ?7, meas = meas + ?8, dev = COALESCE(NULLIF(?9, ''), dev)`).bind(id, hw, app, fw, plat, now, o, m, dev),
     env.DB.prepare(`INSERT INTO daily (id, day, opens, meas) VALUES (?1, ?2, ?3, ?4)
       ON CONFLICT(id, day) DO UPDATE SET opens = opens + ?3, meas = meas + ?4`).bind(id, day, o, m),
   ]);
@@ -130,7 +139,7 @@ async function tgError(env, req, e) {               // one message per new error
     const who = (p && p.name ? p.name + ' ' : '') + (e.stick === 'NOSTICK' ? '(스틱 없음)' : '(' + e.stick.slice(0, 4) + '-' + e.stick.slice(4) + ')');
     const t = new Date(Date.now() + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ').replace('-', '/');
     let m = '[파노체크 오류] ' + (e.k === 'user' ? '사용자가 보냄' : '자동 보고') + '\n' + who + ' · ' + t + '\n' + e.msg +
-      (e.memo && e.memo !== e.msg ? '\n메모: ' + e.memo : '') + '\n앱 ' + (e.app || '-') + ' · 펌웨어 ' + (e.fw || '-') + ' · ' + (e.plat || '-') +
+      (e.memo && e.memo !== e.msg ? '\n메모: ' + e.memo : '') + '\n앱 ' + (e.app || '-') + ' · 펌웨어 ' + (e.fw || '-') + ' · ' + (e.dev || e.plat || '-') +
       '\n' + new URL(req.url).origin + '/admin';
     if (hr && hr.c === 21) m = '[파노체크] 1시간에 오류가 20개 넘게 들어와서 알림을 잠시 멈춥니다. 관리 화면에서 확인해 주세요.\n' + new URL(req.url).origin + '/admin';
     await tgSend(env, m);
@@ -189,8 +198,9 @@ async function errReport(req, env, ctx) {
     const same = await env.DB.prepare('SELECT n FROM errors WHERE k = \'auto\' AND stick = ?1 AND msg = ?2 AND app = ?3 AND t > ?4 ORDER BY n DESC LIMIT 1').bind(id, msg, app, now - 864e5).first();
     if (same) { await env.DB.prepare('UPDATE errors SET cnt = cnt + 1, t = ?2, done = 0 WHERE n = ?1').bind(same.n, now).run(); return new Response(null, { status: 204, headers: h }); }
   }
-  await env.DB.prepare('INSERT INTO errors (t, first, stick, hw, app, fw, plat, k, msg, detail, memo) VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)').bind(...vals).run();
-  const note = tgError(env, req, { stick: id, k, msg, memo: vals[9], app, fw: vals[4], plat: vals[5] });
+  await devCols(env);
+  await env.DB.prepare('INSERT INTO errors (t, first, stick, hw, app, fw, plat, k, msg, detail, memo, dev) VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)').bind(...vals, devOf(b.dev)).run();
+  const note = tgError(env, req, { stick: id, k, msg, memo: vals[9], app, fw: vals[4], plat: vals[5], dev: devOf(b.dev) });
   if (ctx && ctx.waitUntil) ctx.waitUntil(note); else await note;
   return new Response(null, { status: 204, headers: h });
 }
@@ -298,6 +308,7 @@ input,button{font:inherit;border-radius:4px;border:1px solid var(--line);backgro
 button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
 .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.sum b{display:block;font-size:24px}
 .mute{color:var(--mute);font-size:13px}
+.grp{border-bottom:1px solid var(--line);padding-top:10px}.ghd{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline}.grp .row{border-bottom:none;padding:8px 0 8px 14px;border-left:2px solid var(--line);margin-left:2px}.id.dev{font-family:inherit;font-size:12px;letter-spacing:0;color:var(--mute)}
 .row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:4px 10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}.nm{font-weight:700;font-size:16px}.id{font-family:ui-monospace,Consolas,monospace;font-size:13px;color:var(--mute)}
 .tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:3px;padding:0 5px;margin-left:6px;color:var(--mute);font-weight:400;vertical-align:2px}
@@ -348,29 +359,42 @@ async function load(){
   const byId={};S.forEach(s=>byId[s.id]=s);
   const rows=S.filter(s=>s.id!=='NOSTICK').map(s=>({s,p:P[s.id]}));
   Object.keys(P).forEach(id=>{if(!byId[id])rows.push({s:null,p:P[id]})});
-  rows.sort((a,b)=>(b.s?b.s.last_seen:0)-(a.s?a.s.last_seen:0)||((b.p&&b.p.made)||0)-((a.p&&a.p.made)||0));
-  if(byId.NOSTICK)rows.push({s:byId.NOSTICK,p:null});
-  const listed=Object.keys(P).filter(id=>P[id].st!=='no'),used7=listed.filter(id=>byId[id]&&now-byId[id].last_seen<7*864e5).length;
-  const never=listed.filter(id=>!byId[id]).length,act1=S.filter(s=>s.id!=='NOSTICK'&&now-s.last_seen<864e5).length;
-  $('sum').innerHTML=(listed.length?'<div><span class="mute">허락한 사람</span><b>'+listed.length+'</b></div><div><span class="mute">7일 안에 쓴 사람</span><b>'+used7+'</b></div><div><span class="mute">한 번도 안 쓴 사람</span><b>'+never+'</b></div>':'<div><span class="mute">기록된 스틱</span><b>'+S.filter(s=>s.id!=='NOSTICK').length+'</b></div>')+'<div><span class="mute">오늘(24시간) 쓴 스틱</span><b>'+act1+'</b></div><div><span class="mute">7일 측정 합계</span><b>'+S.reduce((a,s)=>a+(s.meas7||0),0)+'</b></div>';
+  // one person, several sticks: same name in the app's list (spaces and case ignored), like the app's 「허락한 사람」
+  const gkey=r=>r.p&&(r.p.name||'').trim()?'n:'+r.p.name.trim().toLowerCase():'i:'+(r.s?r.s.id:r.p.id);
+  const G={};rows.forEach(r=>{const k=gkey(r);(G[k]=G[k]||[]).push(r)});
+  const lastOf=g=>Math.max(0,...g.map(r=>r.s?r.s.last_seen:0));
+  const groups=Object.values(G).map(g=>{g.sort((a,b)=>(b.s?b.s.last_seen:0)-(a.s?a.s.last_seen:0));return g});
+  groups.sort((a,b)=>lastOf(b)-lastOf(a)||(((b[0].p&&b[0].p.made)||0)-((a[0].p&&a[0].p.made)||0)));
+  if(byId.NOSTICK)groups.push([{s:byId.NOSTICK,p:null}]);
+  const people=groups.filter(g=>g[0].p&&g.some(r=>r.p&&r.p.st!=='no')),used7=people.filter(g=>g.some(r=>r.s&&now-r.s.last_seen<7*864e5)).length;
+  const never=people.filter(g=>!g.some(r=>r.s)).length,act1=S.filter(s=>s.id!=='NOSTICK'&&now-s.last_seen<864e5).length,nSt=Object.keys(P).filter(id=>P[id].st!=='no').length;
+  $('sum').innerHTML=(people.length?'<div><span class="mute">허락한 사람</span><b>'+people.length+'</b><span class="mute">스틱 '+nSt+'개</span></div><div><span class="mute">7일 안에 쓴 사람</span><b>'+used7+'</b></div><div><span class="mute">한 번도 안 쓴 사람</span><b>'+never+'</b></div>':'<div><span class="mute">기록된 스틱</span><b>'+S.filter(s=>s.id!=='NOSTICK').length+'</b></div>')+'<div><span class="mute">오늘(24시간) 쓴 스틱</span><b>'+act1+'</b></div><div><span class="mute">7일 측정 합계</span><b>'+S.reduce((a,s)=>a+(s.meas7||0),0)+'</b></div>';
   $('latest').textContent='최신: 앱 '+(latest.app||'-')+' · 펌웨어 S3 '+(latest.s3||'-')+(latest.p2?' · Plus2 '+latest.p2:'');
-  $('list').innerHTML=rows.map(({s,p})=>{
+  const devTxt=s=>s?esc(s.dev||s.plat||''):'';
+  const stickRow=({s,p},sub)=>{
     const id=s?s.id:p.id;
     let name;
+    const idl='<div class="id">'+fid(id)+(s?' · '+(s.hw==='P2'?'Plus2':'S3'):'')+'</div>'+(s&&(s.dev||s.plat)?'<div class="id dev">'+devTxt(s)+'</div>':'');
     if(id==='NOSTICK')name='<div class="nm">스틱 없음</div><div class="id">스틱 연결 없이 앱만 연 경우</div>';
-    else if(p)name='<div class="nm">'+esc(p.name||'(이름 없음)')+(p.st==='no'?'<span class="tag no">취소됨</span>':'')+'</div><div class="id">'+fid(id)+(s?' · '+(s.hw==='P2'?'Plus2':'S3')+(s.plat?' · '+esc(s.plat):''):'')+'</div>';
-    else name='<input class="note" data-id="'+esc(id)+'" value="'+esc(s.note)+'" placeholder="메모 (목록에 없음)"><div class="id">'+fid(id)+' · '+(s.hw==='P2'?'Plus2':'S3')+(s.plat?' · '+esc(s.plat):'')+'</div>';
-    if(!s)return '<div class="row"><div>'+name+'</div><div class="none">사용 기록 없음</div><div></div></div>';
+    else if(sub)name=idl+(p&&p.st==='no'?'<span class="tag no">취소됨</span>':'');
+    else if(p)name='<div class="nm">'+esc(p.name||'(이름 없음)')+(p.st==='no'?'<span class="tag no">취소됨</span>':'')+'</div>'+idl;
+    else name='<input class="note" data-id="'+esc(id)+'" value="'+esc(s.note)+'" placeholder="메모 (목록에 없음)">'+idl;
+    const cls='row'+(sub?' sub':'');
+    if(!s)return '<div class="'+cls+'"><div>'+name+'</div><div class="none">사용 기록 없음</div><div></div></div>';
     const fwNew=s.hw==='P2'?latest.p2:latest.s3,appOld=latest.app&&s.app&&s.app<latest.app,fwOld=fwNew&&s.fw&&s.fw!==fwNew;
-    return '<div class="row"><div>'+name+'</div>'+
+    return '<div class="'+cls+'"><div>'+name+'</div>'+
       '<div><span class="'+(now-s.last_seen<864e5?'on':'')+'">'+ago(s.last_seen,now)+'</span><div class="mute">'+dt(s.last_seen)+'</div><div class="mute">측정 7일 '+(s.meas7||0)+' · 전체 '+s.meas+'</div></div>'+
-      '<div><div class="'+(appOld?'old':'')+'">앱 '+esc(s.app||'-')+'</div><div class="'+(fwOld?'old':'')+'">펌웨어 '+esc(s.fw||'-')+'</div><div class="mute">30일 중 '+(s.days30||0)+'일 사용</div>'+(p?'':'<button class="del" data-del="'+esc(id)+'">기록 삭제</button>')+'</div></div>'}).join('')||'<div class="mute">아직 기록이 없습니다</div>';
+      '<div><div class="'+(appOld?'old':'')+'">앱 '+esc(s.app||'-')+'</div><div class="'+(fwOld?'old':'')+'">펌웨어 '+esc(s.fw||'-')+'</div><div class="mute">30일 중 '+(s.days30||0)+'일 사용</div>'+(p?'':'<button class="del" data-del="'+esc(id)+'">기록 삭제</button>')+'</div></div>'};
+  $('list').innerHTML=groups.map(g=>{
+    if(g.length<2)return stickRow(g[0],false);
+    const p=g[0].p,L=lastOf(g),m7=g.reduce((a,r)=>a+(r.s?r.s.meas7||0:0),0);
+    return '<div class="grp"><div class="ghd"><span class="nm">'+esc(p.name)+'</span><span class="tag">스틱 '+g.length+'개</span><span class="mute">'+(L?'<span class="'+(now-L<864e5?'on':'')+'">'+ago(L,now)+'</span> · 측정 7일 '+m7:'사용 기록 없음')+'</span></div>'+g.map(r=>stickRow(r,true)).join('')+'</div>'}).join('')||'<div class="mute">아직 기록이 없습니다</div>';
   document.querySelectorAll('.note').forEach(i=>i.onchange=async()=>{try{await api('/api/note',{id:i.dataset.id,note:i.value});i.style.borderBottomColor='#69db7c'}catch(e){i.style.borderBottomColor='#ff6b6b'}});
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm(b.dataset.del+' 기록을 지울까요?'))return;await api('/api/delete',{id:b.dataset.del});load()});
   loadErrors();
 }
 let errs=[];
-function errText(e){return '[파노체크 오류 #'+e.n+']\\n사람: '+(e.name||'-')+' ('+(e.stick==='NOSTICK'?'스틱 없음':fid(e.stick))+')\\n시각: '+new Date(e.first).toLocaleString('ko-KR')+(e.cnt>1?' ~ '+new Date(e.t).toLocaleString('ko-KR')+' ('+e.cnt+'회)':'')+'\\n앱 '+(e.app||'-')+' · 펌웨어 '+(e.fw||'-')+' · '+(e.hw==='P2'?'Plus2':'S3')+' · '+(e.plat||'-')+'\\n종류: '+(e.k==='user'?'사용자가 보냄':'자동 보고')+(e.memo?'\\n사용자 메모: '+e.memo:'')+'\\n내용: '+e.msg+(e.detail?'\\n\\n자세히:\\n'+e.detail:'')}
+function errText(e){return '[파노체크 오류 #'+e.n+']\\n사람: '+(e.name||'-')+' ('+(e.stick==='NOSTICK'?'스틱 없음':fid(e.stick))+')\\n시각: '+new Date(e.first).toLocaleString('ko-KR')+(e.cnt>1?' ~ '+new Date(e.t).toLocaleString('ko-KR')+' ('+e.cnt+'회)':'')+'\\n앱 '+(e.app||'-')+' · 펌웨어 '+(e.fw||'-')+' · '+(e.hw==='P2'?'Plus2':'S3')+' · '+(e.dev||e.plat||'-')+'\\n종류: '+(e.k==='user'?'사용자가 보냄':'자동 보고')+(e.memo?'\\n사용자 메모: '+e.memo:'')+'\\n내용: '+e.msg+(e.detail?'\\n\\n자세히:\\n'+e.detail:'')}
 async function loadErrors(){
   let d;try{d=await api('/api/errors')}catch(e){$('errList').innerHTML='<div class="mute">오류 목록을 읽지 못했습니다</div>';return}
   tgShow(d.tg);errs=d.errors||[];const all=$('errAll').checked,open=errs.filter(e=>!e.done).length,shown=errs.filter(e=>all||!e.done);

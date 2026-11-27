@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS sticks (
   first_seen INTEGER, last_seen INTEGER,
   opens INTEGER DEFAULT 0,      -- 앱 열기·스틱 연결
   meas INTEGER DEFAULT 0,       -- 측정(기록 저장·컨디션 측정)
-  note TEXT DEFAULT ''          -- 관리자 메모 (누구 스틱인지)
+  note TEXT DEFAULT '',         -- 관리자 메모 (누구 스틱인지)
+  dev TEXT                      -- 폰 기종 · OS · 브라우저 (예: Android 14 · SM-S918N · Chrome 131), 예전 DB엔 워커가 처음 쓸 때 붙임
 );
 CREATE TABLE IF NOT EXISTS daily (
   id TEXT, day TEXT, opens INTEGER DEFAULT 0, meas INTEGER DEFAULT 0,
