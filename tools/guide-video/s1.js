@@ -25,7 +25,7 @@ module.exports = async () => {
   await S.scrollTo('#segRange', 'center');
   await S.tap('#segRange button[data-v="1"]', 2200);
   await S.tap('#segRange button[data-v="0"]', 1200);
-  await S.cap('[↺ 측정 초기화]: 지난 결과를 지우고 다시 대기'); await S.wait(500);
+  await S.cap('[측정 초기화]: 지난 결과를 지우고 다시 대기'); await S.wait(500);
   await S.tap('#btnReset', 2500);
   await S.cap(''); await S.wait(500); S.mark('end');
   return S;
