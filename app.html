@@ -703,10 +703,10 @@ main .status{background:none !important;color:var(--mute);font-size:12px;font-we
         <div class="set-top"><span class="set-name">자동 꺼짐</span><span class="set-val" id="vOff">-</span></div>
         <div class="set-def">기본값: 10분</div>
         <div class="seg" id="segOff" style="grid-template-columns:repeat(5,1fr)"><button data-v="0">끔</button><button data-v="5">5분</button><button data-v="10">10분</button><button data-v="20">20분</button><button data-v="30">30분</button></div>
-        <div class="set-help">USB에 꽂혀 있으면 꺼지지 않습니다.</div>
+        <div class="set-help">USB에 꽂혀 있으면 꺼지지 않습니다. 앱이 연결돼 있으면 20분 동안 안 쓸 때 꺼집니다(펌웨어 3.0).</div>
       </div>
       <div class="set-row">
-        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 처리 속도를 낮춥니다.</div></span><input type="checkbox" id="cSave"></label>
+        <label class="sw"><span><span class="set-name">대기 중 절전</span><div class="set-def">기본값: 켜짐</div><div class="set-help">모터가 없을 때 처리 속도를 낮추고 마이크를 잠시 끕니다.</div></span><input type="checkbox" id="cSave"></label>
       </div>
       <div class="set-row">
         <button id="btnStickSave" style="width:100%;padding:14px;font-size:17px;font-weight:700">스틱에 저장</button>
@@ -1096,7 +1096,7 @@ async function sendTime() {                          // the stick's standby cloc
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   if (!lcParked && !lcClosed) notify('블루투스 연결 끊김', false); else $('conn').textContent = '쉬는 중 · 앱으로 돌아오면 다시 연결';
-  cmdChar = null; infoChar = null; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; nickSyncFor = ''; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
 }
@@ -1514,6 +1514,16 @@ function curStickId() { return (actState && actState.id) || devId || ''; }
 function stickName() { const n = cmdChar && nickGet(curStickId()); return n ? '파노체크-' + n : ((device && device.name) || '스틱'); }
 function shortName() { const n = cmdChar && nickGet(curStickId()); return n || ((device && device.name) || '').replace(/-[0-9A-F]{4,8}$/i, '') || '연결됨'; }
 var stickBn = stickBn || false;                     // firmware takes the name as its Bluetooth name
+var nickSyncFor = nickSyncFor || '';
+// Firmware 3.0 reports its Bluetooth name (BNM). If this phone has another name for the stick (set before
+// the update, or on this phone), send it once per connection-and-name.
+function nickSync(kv) {
+  if (kv.BN !== '1' || kv.ACT !== '1' || kv.UNL === '0' || !kv.ID) return;
+  const n = nickGet(kv.ID);
+  if (!n || n === (kv.BNM || '')) return;
+  const k = kv.ID + '|' + n; if (nickSyncFor === k) return;
+  nickSyncFor = k; setTimeout(() => nickToStick(n), 700);
+}
 async function nickToStick(name) {
   if (!stickBn || !cmdChar) return false;
   const b = new TextEncoder().encode(nickFit(name)), pkt = new Uint8Array(1 + b.length);
@@ -1861,7 +1871,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27l';
+const APP_BUILD = '2026-11-27m';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2078,6 +2088,7 @@ function onInfo(dv, whole) {
   devId = kv.ID || '';
   onActivation(kv);
   stickBn = kv.BN === '1';
+  nickSync(kv);
   nickLabels();
   checkRevoked(kv);
   stickDir = kv.DIR !== undefined ? +kv.DIR : null; stickRly = kv.RLY !== undefined ? +kv.RLY : null;
