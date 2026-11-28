@@ -1,8 +1,8 @@
 {
- "ver": "3.2",
- "size": 1528784,
- "sha256": "fa6f92127e7940154c131f221ffef3921e65c6ff265a5db292ff69262fecf729",
- "sig": "o3GRg8tXR4dQV-JR--gBNomihwe7muzx5YC4kaeuB6Mjau73MoxG5cCI0m9qyD5tv47wzvSsN2dpGo_25uutKQ",
- "bin": "fw/PanoCheck-P2-3.2.app.bin",
- "note": "Plus2: 연결 직후나 업데이트 중 10~20초마다 다시 켜지던 것 고침(작업 감시 타이머), 켤 때 배터리 -1% 표시 고침"
+ "ver": "3.3",
+ "size": 1528896,
+ "sha256": "b875235fd557847621d5918aeecb825ca895c4ac33766af94361d7b6e2416762",
+ "sig": "2SDfbRvMgS99VT-1yMjzi2nAGkeioJOldFcO9TNkYdTTbaCUv2lxbkUOoASj3_G0tLdM2BZ9WYGCh7SPT6MMwQ",
+ "bin": "fw/PanoCheck-P2-3.3.app.bin",
+ "note": "Plus2 블루투스 이름이 파노체크P2-…로 바뀌어 S3와 구분돼요"
 }

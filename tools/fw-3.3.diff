@@ -1,0 +1,34 @@
+--- build-3.2/PanoTrio/PanoTrio.ino	2026-11-28 17:01:17.885354000 +0900
++++ build-3.3/PanoTrio/PanoTrio.ino	2026-11-28 17:09:51.669337100 +0900
+@@ -43,7 +43,7 @@
+ 
+ 
+ static const char* const APP_NAME = "PanoCheck";
+-static const char* const APP_VER  = "3.2";
++static const char* const APP_VER  = "3.3";
+ 
+ enum PanoMode  : uint8_t { MODE_VIB = 0, MODE_MIC = 1, MODE_BOTH = 2 };
+ enum PanoRange : uint8_t { RANGE_AUTO = 0, RANGE_LOW = 1, RANGE_WIDE = 2 };
+@@ -1287,9 +1287,19 @@
+   if (notify) bleInfo->notify();
+ }
+ 
+-// Bluetooth name: "파노체크-" (12 bytes) + the name the user picked (up to 16 bytes) or the 8-digit stick ID.
+-// 28 bytes at most, so it fits the scan response (31 bytes: 2 header + 29).
+-static void bleName(char* out, size_t n) { snprintf(out, n, "파노체크-%s", gBname[0] ? gBname : gDevId); }
++// Bluetooth name: S3 "파노체크-" (13 bytes), Plus2 "파노체크P2-" (15 bytes) + the name the user picked
++// (up to 16 bytes) or the 8-digit stick ID. Cut to BLE_NAME_MAX bytes on a whole UTF-8 letter, so it fits
++// the scan response (31 bytes: 2 header + 29). Trailing spaces left by the cut are dropped.
++static const size_t BLE_NAME_MAX = 29;
++static void bleName(char* out, size_t n) {
++  char t[48];
++  snprintf(t, sizeof(t), "%s%s", PANO_P2 ? "파노체크P2-" : "파노체크-", gBname[0] ? gBname : gDevId);
++  size_t len = strlen(t);
++  const size_t lim = BLE_NAME_MAX < n - 1 ? BLE_NAME_MAX : n - 1;
++  if (len > lim) { len = lim; while (len > 0 && ((uint8_t)t[len] & 0xC0) == 0x80) --len; }   // back to a letter start
++  while (len > 0 && t[len - 1] == ' ') --len;
++  memcpy(out, t, len); out[len] = 0;
++}
+ // Keeps whole UTF-8 letters only, at most 16 bytes; drops control characters and ';' '=' (INFO separators).
+ static void cleanName(const char* in, char* out) {
+   size_t o = 0;
