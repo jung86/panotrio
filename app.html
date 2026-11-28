@@ -1993,7 +1993,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-28e';
+const APP_BUILD = '2026-11-28f';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2861,6 +2861,7 @@ async function dpsUnguard() {
   try { await dpsFloat(DPS_OVP, o.ovp); await dpsFloat(DPS_OCP, o.ocp); localStorage.removeItem('dpsProt'); } catch (e) {}
 }
 function dpsMsg(html) {                              // connection messages show on both screens
+  if (html) diag('DPS: ' + String(html).replace(/<br>/g, ' / ').replace(/<[^>]+>/g, ''));   // goes into problem reports
   $('dpsInfo').innerHTML = html;
   if ($('psuMsg')) $('psuMsg').innerHTML = html;
 }
@@ -2909,6 +2910,7 @@ async function dpsConnect(opt) {
       else dps.link = await dpsOpenSerial(null, true);              // PC: every serial port (was the WebUSB list, which a PC driver keeps busy)
     }
     dps.st = {};
+    diag('DPS 장치: ' + dps.link.kind + ' VID ' + (dps.link.vid === undefined ? '?' : dps.link.vid.toString(16).padStart(4, '0')) + ' PID ' + (dps.link.pid === undefined ? '?' : dps.link.pid.toString(16).padStart(4, '0')));
     await dpsSend(0xC1, 0, [1]);                  // start session
     await dpsSend(0xB0, 0, [5]);                  // 115200 baud
     await dpsGet(DPS_MODEL);
@@ -2918,7 +2920,7 @@ async function dpsConnect(opt) {
     dpsConnecting = false;
     setTimeout(() => { if (dps.link && dps.st.t && !dps.st.on && !cl.run && !cl.busy) dpsUnguard(); }, 1500);   // limits left over from a stopped app
     setTimeout(() => { if (dps.link && dps.st.t && dps.link.vid !== undefined) { try { localStorage.setItem('dpsDev', JSON.stringify({ vid: dps.link.vid, pid: dps.link.pid })); } catch (e) {} } }, 2500);   // it answered: remember it for reconnecting
-    setTimeout(() => { if (dps.link && !dps.st.t) dpsMsg('<b style="color:#ff6b6b">연결은 됐는데 응답이 없습니다.</b>' + DPS_HELP); }, 2500);
+    setTimeout(() => { if (dps.link && !dps.st.t) { if (dpsBuf.length) diag('DPS 받은 바이트(해석 안 됨): ' + Array.from(dpsBuf.slice(0, 48), x => x.toString(16).padStart(2, '0')).join(' ')); dpsMsg('<b style="color:#ff6b6b">연결은 됐는데 응답이 없습니다.</b>' + DPS_HELP); } }, 2500);
     if ($('psuMsg')) $('psuMsg').textContent = '';
     dpsRender();
   } catch (e) {
