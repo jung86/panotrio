@@ -1632,7 +1632,13 @@ var nickSyncFor = nickSyncFor || '';
 // the update, or on this phone), send it once per connection-and-name.
 function nickSync(kv) {
   if (kv.BN !== '1' || kv.ACT !== '1' || kv.UNL === '0' || !kv.ID) return;
-  const n = nickGet(kv.ID);
+  let n = nickGet(kv.ID);
+  if (!n && kv.BNM) { nickSet(kv.ID, kv.BNM); nickLabels(); return; }   // the stick already has a name: show it here too
+  if (!n) {                                          // admin phone: use the name from 「허락한 사람」 so the Bluetooth list shows it
+    const p = typeof pplLoad === 'function' && pplLoad(), e = p && p[String(kv.ID).toUpperCase()];
+    n = nickFit(e && e.name);
+    if (n) { nickSet(kv.ID, n); setTimeout(nickLabels, 0); }
+  }
   if (!n || n === (kv.BNM || '')) return;
   const k = kv.ID + '|' + n; if (nickSyncFor === k) return;
   nickSyncFor = k; setTimeout(() => nickToStick(n), 700);
@@ -1987,7 +1993,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-28c';
+const APP_BUILD = '2026-11-28d';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
