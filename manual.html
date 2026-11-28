@@ -63,7 +63,7 @@
 </div></div>
 <main>
   <div class="toc">
-    <a class="key" href="#s-install">★ 최초 설치</a><a href="#s-start">앱 열기·활성화</a><a href="#s-setup">준비·연결</a><a class="key" href="#s-rule">★ 작동 기준</a><a href="#s-home">홈 화면</a>
+    <a class="key" href="#s-install">★ 최초 설치</a><a href="#s-start">앱 열기·활성화</a><a href="#s-setup">준비·연결</a><a href="#s-btn">스틱 버튼</a><a class="key" href="#s-rule">★ 작동 기준</a><a href="#s-home">홈 화면</a>
     <a href="#s-measure">파노측정</a><a href="#s-psu">전원공급기</a><a href="#s-cond">컨디션 점수</a><a href="#s-rec">기록</a><a href="#s-clean">모터클리닝</a>
     <a href="#s-break">모터길들이기</a><a href="#s-set">설정</a><a href="#s-up">업데이트</a><a href="#s-ios">아이폰</a><a href="#s-faq">문제 해결</a><a href="#s-report">오류·문의</a><a class="key" href="#s-video">🎬 영상</a>
   </div>
@@ -166,6 +166,35 @@
       <li>스틱을 켜고 앱의 <b>[스틱 연결 (블루투스)]</b> → <b>파노체크-XXXXXXXX</b>(이름을 정했으면 <b>파노체크-이름</b>)를 고릅니다. 한 번 연결해 두면 다음부터는 <b>앱을 열 때 저절로</b> 붙습니다 (브라우저가 지원할 때. 안 붙으면 버튼을 누르세요).</li>
       <li>(선택) 전원공급기는 휴대폰 USB-C ↔ DPS-150 <b>Micro USB</b>(DPS100은 PC COMM 단자) 데이터선으로 잇고, 파노측정 화면의 <b>⚡ [연결]</b>을 누릅니다.</li>
     </ol>
+    <h3 id="s-btn">🕹 스틱 버튼</h3>
+    <svg class="dia" viewBox="0 0 360 150" role="img" aria-label="스틱 버튼 위치" style="max-width:380px;margin:10px auto 4px">
+      <rect x="110" y="20" width="140" height="110" rx="14" fill="#e8590c"/>
+      <rect x="124" y="32" width="112" height="62" rx="6" fill="#111"/>
+      <text x="180" y="70" fill="#51cf66" font-size="20" font-weight="800" text-anchor="middle">338.2</text>
+      <rect x="160" y="102" width="40" height="18" rx="5" fill="#f1f1f1"/>
+      <text x="180" y="116" fill="#111" font-size="13" font-weight="800" text-anchor="middle">A</text>
+      <rect x="250" y="50" width="10" height="34" rx="3" fill="#f1f1f1"/>
+      <text x="268" y="72" fill="#e8ebf1" font-size="14" font-weight="700">B (옆)</text>
+      <rect x="100" y="50" width="10" height="34" rx="3" fill="#9aa3b5"/>
+      <text x="92" y="66" fill="#e8ebf1" font-size="14" font-weight="700" text-anchor="end">전원</text>
+      <text x="92" y="84" fill="#9aa3b5" font-size="12" text-anchor="end">(반대쪽 옆면)</text>
+      <text x="180" y="146" fill="#9aa3b5" font-size="13" text-anchor="middle">A = 화면 아래 앞 버튼</text>
+    </svg>
+    <table>
+      <tr><th>버튼</th><th>하는 일</th></tr>
+      <tr><td style="white-space:nowrap"><b>전원</b> 한 번</td><td>스틱 켜기 (S3·Plus2 같음)</td></tr>
+      <tr><td style="white-space:nowrap"><b>A</b> 짧게</td><td>모드 바꾸기: 진동 → 소리 → 진동+소리</td></tr>
+      <tr><td style="white-space:nowrap"><b>B</b> 짧게</td><td>범위 바꾸기: AUTO → LOW → WIDE</td></tr>
+      <tr><td style="white-space:nowrap"><b>B</b> 1초 길게</td><td>화면 위아래 돌리기 (스틱을 거꾸로 물렸을 때)</td></tr>
+      <tr><td style="white-space:nowrap"><b>A</b> 3초 길게</td><td><b>스틱 끄기</b>. 펌웨어 3.1부터 누르고 있는 동안 화면에 <b>HOLD: POWER OFF 2.4s</b>처럼 남은 시간이 나옵니다. 중간에 떼면 안 꺼집니다</td></tr>
+      <tr><td style="white-space:nowrap"><b>A + B</b> 함께 3초</td><td>블루투스 잠금 풀기 (화면에 BT LOCK REMOVED)</td></tr>
+    </table>
+    <ul>
+      <li>화면이 어두워져(대기) 있을 때 <b>처음 누른 한 번은 화면만 켭니다</b>. 모드·범위는 바뀌지 않습니다. 스틱에 점수가 크게 떠 있을 때도 한 번 누르면 점수만 닫힙니다.</li>
+      <li>앱에서 끄기: 펌웨어 3.1 스틱이면 앱 <b>설정 → 자동 꺼짐</b> 아래 <b>[스틱 지금 끄기]</b>로도 끌 수 있습니다 (확인 창이 한 번 나옵니다).</li>
+      <li>USB에 꽂혀 있으면 A 3초나 [스틱 지금 끄기]를 해도 전원이 계속 들어와 꺼지지 않을 수 있습니다.</li>
+      <li>활성화 전(화면에 ID만 나올 때)에는 B 1초(화면 돌리기)와 A 3초(끄기)만 됩니다.</li>
+    </ul>
   </section>
   <!-- ===================================================== rule -->
   <section id="s-rule" class="key">
@@ -411,7 +440,7 @@
       <tr><td><b>측정 대기 시간</b></td><td><b>2.5초</b></td><td>진동 인식 뒤 기다리는 시간 (0~5초)</td></tr>
       <tr><td>빨간 숫자 기준</td><td>550 Hz</td><td>넘으면 숫자가 빨갛게</td></tr>
       <tr><td>대기 모드 진입</td><td>30초</td><td>모터가 없으면 대기 화면으로</td></tr>
-      <tr><td>자동 꺼짐</td><td>10분</td><td>배터리일 때 꺼짐. 앱이 연결돼 있어도 20분 동안 안 쓰면 꺼짐 (펌웨어 3.0). USB에 꽂혀 있으면 안 꺼짐</td></tr>
+      <tr><td>자동 꺼짐</td><td>10분</td><td>배터리일 때 꺼짐. 앱이 연결돼 있어도 20분 동안 안 쓰면 꺼짐 (펌웨어 3.0). USB에 꽂혀 있으면 안 꺼짐. 바로 끄려면 아래 <b>[스틱 지금 끄기]</b>(펌웨어 3.1) 또는 스틱 A 버튼 3초 (→ <a href="#s-btn" style="color:var(--blue)">스틱 버튼</a>)</td></tr>
       <tr><td>대기 중 절전</td><td>켜짐</td><td>모터가 없을 때 마이크를 끄고 진동 센서를 천천히 읽어 배터리를 아낌. 모터가 돌면 바로 다시 켜짐</td></tr>
     </table>
     <img class="shot half" src="manual/set-name.jpg" alt="스틱 이름 설정" loading="lazy">
