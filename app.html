@@ -1533,7 +1533,8 @@ function usbInstallOpen(why) {
   tryKnown();
 }
 // Plus2 on firmware 2.9 or older restarts every few seconds, so a Bluetooth update cannot finish: use the cable.
-function fwNeedsCable() { return stickHw === 'P2' && stickVer && verNum(stickVer) <= 2009; }
+// Plus2 before 3.2 also restarts during a Bluetooth update (task watchdog, near 12 %): cable once, then Bluetooth works.
+function fwNeedsCable() { return stickHw === 'P2' && stickVer && verNum(stickVer) < 3002 && !(fwLatest && verNum(fwLatest.ver) < 3002); }
 
 // 최초 설치 · 업데이트: first install over USB (Android phone or PC) and Bluetooth update in one place
 $('tileFw').onclick = async () => {
@@ -1545,7 +1546,7 @@ $('tileFw').onclick = async () => {
   let bt;
   if (!linked) bt = `<div style="color:#c9d1dc">스틱을 먼저 블루투스로 연결하세요. 연결하면 버전을 확인합니다.</div><button id="fmConn" class="primary" style="margin-top:10px;width:100%">스틱 연결 (블루투스)</button>`;
   else if (!fwNewer()) bt = `<div style="color:var(--ink);font-weight:700">최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
-  else if (fwNeedsCable()) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b><br>이 Plus2 버전은 블루투스 업데이트 중에 다시 켜져서 끊겨요. 아래 <b>케이블로 설치</b>를 한 번 해 주세요.</div>`;
+  else if (fwNeedsCable()) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b><br>이 Plus2 버전(3.2 전)은 블루투스 업데이트 중에 다시 켜져서 끊겨요. 아래 <b>케이블로 설치</b>를 한 번 해 주세요. 그다음부터는 블루투스로 돼요.</div>`;
   else if (stickOta && otaChar) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b>${fwLatest.note ? '<br><span style="color:var(--mute);font-size:14px">' + esc(fwLatest.note) + '</span>' : ''}</div><button id="fmUp" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>`;
   else bt = `<div>스틱 ${esc(stickVer)}은 블루투스 업데이트가 안 되는 버전입니다. 아래 <b>USB 설치</b>를 한 번 해 주세요.</div>`;
   const usb = ios
@@ -1983,7 +1984,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-28a';
+const APP_BUILD = '2026-11-28b';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
