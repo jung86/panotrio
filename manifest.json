@@ -1,6 +1,6 @@
 {
   "name": "파노체크",
-  "version": "3.1",
+  "version": "3.2",
   "new_install_prompt_erase": false,
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -8,19 +8,19 @@
       "chipFamily": "ESP32-S3",
       "parts": [
         {
-          "path": "install/bootloader-3.1.bin",
+          "path": "install/bootloader-3.2.bin",
           "offset": 0
         },
         {
-          "path": "install/partitions-3.1.bin",
+          "path": "install/partitions-3.2.bin",
           "offset": 32768
         },
         {
-          "path": "install/otadata-3.1.bin",
+          "path": "install/otadata-3.2.bin",
           "offset": 57344
         },
         {
-          "path": "fw/PanoCheck-3.1.app.bin",
+          "path": "fw/PanoCheck-3.2.app.bin",
           "offset": 65536
         }
       ]
@@ -29,19 +29,19 @@
       "chipFamily": "ESP32",
       "parts": [
         {
-          "path": "install/p2/bootloader-3.1.bin",
+          "path": "install/p2/bootloader-3.2.bin",
           "offset": 4096
         },
         {
-          "path": "install/p2/partitions-3.1.bin",
+          "path": "install/p2/partitions-3.2.bin",
           "offset": 32768
         },
         {
-          "path": "install/p2/otadata-3.1.bin",
+          "path": "install/p2/otadata-3.2.bin",
           "offset": 57344
         },
         {
-          "path": "fw/PanoCheck-P2-3.1.app.bin",
+          "path": "fw/PanoCheck-P2-3.2.app.bin",
           "offset": 65536
         }
       ]

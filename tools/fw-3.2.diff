@@ -1,0 +1,58 @@
+--- build-3.1/PanoTrio/PanoTrio.ino	2026-11-27 23:30:05.243993500 +0900
++++ build-3.2/PanoTrio/PanoTrio.ino	2026-11-28 17:01:17.885354000 +0900
+@@ -43,7 +43,7 @@
+ 
+ 
+ static const char* const APP_NAME = "PanoCheck";
+-static const char* const APP_VER  = "3.1";
++static const char* const APP_VER  = "3.2";
+ 
+ enum PanoMode  : uint8_t { MODE_VIB = 0, MODE_MIC = 1, MODE_BOTH = 2 };
+ enum PanoRange : uint8_t { RANGE_AUTO = 0, RANGE_LOW = 1, RANGE_WIDE = 2 };
+@@ -352,11 +352,22 @@
+ }
+ #endif
+ 
++static std::atomic<uint32_t> imuLate{ 0 }, imuMaxUs{ 0 };   // diagnostics (serial ID)
+ static void imuTask(void*) {
++  // Never runs back to back: a late read (Bluetooth busy on core 0, bigger FIFO, longer I2C read) used to make
++  // vTaskDelayUntil return at once every time, so the idle task never ran and the task watchdog restarted the
++  // stick (Plus2: RST=6 every 10-20 s). When late, wait one tick anyway and start the period again from now.
+   TickType_t last = xTaskGetTickCount();
+   for (;;) {
+-    vTaskDelayUntil(&last, pdMS_TO_TICKS(gImuIdle.load(std::memory_order_relaxed) ? IMU_IDLE_MS : 10));
++    const TickType_t period = pdMS_TO_TICKS(gImuIdle.load(std::memory_order_relaxed) ? IMU_IDLE_MS : 10);
++    const TickType_t now = xTaskGetTickCount();
++    if ((TickType_t)(now - last) >= period) { imuLate++; vTaskDelay(1); last = xTaskGetTickCount(); }
++    else vTaskDelayUntil(&last, period);
++    if (ota::busy()) { vTaskDelay(pdMS_TO_TICKS(50)); last = xTaskGetTickCount(); continue; }   // firmware update: leave core 0 to Bluetooth (the FIFO overruns and starts fresh after)
++    const int64_t t0 = esp_timer_get_time();
+     imuService();
++    const uint32_t us = (uint32_t)(esp_timer_get_time() - t0);
++    if (us > imuMaxUs.load()) imuMaxUs.store(us);
+   }
+ }
+ 
+@@ -1635,9 +1646,9 @@
+     int c = Serial.read();
+     if (c == '\r' || c == '\n') {
+       line[n] = 0;
+-      if (n > 0 && strcmp(line, "ID") == 0 && Serial) Serial.printf("ID %s %s %s activated=%d mic=%lu(%d) imu=%lu ov=%lu err=%lu slow=%d\n", gDevId, APP_NAME, APP_VER, (int)gActivated,
++      if (n > 0 && strcmp(line, "ID") == 0 && Serial) Serial.printf("ID %s %s %s activated=%d mic=%lu(%d) imu=%lu ov=%lu err=%lu slow=%d late=%lu maxus=%lu\n", gDevId, APP_NAME, APP_VER, (int)gActivated,
+                                                                  (unsigned long)micHead.load(), (int)micOn.load(), (unsigned long)accHead.load(),
+-                                                                 (unsigned long)imuOverruns.load(), (unsigned long)imuErrors.load(), (int)gSlow);
++                                                                 (unsigned long)imuOverruns.load(), (unsigned long)imuErrors.load(), (int)gSlow, (unsigned long)imuLate.load(), (unsigned long)imuMaxUs.load());
+       else if (strncmp(line, "ACT ", 4) == 0) tryActivateText(line + 4);
+       else if (strncmp(line, "DIR ", 4) == 0) { if (gActivated) applyDir(numAtoi(line + 4) != 0); }
+       else if (strncmp(line, "NAME", 4) == 0 && (line[4] == 0 || line[4] == ' ') && !gNamePending.load()) {   // NAME [text]: Bluetooth name like 'N'
+@@ -1806,6 +1817,10 @@
+   M5.Speaker.end();
+   micOk = micSetup();
+   if (micOk) xTaskCreatePinnedToCore(micTask, "mic", 4096, nullptr, 2, nullptr, 1);
++#if PANO_P2
++  gBattMv = p2BattMv();
++  gBatt = p2BattLevel(gBattMv);
++#endif
+   bleSetup();
+   if (Serial) Serial.printf("ID %s\n", gDevId);
+   if (Serial) Serial.printf("%s %s  imu=%d(0x%02X) mic=%d psram=%d heap=%lu\n", APP_NAME, APP_VER, (int)imuOk, imuAddr, (int)micOk,
