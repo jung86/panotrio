@@ -895,7 +895,7 @@ const $ = id => document.getElementById(id);
 
 let device = null, cmdChar = null, cur = null, statusText = '';
 var connGen = 0, otaChar = null, stickVer = '', stickOta = false, fwLatest = null, fwBusy = false, fwAsked = '';
-var stickHw = '', fwLatestUrl = '';                  // stick model from INFO HW= ('' = M5StickS3, 'P2' = M5StickC Plus2)
+var stickHw = '', fwLatestUrl = '', stickHwOk = false;                  // stick model from INFO HW= ('' = M5StickS3, 'P2' = M5StickC Plus2)
 // 모터클리닝 / DPS-150 (or DPS100) state (used by the views before their code further down runs)
 const dps = { link: null, st: {}, wq: Promise.resolve(), poll: 0 };
 const cl = { mode: 'clean', phase: '', hist: [], vSending: false, run: false, busy: false, timer: 0, set: null, k: 0, dir: 0, cycleT0: 0, t0: 0, lastV: -1, wake: null, needRelay: false };
@@ -1089,8 +1089,8 @@ async function openGatt() {
   try { otaChar = await svc.getCharacteristic(OTA); } catch (e) {}           // firmware 2.0 and newer
   connGen++;
   sendTime();
-  $('conn').textContent = shortName() + batText(); $('conn').className = 'conn on';
-  notify(stickName() + ' 연결됨', true);
+  $('conn').textContent = shortName() + hwTag() + batText(); $('conn').className = 'conn on';
+  notify(stickName() + hwTag() + ' 연결됨', true);
   $('connectBox').style.display = 'none'; renderHome();
   $('btnSave').disabled = false;
   stickRemember(device.id);                                                 // for connecting by itself next time
@@ -1104,7 +1104,7 @@ async function sendTime() {                          // the stick's standby cloc
 async function onDisconnected() {
   $('conn').textContent = '연결 끊김 - 다시 연결 중…'; $('conn').className = 'conn'; $('conn').style.color = ''; stickBat = null;
   if (!lcParked && !lcClosed) notify('블루투스 연결 끊김', false); else $('conn').textContent = '쉬는 중 · 앱으로 돌아오면 다시 연결';
-  cmdChar = null; infoChar = null; nickSyncFor = ''; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
+  cmdChar = null; infoChar = null; stickHwOk = false; nickSyncFor = ''; otaChar = null; stickVer = ''; fwRender(); stickSet = null; stickLock = null; unlockTried = false; actSentFor = ''; rvkSentFor = ''; stickDir = null; stickRly = null; stickCnd = false; cleanOnStickLost(); $('btnSave').disabled = true; renderSettings(); renderHome();
   if (IOS && document.visibilityState !== 'visible') notify('화면이 꺼지거나 다른 앱으로 가면 아이폰이 블루투스를 끊습니다 · 돌아오면 다시 연결됩니다', false);
   reconnect();
 }
@@ -1654,9 +1654,12 @@ function renderNick() {
   if (!ok) $('nickMsg').textContent = '활성화된 스틱만 이름을 바꿀 수 있어요.';
 }
 function nickLabels() {
-  if (cmdChar) $('conn').textContent = shortName() + batText();
+  if (cmdChar) $('conn').textContent = shortName() + hwTag() + batText();
   renderHome();
 }
+// Model tag shown next to the stick name once INFO arrived (no HW= means M5StickS3).
+function hwName() { return stickHwOk ? (stickHw === 'P2' ? 'Plus2' : 'S3') : ''; }
+function hwTag() { const h = hwName(); return h ? ' · ' + h : ''; }
 function batText() {
   if (!stickBat || stickBat.pct < 0) return '';
   return ' · ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '');
@@ -1666,14 +1669,14 @@ function onBattery(pct, usb) {
   if (usb || pct > 25) batWarned = 100;
   else if (pct <= 10 && batWarned > 10) { batWarned = 10; notify('스틱 배터리 ' + pct + '% · 곧 꺼집니다', false); }
   else if (pct <= 20 && batWarned > 20) { batWarned = 20; notify('스틱 배터리 ' + pct + '% 남았습니다', false); }
-  if (cmdChar) { $('conn').textContent = shortName() + batText(); }
+  if (cmdChar) { $('conn').textContent = shortName() + hwTag() + batText(); }
   const low = stickBat && !stickBat.usb && stickBat.pct >= 0 && stickBat.pct <= 20;
   $('conn').style.color = low ? '#ff6b6b' : '';
   renderHome();
 }
 function renderHome() {
   const on = !!cmdChar;
-  $('homeConn').textContent = on ? stickName() + (actState && !actState.act ? ' · 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
+  $('homeConn').textContent = on ? stickName() + hwTag() + (actState && !actState.act ? ' · 활성화 필요' : ' 연결됨' + batText()) : '스틱 연결 안 됨';
   $('homeConn').className = on ? 'pill on' : 'pill';
   try { renderNick(); } catch (e) {}
   $('btnConnect2').style.display = on ? 'none' : '';
@@ -1984,7 +1987,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-28b';
+const APP_BUILD = '2026-11-28c';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2177,7 +2180,7 @@ function stickDiag(kv) {
 }
 function errState() {
   const L = [];
-  try { L.push('스틱: ' + (typeof cmdChar !== 'undefined' && cmdChar ? '연결됨 ' + ((device && device.name) || '') + (stickBat && stickBat.pct >= 0 ? ' · 배터리 ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '') : '') : '연결 안 됨')); } catch (e) {}
+  try { L.push('스틱: ' + (typeof cmdChar !== 'undefined' && cmdChar ? '연결됨 ' + ((device && device.name) || '') + (typeof hwTag === 'function' ? hwTag() : '') + (stickBat && stickBat.pct >= 0 ? ' · 배터리 ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '') : '') : '연결 안 됨')); } catch (e) {}
   try { const st = dps.st || {}; L.push('전원공급기: ' + (dps.link ? dpsName() + ' · ' + (st.on ? '출력 ON' : '출력 OFF') + (st.t ? ' · ' + (+st.v || 0).toFixed(2) + ' V ' + (+st.i || 0).toFixed(3) + ' A' : '') + (st.prot ? ' · ' + st.prot : '') : '연결 안 됨')); } catch (e) {}
   try { if (cur) L.push('지금 측정: ' + (+cur.big || 0).toFixed(1) + ' Hz · 모드 ' + cur.mode); } catch (e) {}
   try { const r = recs && recs[0]; if (r) L.push('마지막 기록: ' + new Date(r.t).toLocaleString('ko-KR') + ' · ' + r.big + ' Hz' + (r.volt ? ' · ' + r.volt + ' V ' + r.amp + ' A' : '') + (r.cond !== undefined ? ' · ' + r.cond + '점' : '') + (r.condBad ? ' · 불안정' : '')); } catch (e) {}
@@ -2299,14 +2302,14 @@ function onInfo(dv, whole) {
   const kv = {}; txt.split(';').forEach(p => { const [k, v] = p.split('='); if (k) kv[k] = v || ''; });
   const parsed = kv.BR !== undefined ? { br: +kv.BR, vm: +kv.VM, wt: +kv.WT, hot: +kv.HOT, mic: +kv.MIC, dim: kv.DIM !== undefined ? +kv.DIM : null, off: kv.OFF !== undefined ? +kv.OFF : null, ps: kv.PS !== undefined ? +kv.PS : null, sb: kv.SB !== undefined ? +kv.SB : null, ck: kv.CK !== undefined ? +kv.CK : null, c12: kv.C12 !== undefined ? +kv.C12 : null, cb: kv.CB !== undefined ? +kv.CB : null, cbr: kv.CBR !== undefined ? +kv.CBR : null } : null;
   stickSet = parsed;
-  stickHw = kv.HW || '';
+  stickHw = kv.HW || ''; stickHwOk = true;
   p2NoSlow(kv);
   stickDiag(kv);
   stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo(kv.ID || (device && device.id) || '');
   $('infoId').textContent = kv.ID ? kv.ID.slice(0, 4) + '-' + kv.ID.slice(4) : '---- ----';
-  $('infoTxt').innerHTML = `${esc(stickName())}${stickHw === 'P2' ? ' (M5StickC Plus2)' : ''} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
+  $('infoTxt').innerHTML = `${esc(stickName())}${stickHw === 'P2' ? ' (M5StickC Plus2)' : ' (M5StickS3)'} · 펌웨어 ${esc(kv.VER || '-')} · 앱 ${APP_BUILD}`;
   renderSettings();
   devId = kv.ID || '';
   onActivation(kv);
@@ -3290,7 +3293,7 @@ function cleanRenderBtns() {
 }
 function cleanRender() {
   const on = !!cmdChar;
-  $('cleanStick').textContent = on ? shortName() + (stickDir === null ? '' : stickDir ? ' · 역' : ' · 정') : '스틱 연결 안 됨';
+  $('cleanStick').textContent = on ? shortName() + hwTag() + (stickDir === null ? '' : stickDir ? ' · 역' : ' · 정') : '스틱 연결 안 됨';
   $('cleanStick').className = 'conn' + (on ? ' on' : '');
   $('cHz').textContent = cur && on && cur.big > 0 ? cur.big.toFixed(1) + ' Hz' : '---';
   if (stickRly !== null && document.activeElement !== $('cRly')) $('cRly').value = stickRly ? '1' : '0';
