@@ -1993,7 +1993,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-28d';
+const APP_BUILD = '2026-11-28e';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2802,7 +2802,7 @@ async function dpsOpenSerial(known, any) {
   };
 }
 async function dpsOpenUsb(known, any) {             // minimal USB CDC-ACM driver (Android)
-  const dev = known || await navigator.usb.requestDevice({ filters: any ? [...DPS_VIDS.map(v => ({ vendorId: v })), { classCode: 2 }, { classCode: 10 }] : DPS_VIDS.map(v => ({ vendorId: v })) });   // 0x2e3c: Artery (DPS-150's chip)
+  const dev = known || await navigator.usb.requestDevice({ filters: any ? [] : DPS_VIDS.map(v => ({ vendorId: v })) });   // 0x2e3c: Artery (DPS-150's chip); second list: every USB device
   if (dev.opened) { try { await dev.close(); } catch (e) {} }
   await dev.open();
   if (!dev.configuration) await dev.selectConfiguration(1);
@@ -2812,7 +2812,12 @@ async function dpsOpenUsb(known, any) {             // minimal USB CDC-ACM drive
     if (a.interfaceClass === 2 && ctrl === null) ctrl = itf.interfaceNumber;
     if (a.interfaceClass === 10 && !data) data = itf;
   }
-  if (!data) throw new Error('USB 시리얼 장치가 아닙니다');
+  if (!data) {                                       // not a USB serial device (for example a HID-only supply such as ALIENTEK DP100)
+    const ids = 'VID ' + dev.vendorId.toString(16).padStart(4, '0') + ' PID ' + dev.productId.toString(16).padStart(4, '0') + (dev.productName ? ' ' + dev.productName : '');
+    const cls = dev.configuration.interfaces.map(i => i.alternates[0].interfaceClass);
+    try { await dev.close(); } catch (e) {}
+    const er = new Error('USB 시리얼 장치가 아닙니다 (' + ids + ', class ' + cls.join('/') + ')'); er.name = cls.includes(3) ? 'HidDev' : 'NotSerial'; throw er;
+  }
   if (ctrl !== null) { try { await dev.claimInterface(ctrl); } catch (e) {} }
   await dev.claimInterface(data.interfaceNumber);
   const eps = data.alternates[0].endpoints;
@@ -2872,6 +2877,9 @@ async function dpsKnown(useUsb) {
   } catch (e) { return null; }
 }
 const DPS_HELP = '<br>· 데이터선인지 (충전 전용 선은 안 됨)<br>· 전원공급기(DPS-150 / DPS100) 전원이 켜져 있는지<br>· 선을 뽑았다 다시 꽂고 [연결]';
+// Two lists were empty: the phone sees no USB serial device at all. ALIENTEK DP100 (often called "DP100") is a different
+// maker's supply that talks USB HID, which Android Chrome cannot use (Chrome hides HID-only devices, no WebHID on phones).
+const DPS_HELP2 = '<br><br>지원: <b>FNIRSI DPS-150</b> (DPS100은 같은 방식일 때만).<br>ALIENTEK <b>DP100</b>(알리엔텍) 등 다른 회사 제품은 폰 브라우저에서 연결할 수 없습니다.';
 let dpsConnecting = false;
 async function dpsConnect(opt) {
   const silent = !!(opt && opt.silent);
@@ -2918,7 +2926,8 @@ async function dpsConnect(opt) {
     dpsConnecting = false;
     if (silent) { dpsMsg(''); dpsRender(); return; }
     if (e.name === 'NeedTap' || (e.name === 'SecurityError' && /gesture/i.test(e.message || ''))) { dpsMsg('<b style="color:#ffd43b">전원공급기 목록을 열려면 [연결]을 한 번 더 눌러 주세요.</b>'); dpsRender(); return; }
-    if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 전원공급기가 없습니다.</b>' + DPS_HELP);
+    if (e.name === 'NotFoundError') dpsMsg('<b style="color:#ff6b6b">장치를 고르지 않았거나 목록에 전원공급기가 없습니다.</b>' + DPS_HELP + DPS_HELP2);
+    else if (e.name === 'HidDev' || e.name === 'NotSerial') { dpsMsg('<b style="color:#ff6b6b">이 장치는 지원하는 전원공급기가 아닙니다.</b><br>' + esc(e.message) + DPS_HELP2); errAuto('전원공급기 연결 실패: ' + e.name + ': ' + e.message, e); }
     else { dpsMsg('<b style="color:#ff6b6b">연결 실패</b> (' + esc(e.name || '') + ': ' + esc(e.message || '') + ')' + DPS_HELP); errAuto('전원공급기 연결 실패: ' + (e.name || '') + ': ' + (e.message || ''), e); }
     dpsRender();
   }
