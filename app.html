@@ -1533,7 +1533,8 @@ function usbInstallOpen(why) {
   tryKnown();
 }
 // Plus2 on firmware 2.9 or older restarts every few seconds, so a Bluetooth update cannot finish: use the cable.
-function fwNeedsCable() { return stickHw === 'P2' && stickVer && verNum(stickVer) <= 2009; }
+// Plus2 before 3.2 also restarts during a Bluetooth update (task watchdog, near 12 %): cable once, then Bluetooth works.
+function fwNeedsCable() { return stickHw === 'P2' && stickVer && verNum(stickVer) < 3002 && !(fwLatest && verNum(fwLatest.ver) < 3002); }
 
 // 최초 설치 · 업데이트: first install over USB (Android phone or PC) and Bluetooth update in one place
 $('tileFw').onclick = async () => {
@@ -1545,7 +1546,7 @@ $('tileFw').onclick = async () => {
   let bt;
   if (!linked) bt = `<div style="color:#c9d1dc">스틱을 먼저 블루투스로 연결하세요. 연결하면 버전을 확인합니다.</div><button id="fmConn" class="primary" style="margin-top:10px;width:100%">스틱 연결 (블루투스)</button>`;
   else if (!fwNewer()) bt = `<div style="color:var(--ink);font-weight:700">최신 버전입니다 (스틱 ${esc(stickVer)})</div>`;
-  else if (fwNeedsCable()) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b><br>이 Plus2 버전은 블루투스 업데이트 중에 다시 켜져서 끊겨요. 아래 <b>케이블로 설치</b>를 한 번 해 주세요.</div>`;
+  else if (fwNeedsCable()) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b><br>이 Plus2 버전(3.2 전)은 블루투스 업데이트 중에 다시 켜져서 끊겨요. 아래 <b>케이블로 설치</b>를 한 번 해 주세요. 그다음부터는 블루투스로 돼요.</div>`;
   else if (stickOta && otaChar) bt = `<div>스틱 ${esc(stickVer)} → <b>${esc(latest)}</b>${fwLatest.note ? '<br><span style="color:var(--mute);font-size:14px">' + esc(fwLatest.note) + '</span>' : ''}</div><button id="fmUp" class="primary" style="margin-top:10px;width:100%">블루투스로 업데이트 (약 2~5분)</button>`;
   else bt = `<div>스틱 ${esc(stickVer)}은 블루투스 업데이트가 안 되는 버전입니다. 아래 <b>USB 설치</b>를 한 번 해 주세요.</div>`;
   const usb = ios
@@ -1986,7 +1987,7 @@ checkReqHash();
 // opening) it reads app.html's APP_BUILD from the server. A newer one is loaded right away when nothing is running:
 // within 15 s of opening / returning the stick and power supply links may be dropped (they reconnect by themselves);
 // later, only when no link is open. Never while cleaning, break-in, a condition check, a firmware update or DPS output ON.
-const APP_BUILD = '2026-11-27r';
+const APP_BUILD = '2026-11-28c';
 var lcFront = Date.now(), appNewer = '', appReloading = false;
 // ---------------------------------------------------------------- usage record (for the maker only)
 // Stick ID, app / firmware version, stick model (S3/Plus2) and phone kind go to the maker's own server
@@ -2164,6 +2165,19 @@ async function fwHintRender() {                      // no stick connected: stil
 // the last measurement and the app's recent on-screen messages. Nothing else. A failed send is ignored.
 var diagLog = [], errSentMsg = {}, errAutoN = 0;
 function diag(s) { try { diagLog.push(new Date().toTimeString().slice(0, 8) + ' ' + String(s).slice(0, 200)); if (diagLog.length > 60) diagLog.shift(); } catch (e) {} }
+// Stick restarts (Plus2 3.0+ reports why in INFO: RST = ESP32 reset reason, BD = board, BMV = battery mV).
+// The first INFO of every connection is kept (last 8) and goes into error reports; a crash / watchdog / brown-out
+// restart is reported once per app opening.
+var stickDiagLog = stickDiagLog || [], stickDiagGen = stickDiagGen === undefined ? -1 : stickDiagGen, stickDiagSent = stickDiagSent || false;
+var RST_NAME = { 1: '전원 켬', 3: '프로그램 재시작', 4: '오류로 멈춤(panic)', 5: '인터럽트 감시 타이머', 6: '작업 감시 타이머', 7: '감시 타이머', 8: '절전에서 깸', 9: '전압 부족(brown-out)' };
+function stickDiag(kv) {
+  if (connGen === stickDiagGen) return; stickDiagGen = connGen;
+  const t = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  const r = kv.RST !== undefined ? ' RST=' + kv.RST + '(' + (RST_NAME[kv.RST] || '?') + ')' : '';
+  stickDiagLog.push(t + ' ' + (kv.ID || '') + ' ' + (kv.VER || '') + (kv.HW ? ' ' + kv.HW : '') + ' BAT=' + kv.BAT + ' USB=' + kv.USB + r + (kv.BD !== undefined ? ' BD=' + kv.BD : '') + (kv.BMV !== undefined ? ' BMV=' + kv.BMV : ''));
+  if (stickDiagLog.length > 8) stickDiagLog.shift();
+  if (!stickDiagSent && /^(4|5|6|7|9)$/.test(kv.RST || '')) { stickDiagSent = true; setTimeout(() => errAuto('스틱 재시작: RST=' + kv.RST + ' ' + (RST_NAME[kv.RST] || '')), 1500); }
+}
 function errState() {
   const L = [];
   try { L.push('스틱: ' + (typeof cmdChar !== 'undefined' && cmdChar ? '연결됨 ' + ((device && device.name) || '') + (typeof hwTag === 'function' ? hwTag() : '') + (stickBat && stickBat.pct >= 0 ? ' · 배터리 ' + stickBat.pct + '%' + (stickBat.usb ? ' 충전' : '') : '') : '연결 안 됨')); } catch (e) {}
@@ -2172,6 +2186,7 @@ function errState() {
   try { const r = recs && recs[0]; if (r) L.push('마지막 기록: ' + new Date(r.t).toLocaleString('ko-KR') + ' · ' + r.big + ' Hz' + (r.volt ? ' · ' + r.volt + ' V ' + r.amp + ' A' : '') + (r.cond !== undefined ? ' · ' + r.cond + '점' : '') + (r.condBad ? ' · 불안정' : '')); } catch (e) {}
   try { L.push('화면: ' + (location.hash || '#home') + ' · 작업: ' + (cl && cl.run ? '클리닝/길들이기 실행 중' : '없음')); } catch (e) {}
   try { L.push('브라우저: ' + navigator.userAgent); } catch (e) {}
+  try { if (stickDiagLog.length) L.push('스틱 연결 기록:' + String.fromCharCode(10) + stickDiagLog.join(String.fromCharCode(10))); } catch (e) {}
   return L.join('\n');
 }
 function errSend(k, msg, detail, memo) {
@@ -2289,6 +2304,7 @@ function onInfo(dv, whole) {
   stickSet = parsed;
   stickHw = kv.HW || ''; stickHwOk = true;
   p2NoSlow(kv);
+  stickDiag(kv);
   stickLock = kv.LCK !== undefined ? { lck: kv.LCK === '1', unl: kv.UNL === '1' } : null;
   hotHz = stickSet ? (stickSet.hot || Infinity) : HOT_HZ;
   afterStickInfo(kv.ID || (device && device.id) || '');

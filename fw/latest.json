@@ -1,9 +1,9 @@
 {
- "ver": "3.1",
- "size": 1048528,
- "sha256": "d07c5faec35d8ea06d46db7dd5b31a1fb988f9fde2a625be4e4a0b1e9184b7ad",
- "sig": "WE0uVtWhZlxPTXWdITrpcvr8V5GlC0srRXKVjYYmqQezEn2Ys2O2ykeN2bMLuvM8GFZLDIcnJCsTfFyxYMOQtg",
- "bin": "fw/PanoCheck-3.1.app.bin",
- "note": "측정 시작 때 잠깐 엉뚱한 값이 나오던 것 고침(다른 속도로 다시 돌릴 때, 400 Hz 근처), 전원 끄기: A 버튼을 누르고 있으면 남은 시간 표시, 앱에서 스틱 끄기",
+ "ver": "3.2",
+ "size": 1048688,
+ "sha256": "07a36339a89547b4ab5b0b6deb9231585d98ef1b8c94e2a8e8aacbfee55c8a85",
+ "sig": "lOXCLtnOgcpAG1dUlRBQTiAfiWIch6YO-UEMqZG8ogryw1bBrxHvp9JAOD-_0UsA-TgrbMO12fpuufiBpghzHA",
+ "bin": "fw/PanoCheck-3.2.app.bin",
+ "note": "Plus2: 연결 직후나 업데이트 중 10~20초마다 다시 켜지던 것 고침(작업 감시 타이머), 켤 때 배터리 -1% 표시 고침",
  "min": "2.9"
 }
